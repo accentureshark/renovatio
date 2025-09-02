@@ -1,0 +1,11 @@
+{
+  "name": "OpenRewrite",
+  "spec": "https://modelcontextprotocol.io/specification/2025-06-18",
+  "tools": [
+    {
+      "name": "openrewrite",
+      "description": "Run OpenRewrite recipes for automated refactoring",
+      "command": "mvn -q rewrite:run"
+    }
+  ]
+}

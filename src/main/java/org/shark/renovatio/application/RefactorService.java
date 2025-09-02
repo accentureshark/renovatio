@@ -1,7 +1,7 @@
-package org.shark.renovatio.service;
+package org.shark.renovatio.application;
 
-import org.shark.renovatio.model.RefactorRequest;
-import org.shark.renovatio.model.RefactorResponse;
+import org.shark.renovatio.domain.RefactorRequest;
+import org.shark.renovatio.domain.RefactorResponse;
 import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.Recipe;
 import org.openrewrite.java.JavaParser;
