@@ -1,8 +1,8 @@
-package org.shark.renovatio.controller;
+package org.shark.renovatio.infrastructure;
 
-import org.shark.renovatio.model.RefactorRequest;
-import org.shark.renovatio.model.RefactorResponse;
-import org.shark.renovatio.service.RefactorService;
+import org.shark.renovatio.domain.RefactorRequest;
+import org.shark.renovatio.domain.RefactorResponse;
+import org.shark.renovatio.application.RefactorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 

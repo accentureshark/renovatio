@@ -1,4 +1,4 @@
-package org.shark.renovatio.model;
+package org.shark.renovatio.domain;
 
 public class RefactorResponse {
     private String refactoredCode;
