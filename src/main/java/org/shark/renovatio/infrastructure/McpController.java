@@ -36,4 +36,40 @@ public class McpController {
     public RefactorResponse runTool(@PathVariable String toolName, @RequestBody RefactorRequest request) {
         return mcpToolingService.runTool(toolName, request);
     }
+
+    @GetMapping("/initialize")
+    @Operation(summary = "Inicializa el cliente MCP")
+    public Object initialize() {
+        return new java.util.HashMap<String, Object>() {{
+            put("name", "Renovatio MCP Server");
+            put("version", "1.0");
+            put("tools", mcpToolingService.getTools());
+            put("resources", mcpToolingService.getTools());
+            put("capabilities", new java.util.HashMap<String, Object>() {{
+                put("tools", true);
+                put("resources", true);
+            }});
+            put("specUrl", "/mcp/spec");
+        }};
+    }
+
+    @GetMapping("/resources")
+    @Operation(summary = "Lista los recursos disponibles (tools)")
+    public Object listResources() {
+        return new java.util.HashMap<String, Object>() {{
+            put("resources", mcpToolingService.getTools());
+        }};
+    }
+
+    @GetMapping("/resource")
+    @Operation(summary = "Lista los recursos disponibles (tools, alias singular)")
+    public Object listResource() {
+        return listResources();
+    }
+
+    @GetMapping("")
+    @Operation(summary = "Inicializa el cliente MCP (root)")
+    public Object initializeRoot() {
+        return initialize();
+    }
 }
