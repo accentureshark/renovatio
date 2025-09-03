@@ -1,7 +1,12 @@
 package org.shark.renovatio.domain;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "Respuesta tras la refactorización")
 public class RefactorResponse {
+    @Schema(description = "Código resultante luego de aplicar la receta")
     private String refactoredCode;
+    @Schema(description = "Mensaje con el resultado de la operación")
     private String message;
 
     public RefactorResponse() {}

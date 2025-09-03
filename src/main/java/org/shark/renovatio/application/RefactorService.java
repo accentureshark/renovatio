@@ -4,8 +4,8 @@ import org.shark.renovatio.domain.RefactorRequest;
 import org.shark.renovatio.domain.RefactorResponse;
 import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.Recipe;
+import org.openrewrite.config.Environment;
 import org.openrewrite.java.JavaParser;
-import org.openrewrite.java.cleanup.RemoveUnusedImports;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -13,11 +13,10 @@ public class RefactorService {
     public RefactorResponse refactorCode(RefactorRequest request) {
         try {
             JavaParser parser = JavaParser.fromJavaVersion().build();
-            Recipe recipe;
-            if ("RemoveUnusedImports".equals(request.getRecipe())) {
-                recipe = new RemoveUnusedImports();
-            } else {
-                return new RefactorResponse(request.getSourceCode(), "Receta no soportada");
+            Environment env = Environment.builder().scanRuntimeClasspath().build();
+            Recipe recipe = env.activateRecipes(request.getRecipe());
+            if (recipe.getRecipeList().isEmpty()) {
+                return new RefactorResponse(request.getSourceCode(), "Receta no soportada: " + request.getRecipe());
             }
             var cu = parser.parse(request.getSourceCode());
             var runResult = recipe.run(cu, new InMemoryExecutionContext(Throwable::printStackTrace));
