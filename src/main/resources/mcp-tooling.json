@@ -1,10 +1,16 @@
 {
   "name": "Renovatio OpenRewrite MCP Server",
   "version": "1.0.0",
-  "spec": "2024-11-05",
+  "spec": "2025-06-18",
   "description": "Full Model Content Protocol server exposing OpenRewrite recipes and functionality as MCP tooling",
   "capabilities": {
     "tools": {
+      "listChanged": true
+    },
+    "prompts": {
+      "listChanged": true
+    },
+    "resources": {
       "listChanged": true
     }
   },
