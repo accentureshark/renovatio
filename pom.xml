@@ -29,8 +29,8 @@
         </dependency>
         <dependency>
             <groupId>org.openrewrite</groupId>
-            <artifactId>rewrite-spring</artifactId>
-            <version>8.10.0</version>
+            <artifactId>rewrite-core</artifactId>
+            <version>8.30.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

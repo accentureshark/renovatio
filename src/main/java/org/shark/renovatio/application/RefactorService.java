@@ -1,30 +1,34 @@
 package org.shark.renovatio.application;
 
-import org.shark.renovatio.domain.RefactorRequest;
-import org.shark.renovatio.domain.RefactorResponse;
 import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.Recipe;
 import org.openrewrite.java.JavaParser;
-import org.openrewrite.java.cleanup.RemoveUnusedImports;
+import org.openrewrite.SourceFile;
+import org.openrewrite.LargeSourceSet;
+import org.shark.renovatio.domain.RefactorRequest;
+import org.shark.renovatio.domain.RefactorResponse;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class RefactorService {
     public RefactorResponse refactorCode(RefactorRequest request) {
+        // Por compatibilidad, solo soporta AutoFormat
+        return refactorWithRecipe(new org.openrewrite.java.format.AutoFormat(), request);
+    }
+
+    public RefactorResponse refactorWithRecipe(Recipe recipe, RefactorRequest request) {
         try {
             JavaParser parser = JavaParser.fromJavaVersion().build();
-            Recipe recipe;
-            if ("RemoveUnusedImports".equals(request.getRecipe())) {
-                recipe = new RemoveUnusedImports();
-            } else {
-                return new RefactorResponse(request.getSourceCode(), "Receta no soportada");
-            }
-            var cu = parser.parse(request.getSourceCode());
-            var runResult = recipe.run(cu, new InMemoryExecutionContext(Throwable::printStackTrace));
-            // OpenRewrite puede devolver los resultados en runResult.getResults()
+            List<SourceFile> cus = parser.parse(request.getSourceCode()).collect(Collectors.toList());
+            LargeSourceSet lss = LargeSourceSet.from(cus);
+            LargeSourceSet refactoredSet = recipe.run(lss, new InMemoryExecutionContext(Throwable::printStackTrace));
             String refactoredCode = request.getSourceCode();
-            if (!runResult.getResults().isEmpty()) {
-                refactoredCode = runResult.getResults().get(0).getAfter().printAll();
+            List<SourceFile> refactoredFiles = refactoredSet.getSourceFiles();
+            if (!refactoredFiles.isEmpty()) {
+                refactoredCode = refactoredFiles.get(0).printAll();
             }
             return new RefactorResponse(refactoredCode, "Refactorización exitosa");
         } catch (Exception e) {

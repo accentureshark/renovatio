@@ -16,11 +16,6 @@ public class McpController {
     @Autowired
     private McpToolingService mcpToolingService;
 
-    @GetMapping("/spec")
-    public String getSpec() {
-        return mcpToolingService.getSpec();
-    }
-
     @GetMapping("/tools")
     public List<Tool> listTools() {
         return mcpToolingService.getTools();
