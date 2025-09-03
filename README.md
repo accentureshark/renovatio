@@ -10,6 +10,7 @@
 - ✅ **Documentación OpenAPI**: Interfaz Swagger UI para explorar la API
 - ✅ **Manejo de errores robusto**: Códigos de error apropiados y mensajes informativos
 - ✅ **Esquemas de herramientas**: Definiciones completas de entrada/salida para cada herramienta
+- ✅ **Prompts y Recursos MCP**: Listado y acceso a prompts y recursos del servidor
 
 ## Herramientas Disponibles
 
@@ -76,16 +77,44 @@ curl -X POST -H "Content-Type: application/json" \
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -d '{
-    "jsonrpc": "2.0", 
-    "id": "3", 
-    "method": "tools/call", 
+    "jsonrpc": "2.0",
+    "id": "3",
+    "method": "tools/call",
     "params": {
-      "name": "org.openrewrite.java.format.AutoFormat", 
+      "name": "org.openrewrite.java.format.AutoFormat",
       "arguments": {
         "sourceCode": "public class Test{private int x=0;public void test(){System.out.println(\"Hello\");}}"
       }
     }
   }' \
+  http://localhost:8080/
+```
+
+#### Listar Prompts
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": "4", "method": "prompts/list", "params": {}}' \
+  http://localhost:8080/
+```
+
+#### Obtener Prompt
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": "5", "method": "prompts/get", "params": {"name": "format-java"}}' \
+  http://localhost:8080/
+```
+
+#### Listar Recursos
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": "6", "method": "resources/list", "params": {}}' \
+  http://localhost:8080/
+```
+
+#### Leer Recurso
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": "7", "method": "resources/read", "params": {"uri": "file://welcome.txt"}}' \
   http://localhost:8080/
 ```
 
@@ -132,7 +161,7 @@ src/main/java/org/shark/renovatio/
 
 ## Especificación MCP
 
-Este servidor implementa la especificación del Protocolo de Contenido de Modelo versión `2024-11-05` y es completamente compatible con:
+Este servidor implementa la especificación del Protocolo de Contenido de Modelo versión `2025-06-18` y es completamente compatible con:
 
 - **JSON-RPC 2.0**: Protocolo de comunicación estándar
 - **Herramientas con esquemas**: Definiciones completas de entrada/salida

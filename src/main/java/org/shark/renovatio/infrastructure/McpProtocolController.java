@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -35,6 +36,14 @@ public class McpProtocolController {
                     return handleToolsList(request);
                 case "tools/call":
                     return handleToolsCall(request);
+                case "prompts/list":
+                    return handlePromptsList(request);
+                case "prompts/get":
+                    return handlePromptsGet(request);
+                case "resources/list":
+                    return handleResourcesList(request);
+                case "resources/read":
+                    return handleResourcesRead(request);
                 default:
                     return new McpResponse(request.getId(),
                         new McpError(-32601, "Method not found: " + request.getMethod()));
@@ -47,7 +56,7 @@ public class McpProtocolController {
 
     private McpResponse handleInitialize(McpRequest request) {
         Map<String, Object> result = new HashMap<>();
-        result.put("protocolVersion", "2024-11-05");
+        result.put("protocolVersion", "2025-06-18");
         result.put("capabilities", new McpCapabilities());
         result.put("serverInfo", Map.of(
             "name", "Renovatio OpenRewrite MCP Server",
@@ -91,6 +100,49 @@ public class McpProtocolController {
         
         Map<String, Object> result = new HashMap<>();
         result.put("content", response);
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handlePromptsList(McpRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("prompts", mcpToolingService.getPrompts());
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handlePromptsGet(McpRequest request) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String name = (String) params.get("name");
+        var prompt = mcpToolingService.getPrompt(name);
+        if (prompt == null) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Prompt not found: " + name));
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("prompt", prompt);
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleResourcesList(McpRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("resources", mcpToolingService.getResources());
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleResourcesRead(McpRequest request) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String uri = (String) params.get("uri");
+        var resource = mcpToolingService.getResource(uri);
+        if (resource == null) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Resource not found: " + uri));
+        }
+        Map<String, Object> content = new HashMap<>();
+        content.put("uri", resource.getUri());
+        content.put("mimeType", resource.getMimeType());
+        content.put("text", resource.getText());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("contents", List.of(content));
         return new McpResponse(request.getId(), result);
     }
 }
