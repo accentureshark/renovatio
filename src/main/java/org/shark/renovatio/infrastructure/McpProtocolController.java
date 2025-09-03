@@ -25,12 +25,18 @@ public class McpProtocolController {
             switch (request.getMethod()) {
                 case "initialize":
                     return handleInitialize(request);
+                case "ping":
+                    return handlePing(request);
+                case "restart":
+                    return handleRestart(request);
+                case "shutdown":
+                    return handleShutdown(request);
                 case "tools/list":
                     return handleToolsList(request);
                 case "tools/call":
                     return handleToolsCall(request);
                 default:
-                    return new McpResponse(request.getId(), 
+                    return new McpResponse(request.getId(),
                         new McpError(-32601, "Method not found: " + request.getMethod()));
             }
         } catch (Exception e) {
@@ -47,6 +53,22 @@ public class McpProtocolController {
             "name", "Renovatio OpenRewrite MCP Server",
             "version", "1.0.0"
         ));
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handlePing(McpRequest request) {
+        return new McpResponse(request.getId(), new HashMap<>());
+    }
+
+    private McpResponse handleRestart(McpRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("message", "Server restart requested");
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleShutdown(McpRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("message", "Server shutdown requested");
         return new McpResponse(request.getId(), result);
     }
 
