@@ -25,10 +25,34 @@ else
   echo "❌ MCP Initialize: FAILED"
 fi
 
-# Test 2: List tools
-echo "2. Testing tools list..."
+# Test 2: Ping
+echo "2. Testing MCP ping..."
+PING_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": "2", "method": "ping", "params": {}}' \
+  http://localhost:8080/)
+
+if echo "$PING_RESPONSE" | jq -e '.result' > /dev/null; then
+  echo "✅ MCP Ping: SUCCESS"
+else
+  echo "❌ MCP Ping: FAILED"
+fi
+
+# Test 3: Restart
+echo "3. Testing MCP restart..."
+RESTART_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": "3", "method": "restart", "params": {}}' \
+  http://localhost:8080/)
+
+if echo "$RESTART_RESPONSE" | jq -e '.result.message' > /dev/null; then
+  echo "✅ MCP Restart: SUCCESS"
+else
+  echo "❌ MCP Restart: FAILED"
+fi
+
+# Test 4: List tools
+echo "4. Testing tools list..."
 TOOLS_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
-  -d '{"jsonrpc": "2.0", "id": "2", "method": "tools/list", "params": {}}' \
+  -d '{"jsonrpc": "2.0", "id": "4", "method": "tools/list", "params": {}}' \
   http://localhost:8080/)
 
 TOOLS_COUNT=$(echo "$TOOLS_RESPONSE" | jq '.result.tools | length')
@@ -38,10 +62,10 @@ else
   echo "❌ Tools List: FAILED"
 fi
 
-# Test 3: Execute AutoFormat tool
-echo "3. Testing AutoFormat tool execution..."
+# Test 5: Execute AutoFormat tool
+echo "5. Testing AutoFormat tool execution..."
 FORMAT_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
-  -d '{"jsonrpc": "2.0", "id": "3", "method": "tools/call", "params": {"name": "org.openrewrite.java.format.AutoFormat", "arguments": {"sourceCode": "public class Test{private int x=0;}"}}}' \
+  -d '{"jsonrpc": "2.0", "id": "5", "method": "tools/call", "params": {"name": "org.openrewrite.java.format.AutoFormat", "arguments": {"sourceCode": "public class Test{private int x=0;}"}}}' \
   http://localhost:8080/)
 
 if echo "$FORMAT_RESPONSE" | jq -e '.result.content.text' > /dev/null; then
@@ -50,10 +74,10 @@ else
   echo "❌ AutoFormat Tool: FAILED"
 fi
 
-# Test 4: Execute ExplicitInitialization tool
-echo "4. Testing ExplicitInitialization tool execution..."
+# Test 6: Execute ExplicitInitialization tool
+echo "6. Testing ExplicitInitialization tool execution..."
 INIT_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
-  -d '{"jsonrpc": "2.0", "id": "4", "method": "tools/call", "params": {"name": "org.openrewrite.java.cleanup.ExplicitInitialization", "arguments": {"sourceCode": "public class Test { private String name = null; private int count = 0; }"}}}' \
+  -d '{"jsonrpc": "2.0", "id": "6", "method": "tools/call", "params": {"name": "org.openrewrite.java.cleanup.ExplicitInitialization", "arguments": {"sourceCode": "public class Test { private String name = null; private int count = 0; }"}}}' \
   http://localhost:8080/)
 
 if echo "$INIT_RESPONSE" | jq -e '.result.content.text' > /dev/null; then
@@ -64,8 +88,8 @@ fi
 
 echo "🔍 Testing REST API Endpoints..."
 
-# Test 5: REST API tools list
-echo "5. Testing REST API tools list..."
+# Test 7: REST API tools list
+echo "7. Testing REST API tools list..."
 REST_TOOLS=$(curl -s http://localhost:8080/mcp/tools | jq '. | length')
 if [ "$REST_TOOLS" -gt 15 ]; then
   echo "✅ REST Tools List: SUCCESS ($REST_TOOLS tools found)"
@@ -73,8 +97,8 @@ else
   echo "❌ REST Tools List: FAILED"
 fi
 
-# Test 6: REST API refactor
-echo "6. Testing REST API refactor..."
+# Test 8: REST API refactor
+echo "8. Testing REST API refactor..."
 REST_REFACTOR=$(curl -s -X POST -H "Content-Type: application/json" \
   -d '{"sourceCode": "public class Test { private String name = null; }", "recipe": "org.openrewrite.java.cleanup.ExplicitInitialization"}' \
   http://localhost:8080/api/refactor)
@@ -85,8 +109,8 @@ else
   echo "❌ REST Refactor: FAILED"
 fi
 
-# Test 7: Swagger UI accessibility
-echo "7. Testing Swagger UI..."
+# Test 9: Swagger UI accessibility
+echo "9. Testing Swagger UI..."
 SWAGGER_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/swagger-ui/index.html)
 if [ "$SWAGGER_STATUS" = "200" ]; then
   echo "✅ Swagger UI: SUCCESS"
