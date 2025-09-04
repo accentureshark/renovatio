@@ -19,6 +19,7 @@ public class McpController {
     @Autowired
     private McpToolingService mcpToolingService;
 
+
     @GetMapping("/spec")
     @Operation(summary = "Obtiene la especificación MCP")
     public String getSpec() {

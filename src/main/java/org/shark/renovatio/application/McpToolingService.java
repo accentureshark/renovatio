@@ -1,10 +1,11 @@
 package org.shark.renovatio.application;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.openrewrite.Recipe;
+import org.openrewrite.java.format.AutoFormat;
 import org.shark.renovatio.domain.RefactorRequest;
 import org.shark.renovatio.domain.RefactorResponse;
 import org.shark.renovatio.domain.Tool;
+
 import org.shark.renovatio.domain.mcp.McpPrompt;
 import org.shark.renovatio.domain.mcp.McpResource;
 import org.shark.renovatio.domain.mcp.McpTool;
@@ -144,6 +145,7 @@ public class McpToolingService {
 
     public String getSpec() {
         return spec;
+
     }
 
     public List<Tool> getTools() {
@@ -176,6 +178,7 @@ public class McpToolingService {
                 .orElse(null);
     }
 
+
     public RefactorResponse runTool(String name, RefactorRequest request) {
         request.setRecipe(name);
         return refactorService.refactorCode(request);
@@ -195,6 +198,6 @@ public class McpToolingService {
         result.put("type", "text");
         result.put("text", "Refactored Code:\n" + response.getRefactoredCode() + "\n\nMessage: " + response.getMessage());
         
-        return result;
+        
     }
 }

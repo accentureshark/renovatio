@@ -1,13 +1,13 @@
 package org.shark.renovatio.application;
 
-import org.shark.renovatio.domain.RefactorRequest;
-import org.shark.renovatio.domain.RefactorResponse;
-import org.springframework.stereotype.Service;
 
-@Service
-public class RefactorService {
-    public RefactorResponse refactorCode(RefactorRequest request) {
-        try {
+
+import org.openrewrite.InMemoryExecutionContext;
+import org.openrewrite.Recipe;
+import org.openrewrite.java.JavaParser;
+import org.openrewrite.SourceFile;
+import org.openrewrite.RecipeRun;
+import org.openrewrite.Result;
             // For now, implement basic transformations to demonstrate functionality
             // This will be enhanced with proper OpenRewrite integration later
             String refactoredCode = applyBasicRefactoring(request.getSourceCode(), request.getRecipe());
