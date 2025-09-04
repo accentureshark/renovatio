@@ -5,44 +5,199 @@ import org.openrewrite.java.format.AutoFormat;
 import org.shark.renovatio.domain.RefactorRequest;
 import org.shark.renovatio.domain.RefactorResponse;
 import org.shark.renovatio.domain.Tool;
+
+import org.shark.renovatio.domain.mcp.McpPrompt;
+import org.shark.renovatio.domain.mcp.McpResource;
+import org.shark.renovatio.domain.mcp.McpTool;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class McpToolingService {
-    private final RefactorService refactorService;
-    private final Map<String, Supplier<Recipe>> recipeSuppliers;
+    private final String spec;
     private final List<Tool> tools;
+    private final List<McpTool> mcpTools;
+    private final RefactorService refactorService;
+    private final List<McpPrompt> prompts;
+    private final List<McpResource> resources;
 
     public McpToolingService(RefactorService refactorService) {
         this.refactorService = refactorService;
-        // Definir recetas soportadas manualmente
-        this.recipeSuppliers = new LinkedHashMap<>();
-        this.recipeSuppliers.put("AutoFormat", AutoFormat::new);
-        // Puedes agregar más recetas aquí
-        this.tools = recipeSuppliers.keySet().stream()
-            .map(name -> {
-                Tool tool = new Tool();
-                tool.setName(name);
-                tool.setDescription("Receta OpenRewrite: " + name);
-                tool.setCommand(name);
-                return tool;
-            })
-            .collect(Collectors.toList());
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            var resource = new ClassPathResource("mcp-tooling.json");
+            JsonNode root = mapper.readTree(resource.getInputStream());
+            this.spec = root.path("spec").asText();
+            
+            // Create comprehensive set of OpenRewrite tools
+            this.tools = createBasicTools();
+            this.mcpTools = createMcpTools();
+            this.prompts = createPrompts();
+            this.resources = createResources();
+        } catch (IOException e) {
+            throw new RuntimeException("No se pudo leer mcp-tooling.json", e);
+        }
+    }
+
+    private List<Tool> createBasicTools() {
+        List<Tool> basicTools = new ArrayList<>();
+        
+        // Java formatting and cleanup recipes
+        addTool(basicTools, "org.openrewrite.java.format.AutoFormat", "Automatically format Java code");
+        addTool(basicTools, "org.openrewrite.java.cleanup.UnnecessaryParentheses", "Remove unnecessary parentheses");
+        addTool(basicTools, "org.openrewrite.java.cleanup.EmptyBlock", "Remove empty blocks");
+        addTool(basicTools, "org.openrewrite.java.cleanup.ExplicitInitialization", "Remove explicit initialization of variables to default values");
+        addTool(basicTools, "org.openrewrite.java.cleanup.FinalizePrivateFields", "Finalize private fields that are not reassigned");
+        
+        // Code improvement recipes
+        addTool(basicTools, "org.openrewrite.java.cleanup.BigDecimalRoundingConstantsToEnums", "Replace BigDecimal rounding constants with enums");
+        addTool(basicTools, "org.openrewrite.java.cleanup.BooleanChecksNotInverted", "Replace inverted boolean checks");
+        addTool(basicTools, "org.openrewrite.java.cleanup.CaseInsensitiveComparisonsDoNotChangeCase", "Use case-insensitive comparison methods");
+        addTool(basicTools, "org.openrewrite.java.cleanup.ChainStringBuilderAppendCalls", "Chain StringBuilder append calls");
+        addTool(basicTools, "org.openrewrite.java.cleanup.CovariantEquals", "Use covariant equals");
+        
+        // Migration recipes
+        addTool(basicTools, "org.openrewrite.java.migrate.Java8toJava11", "Migrate from Java 8 to Java 11");
+        addTool(basicTools, "org.openrewrite.java.migrate.JavaVersion11", "Upgrade to Java 11");
+        addTool(basicTools, "org.openrewrite.java.migrate.JavaVersion17", "Upgrade to Java 17");
+        addTool(basicTools, "org.openrewrite.java.migrate.JavaVersion21", "Upgrade to Java 21");
+        
+        // Security recipes
+        addTool(basicTools, "org.openrewrite.java.security.FindJdbcUrl", "Find JDBC URLs");
+        addTool(basicTools, "org.openrewrite.java.security.FindSqlInjection", "Find potential SQL injection vulnerabilities");
+        addTool(basicTools, "org.openrewrite.java.security.SecureRandomPrefersDefaultSeed", "Use SecureRandom with default seed");
+        
+        return basicTools;
+    }
+    
+    private List<McpTool> createMcpTools() {
+        List<McpTool> mcpTools = new ArrayList<>();
+        
+        for (Tool tool : tools) {
+            Map<String, Object> inputSchema = createInputSchema();
+            McpTool mcpTool = new McpTool(tool.getName(), tool.getDescription(), inputSchema);
+            mcpTools.add(mcpTool);
+        }
+        
+        return mcpTools;
+    }
+
+    private List<McpPrompt> createPrompts() {
+        List<McpPrompt> prompts = new ArrayList<>();
+
+        List<McpPrompt.Message> formatMessages = new ArrayList<>();
+        formatMessages.add(new McpPrompt.Message("user", "Provide Java code to format"));
+        formatMessages.add(new McpPrompt.Message("assistant", "Here is the formatted code"));
+        prompts.add(new McpPrompt("format-java", "Sample prompt for formatting Java code", formatMessages));
+
+        List<McpPrompt.Message> migrateMessages = new ArrayList<>();
+        migrateMessages.add(new McpPrompt.Message("user", "Upgrade this project to Java 17"));
+        migrateMessages.add(new McpPrompt.Message("assistant", "The project has been updated to Java 17"));
+        prompts.add(new McpPrompt("migrate-java17", "Prompt for migrating code to Java 17", migrateMessages));
+
+        return prompts;
+    }
+
+    private List<McpResource> createResources() {
+        List<McpResource> resources = new ArrayList<>();
+        resources.add(new McpResource("file://welcome.txt", "Welcome", "text/plain",
+                "Welcome to the Renovatio MCP server"));
+        resources.add(new McpResource("file://usage.txt", "Usage", "text/plain",
+                "Use tools, prompts and resources via MCP methods"));
+        return resources;
+    }
+    
+    private Map<String, Object> createInputSchema() {
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("type", "object");
+        
+        Map<String, Object> properties = new HashMap<>();
+        
+        Map<String, Object> sourceCodeProperty = new HashMap<>();
+        sourceCodeProperty.put("type", "string");
+        sourceCodeProperty.put("description", "Java source code to refactor");
+        properties.put("sourceCode", sourceCodeProperty);
+        
+        Map<String, Object> projectPathProperty = new HashMap<>();
+        projectPathProperty.put("type", "string");
+        projectPathProperty.put("description", "Path to the project (optional)");
+        properties.put("projectPath", projectPathProperty);
+        
+        schema.put("properties", properties);
+        schema.put("required", List.of("sourceCode"));
+        
+        return schema;
+    }
+    
+    private void addTool(List<Tool> tools, String name, String description) {
+        Tool tool = new Tool();
+        tool.setName(name);
+        tool.setDescription(description);
+        tool.setCommand("openrewrite");
+        tools.add(tool);
+    }
+
+    public String getSpec() {
+        return spec;
+
     }
 
     public List<Tool> getTools() {
         return tools;
     }
+    
+    public List<McpTool> getMcpTools() {
+        return mcpTools;
+    }
 
-    public RefactorResponse runTool(String recipeName, RefactorRequest request) {
-        Supplier<Recipe> supplier = recipeSuppliers.get(recipeName);
-        if (supplier == null) {
-            return new RefactorResponse(request.getSourceCode(), "Receta no soportada: " + recipeName);
-        }
-        return refactorService.refactorWithRecipe(supplier.get(), request);
+    public List<McpPrompt> getPrompts() {
+        return prompts;
+    }
+
+    public McpPrompt getPrompt(String name) {
+        return prompts.stream()
+                .filter(p -> p.getName().equals(name))
+                .findFirst()
+                .orElse(null);
+    }
+
+    public List<McpResource> getResources() {
+        return resources;
+    }
+
+    public McpResource getResource(String uri) {
+        return resources.stream()
+                .filter(r -> r.getUri().equals(uri))
+                .findFirst()
+                .orElse(null);
+    }
+
+
+    public RefactorResponse runTool(String name, RefactorRequest request) {
+        request.setRecipe(name);
+        return refactorService.refactorCode(request);
+    }
+    
+    public Map<String, Object> executeTool(String toolName, Map<String, Object> arguments) {
+        String sourceCode = (String) arguments.get("sourceCode");
+        String projectPath = (String) arguments.getOrDefault("projectPath", "");
+        
+        RefactorRequest request = new RefactorRequest();
+        request.setSourceCode(sourceCode);
+        request.setRecipe(toolName);
+        
+        RefactorResponse response = refactorService.refactorCode(request);
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("type", "text");
+        result.put("text", "Refactored Code:\n" + response.getRefactoredCode() + "\n\nMessage: " + response.getMessage());
+        
+        
     }
 }
