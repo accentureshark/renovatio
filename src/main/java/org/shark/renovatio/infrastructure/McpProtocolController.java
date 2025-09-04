@@ -36,6 +36,20 @@ public class McpProtocolController {
                     return handleToolsList(request);
                 case "tools/call":
                     return handleToolsCall(request);
+                case "tools/describe":
+                    return handleToolsDescribe(request);
+                case "capabilities":
+                    return handleCapabilities(request);
+                case "server/info":
+                    return handleServerInfo(request);
+                case "content/read":
+                    return handleContentRead(request);
+                case "content/write":
+                    return handleContentWrite(request);
+                case "workspace/list":
+                    return handleWorkspaceList(request);
+                case "workspace/describe":
+                    return handleWorkspaceDescribe(request);
                 case "prompts/list":
                     return handlePromptsList(request);
                 case "prompts/get":
@@ -144,5 +158,39 @@ public class McpProtocolController {
         Map<String, Object> result = new HashMap<>();
         result.put("contents", List.of(content));
         return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleToolsDescribe(McpRequest request) {
+        return new McpResponse(request.getId(), new McpError(-32601, "tools/describe not implemented"));
+    }
+
+    private McpResponse handleCapabilities(McpRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("capabilities", new McpCapabilities());
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleServerInfo(McpRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("name", "Renovatio OpenRewrite MCP Server");
+        result.put("version", "1.0.0");
+        result.put("description", "Servidor MCP compatible con OpenRewrite y herramientas de refactorización.");
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleContentRead(McpRequest request) {
+        return new McpResponse(request.getId(), new McpError(-32601, "content/read not implemented"));
+    }
+
+    private McpResponse handleContentWrite(McpRequest request) {
+        return new McpResponse(request.getId(), new McpError(-32601, "content/write not implemented"));
+    }
+
+    private McpResponse handleWorkspaceList(McpRequest request) {
+        return new McpResponse(request.getId(), new McpError(-32601, "workspace/list not implemented"));
+    }
+
+    private McpResponse handleWorkspaceDescribe(McpRequest request) {
+        return new McpResponse(request.getId(), new McpError(-32601, "workspace/describe not implemented"));
     }
 }
