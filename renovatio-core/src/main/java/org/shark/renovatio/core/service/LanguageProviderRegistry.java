@@ -4,6 +4,7 @@ import org.shark.renovatio.core.mcp.McpTool;
 import org.shark.renovatio.shared.spi.LanguageProvider;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.shared.nql.NqlCompileResult;
+import org.shark.renovatio.shared.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -204,11 +205,113 @@ public class LanguageProviderRegistry {
     }
     
     private Map<String, Object> handleProviderTool(LanguageProvider provider, String operation, Map<String, Object> arguments) {
-        // Placeholder for provider operations - to be implemented by specific providers
-        Map<String, Object> result = new HashMap<>();
-        result.put("type", "text");
-        result.put("text", "Provider operation '" + operation + "' for " + provider.language() + " not yet implemented");
-        return result;
+        try {
+            // Extract common parameters
+            String nqlString = (String) arguments.get("nql");
+            String scopeString = (String) arguments.get("scope");
+            
+            // Create basic NQL query object
+            NqlQuery query = new NqlQuery();
+            query.setOriginalQuery(nqlString);
+            query.setLanguage(provider.language());
+            
+            // Create basic scope
+            Scope scope = new Scope();
+            if (scopeString != null) {
+                scope.setPaths(List.of(scopeString.split(",")));
+            }
+            
+            // Create basic workspace
+            Workspace workspace = new Workspace();
+            workspace.setId("default");
+            workspace.setPath(".");
+            workspace.setBranch("main");
+            
+            Map<String, Object> result = new HashMap<>();
+            
+            switch (operation) {
+                case "analyze":
+                    var analyzeResult = provider.analyze(query, workspace);
+                    result.put("type", "object");
+                    result.put("success", analyzeResult.isSuccess());
+                    result.put("message", analyzeResult.getMessage());
+                    result.put("runId", analyzeResult.getRunId());
+                    result.put("ast", analyzeResult.getAst());
+                    result.put("dependencies", analyzeResult.getDependencies());
+                    result.put("symbols", analyzeResult.getSymbols());
+                    break;
+                    
+                case "plan":
+                    var planResult = provider.plan(query, scope, workspace);
+                    result.put("type", "object");
+                    result.put("success", planResult.isSuccess());
+                    result.put("message", planResult.getMessage());
+                    result.put("planId", planResult.getPlanId());
+                    result.put("planContent", planResult.getPlanContent());
+                    result.put("steps", planResult.getSteps());
+                    break;
+                    
+                case "apply":
+                    String planId = (String) arguments.getOrDefault("planId", "default-plan");
+                    boolean dryRun = Boolean.parseBoolean((String) arguments.getOrDefault("dryRun", "true"));
+                    var applyResult = provider.apply(planId, dryRun, workspace);
+                    result.put("type", "object");
+                    result.put("success", applyResult.isSuccess());
+                    result.put("message", applyResult.getMessage());
+                    result.put("diff", applyResult.getDiff());
+                    result.put("changes", applyResult.getChanges());
+                    result.put("dryRun", applyResult.isDryRun());
+                    break;
+                    
+                case "diff":
+                    String runId = (String) arguments.getOrDefault("runId", "default-run");
+                    var diffResult = provider.diff(runId, workspace);
+                    result.put("type", "object");
+                    result.put("success", diffResult.isSuccess());
+                    result.put("message", diffResult.getMessage());
+                    result.put("unifiedDiff", diffResult.getUnifiedDiff());
+                    result.put("semanticDiff", diffResult.getSemanticDiff());
+                    result.put("hunks", diffResult.getHunks());
+                    break;
+                    
+                case "generate_stubs":
+                    var stubResultOpt = provider.generateStubs(query, workspace);
+                    if (stubResultOpt.isPresent()) {
+                        var stubResult = stubResultOpt.get();
+                        result.put("type", "object");
+                        result.put("success", stubResult.isSuccess());
+                        result.put("message", stubResult.getMessage());
+                        result.put("targetLanguage", stubResult.getTargetLanguage());
+                        result.put("generatedFiles", stubResult.getGeneratedFiles());
+                        result.put("stubTemplate", stubResult.getStubTemplate());
+                    } else {
+                        result.put("type", "text");
+                        result.put("text", "Stub generation not supported for " + provider.language());
+                    }
+                    break;
+                    
+                case "metrics":
+                    var metricsResult = provider.metrics(scope, workspace);
+                    result.put("type", "object");
+                    result.put("success", metricsResult.isSuccess());
+                    result.put("message", metricsResult.getMessage());
+                    result.put("metrics", metricsResult.getMetrics());
+                    result.put("details", metricsResult.getDetails());
+                    break;
+                    
+                default:
+                    result.put("type", "text");
+                    result.put("text", "Unknown operation: " + operation);
+            }
+            
+            return result;
+            
+        } catch (Exception e) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("type", "text");
+            result.put("text", "Error executing " + operation + " for " + provider.language() + ": " + e.getMessage());
+            return result;
+        }
     }
     
     private Map<String, Object> createErrorResult(String message) {
