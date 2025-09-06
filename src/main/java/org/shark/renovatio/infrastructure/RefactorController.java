@@ -18,6 +18,6 @@ public class RefactorController {
     @PostMapping
     @Operation(summary = "Refactoriza código Java usando OpenRewrite")
     public RefactorResponse refactor(@RequestBody RefactorRequest request) {
-        return refactorService.refactorCode(request);
+        return refactorService.refactor(request);
     }
 }
