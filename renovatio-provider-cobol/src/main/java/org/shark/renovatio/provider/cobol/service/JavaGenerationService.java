@@ -4,6 +4,7 @@ import com.squareup.javapoet.*;
 import org.shark.renovatio.shared.domain.StubResult;
 import org.shark.renovatio.shared.domain.Workspace;
 import org.shark.renovatio.shared.nql.NqlQuery;
+import org.shark.renovatio.provider.cobol.domain.CobolProgram;
 import org.springframework.stereotype.Service;
 
 import javax.lang.model.element.Modifier;
@@ -38,13 +39,19 @@ public class JavaGenerationService {
             }
             
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> programs = (List<Map<String, Object>>) 
+            List<CobolProgram> programs = (List<CobolProgram>) 
                 ((Map<String, Object>) analyzeResult.getData()).get("programs");
             
             Map<String, String> generatedFiles = new HashMap<>();
             
-            for (Map<String, Object> programData : programs) {
-                String programName = (String) programData.get("programName");
+            for (CobolProgram program : programs) {
+                String programName = program.getProgramName();
+                if (programName == null) {
+                    programName = program.getProgramId();
+                }
+                
+                // Convert CobolProgram to Map format for template processing
+                Map<String, Object> programData = convertProgramToMap(program);
                 
                 // Generate DTO class for data structures
                 String dtoClass = generateDataTransferObject(programName, programData);
@@ -280,5 +287,26 @@ public class JavaGenerationService {
     private String capitalize(String input) {
         if (input == null || input.isEmpty()) return input;
         return input.substring(0, 1).toUpperCase() + input.substring(1).toLowerCase();
+    }
+    
+    /**
+     * Converts a CobolProgram object to Map format for template processing
+     */
+    private Map<String, Object> convertProgramToMap(CobolProgram program) {
+        Map<String, Object> programData = new HashMap<>();
+        programData.put("programName", program.getProgramName());
+        programData.put("programId", program.getProgramId());
+        
+        // Convert metadata if available
+        if (program.getMetadata() != null) {
+            programData.put("metadata", program.getMetadata());
+        } else {
+            // Create empty metadata structure
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("dataItems", new ArrayList<>());
+            programData.put("metadata", metadata);
+        }
+        
+        return programData;
     }
 }

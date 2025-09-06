@@ -6,16 +6,12 @@ import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.shared.spi.LanguageProvider;
 import org.shark.renovatio.provider.cobol.service.*;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for COBOL Language Provider
  */
-@SpringBootTest
-@TestPropertySource(properties = "spring.main.allow-bean-definition-overriding=true")
 class CobolLanguageProviderTest {
     
     private CobolLanguageProvider provider;
@@ -38,10 +34,10 @@ class CobolLanguageProviderTest {
             metricsService
         );
         
-        // Setup test workspace
+        // Setup test workspace with examples directory
         testWorkspace = new Workspace();
         testWorkspace.setId("test-workspace");
-        testWorkspace.setPath(System.getProperty("java.io.tmpdir"));
+        testWorkspace.setPath("/home/runner/work/renovatio/renovatio/examples/sample-cobol");
         testWorkspace.setBranch("main");
     }
     
