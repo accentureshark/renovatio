@@ -1,16 +1,33 @@
-# Renovatio - OpenRewrite MCP Server
+# Renovatio - Plataforma Multi-Lenguaje de Refactorización con MCP
 
-**Renovatio** es un servidor completamente compatible con el Protocolo de Contenido de Modelo (MCP, Model Content Protocol) que expone toda la funcionalidad de OpenRewrite como herramientas MCP para refactorización automatizada de código Java.
+**Renovatio** es una plataforma completa de refactorización multi-lenguaje completamente compatible con el Protocolo de Contenido de Modelo (MCP, Model Content Protocol). Expone funcionalidades avanzadas de refactorización y migración para **Java** (mediante OpenRewrite) y **COBOL** (mediante parsers especializados y generación de código), facilitando la modernización de aplicaciones legacy y la refactorización automatizada de código.
 
 ## Características
 
-- ✅ **Compatibilidad total con MCP (Model Content Protocol)**: Implementa el estándar MCP versión `2025-06-18` y el protocolo JSON-RPC 2.0 completo.
-- ✅ **Exposición completa de OpenRewrite**: Todas las recetas de OpenRewrite están disponibles como herramientas MCP.
-- ✅ **API REST y MCP**: Soporta tanto endpoints REST tradicionales como el protocolo MCP en la raíz (`/`).
-- ✅ **Documentación OpenAPI**: Interfaz Swagger UI para explorar la API.
-- ✅ **Manejo de errores robusto**: Códigos de error apropiados y mensajes informativos.
-- ✅ **Esquemas de herramientas**: Definiciones completas de entrada/salida para cada herramienta.
-- ✅ **Prompts y Recursos MCP**: Listado y acceso a prompts y recursos del servidor.
+### ✅ Protocolo MCP y Compatibilidad
+- **Compatibilidad total con MCP (Model Content Protocol)**: Implementa el estándar MCP versión `2025-06-18` y el protocolo JSON-RPC 2.0 completo.
+- **API REST y MCP**: Soporta tanto endpoints REST tradicionales como el protocolo MCP en la raíz (`/`).
+- **Documentación OpenAPI**: Interfaz Swagger UI para explorar la API.
+- **Manejo de errores robusto**: Códigos de error apropiados y mensajes informativos.
+- **Esquemas de herramientas**: Definiciones completas de entrada/salida para cada herramienta.
+- **Prompts y Recursos MCP**: Listado y acceso a prompts y recursos del servidor.
+
+### ☕ Refactorización Java (OpenRewrite)
+- **Exposición completa de OpenRewrite**: Todas las recetas de OpenRewrite están disponibles como herramientas MCP.
+- **Formato y limpieza automática**: Herramientas de formateo y optimización de código Java.
+- **Migración de versiones**: Actualizaciones automáticas entre versiones de Java (8→11→17→21).
+- **Mejoras de seguridad**: Detección y corrección de vulnerabilidades de seguridad.
+- **Análisis estático**: Identificación de patrones problemáticos y optimizaciones.
+
+### 🏢 Migración COBOL a Java
+- **Análisis profundo de COBOL**: Parsing avanzado con soporte para parsers ProLeap/Koopa.
+- **Generación de código Java**: DTOs, servicios, controladores REST y mappers automáticos.
+- **Planificación de migración**: Sistema Plan/Apply con capacidades de dry-run y rollback.
+- **Búsqueda e indexación**: Integración con Apache Lucene para búsqueda de símbolos y análisis de dependencias.
+- **Métricas de código**: Análisis de complejidad ciclomática y evaluación de la complejidad de migración.
+- **Integración LLM**: Asistencia de IA con LangChain4j para migración guiada.
+- **Patrones de resistencia**: Circuit breakers, reintentos y monitoreo para operaciones robustas.
+- **Generación basada en plantillas**: Sistema Freemarker para generación sofisticada de código.
 
 ## Estándar Model Content Protocol (MCP)
 
@@ -50,32 +67,78 @@ Agrega la siguiente configuración en tu cliente MCP (por ejemplo, VS Code):
 
 ## Herramientas Disponibles
 
-El servidor expone más de 17 herramientas de OpenRewrite organizadas en categorías:
+Renovatio expone más de 23 herramientas de refactorización y migración organizadas en categorías:
 
-### 🎨 Formato y Limpieza
+### ☕ Herramientas Java (OpenRewrite)
+
+#### 🎨 Formato y Limpieza
 - `org.openrewrite.java.format.AutoFormat` - Formatear código Java automáticamente
 - `org.openrewrite.java.cleanup.UnnecessaryParentheses` - Eliminar paréntesis innecesarios
 - `org.openrewrite.java.cleanup.EmptyBlock` - Eliminar bloques vacíos
 - `org.openrewrite.java.cleanup.ExplicitInitialization` - Eliminar inicialización explícita a valores por defecto
 - `org.openrewrite.java.cleanup.FinalizePrivateFields` - Finalizar campos privados no reasignados
 
-### 🔧 Mejoras de Código
+#### 🔧 Mejoras de Código
 - `org.openrewrite.java.cleanup.BigDecimalRoundingConstantsToEnums` - Reemplazar constantes BigDecimal con enums
 - `org.openrewrite.java.cleanup.BooleanChecksNotInverted` - Reemplazar verificaciones booleanas invertidas
 - `org.openrewrite.java.cleanup.CaseInsensitiveComparisonsDoNotChangeCase` - Usar métodos de comparación case-insensitive
 - `org.openrewrite.java.cleanup.ChainStringBuilderAppendCalls` - Encadenar llamadas StringBuilder.append
 - `org.openrewrite.java.cleanup.CovariantEquals` - Usar equals covariantes
 
-### 🚀 Migración de Versiones
+#### 🚀 Migración de Versiones
 - `org.openrewrite.java.migrate.Java8toJava11` - Migrar de Java 8 a Java 11
 - `org.openrewrite.java.migrate.JavaVersion11` - Actualizar a Java 11
 - `org.openrewrite.java.migrate.JavaVersion17` - Actualizar a Java 17
 - `org.openrewrite.java.migrate.JavaVersion21` - Actualizar a Java 21
 
-### 🔒 Seguridad
+#### 🔒 Seguridad
 - `org.openrewrite.java.security.FindJdbcUrl` - Encontrar URLs JDBC
 - `org.openrewrite.java.security.FindSqlInjection` - Encontrar vulnerabilidades de inyección SQL
 - `org.openrewrite.java.security.SecureRandomPrefersDefaultSeed` - Usar SecureRandom con semilla por defecto
+
+### 🏢 Herramientas COBOL (Migración a Java)
+
+#### 🔍 Análisis y Parsing
+- `cobol.analyze` - Análisis profundo de programas COBOL con extracción de AST
+  - Detección de símbolos (data items, párrafos, secciones)
+  - Análisis de dependencias entre programas
+  - Extracción de estructura de datos y lógica de procedimientos
+  - Soporte para métricas de complejidad integradas
+
+#### ☕ Generación de Código Java
+- `cobol.generate.stubs` - Generación automática de código Java desde COBOL
+  - **DTOs**: Generación de clases de datos con mapeo de tipos apropiado
+  - **Interfaces de servicio**: Plantillas de lógica de negocio
+  - **Controladores REST**: Endpoints HTTP con documentación OpenAPI
+  - **Mappers MapStruct**: Transformación automática de datos
+  - **Clases de prueba**: Generación de tests para validación de migración
+
+#### 📋 Planificación y Ejecución de Migración
+- `cobol.migration.plan` - Creación de planes de migración detallados
+  - Estrategias: completa, incremental, híbrida
+  - Evaluación de complejidad y estimación de esfuerzo
+  - Análisis de dependencias para orden de migración
+  - Soporte para múltiples frameworks objetivo (Spring Boot, Quarkus, etc.)
+
+- `cobol.migration.apply` - Ejecución controlada de planes de migración
+  - Capacidades de dry-run para pruebas seguras
+  - Migración paso a paso con puntos de control
+  - Capacidades de rollback para recuperación
+  - Monitoreo de progreso y seguimiento de ejecución
+
+#### 📊 Métricas y Análisis
+- `cobol.metrics` - Cálculo completo de métricas de código
+  - **Complejidad ciclomática**: Análisis de complejidad de procedimientos
+  - **Métricas de calidad**: Líneas de código, conteo de archivos, etc.
+  - **Evaluación de migración**: Estimación de complejidad de migración
+  - **Análisis de dependencias**: Mapeo de referencias cruzadas
+
+#### 🔍 Comparación y Diferencias
+- `cobol.diff` - Generación de diferencias para cambios de migración
+  - Diffs unificados para revisión de código
+  - Diffs semánticos para análisis de cambios lógicos
+  - Comparación antes/después de la migración
+  - Análisis de impacto de cambios
 
 ## Inicio Rápido
 
@@ -109,7 +172,7 @@ curl -X POST -H "Content-Type: application/json" \
   http://localhost:8181/
 ```
 
-#### Ejecutar una Herramienta
+#### Ejecutar Herramienta Java (OpenRewrite)
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -d '{
@@ -120,6 +183,105 @@ curl -X POST -H "Content-Type: application/json" \
       "name": "org.openrewrite.java.format.AutoFormat",
       "arguments": {
         "sourceCode": "public class Test{private int x=0;public void test(){System.out.println(\"Hello\");}}"
+      }
+    }
+  }' \
+  http://localhost:8181/
+```
+
+#### Analizar Programa COBOL
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "4",
+    "method": "tools/call",
+    "params": {
+      "name": "cobol.analyze",
+      "arguments": {
+        "workspacePath": "/path/to/cobol/project",
+        "includeMetrics": true,
+        "query": "FIND DATA-ITEMS WHERE USAGE IS COMP-3"
+      }
+    }
+  }' \
+  http://localhost:8181/
+```
+
+#### Generar Stubs Java desde COBOL
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "5",
+    "method": "tools/call",
+    "params": {
+      "name": "cobol.generate.stubs",
+      "arguments": {
+        "workspacePath": "/path/to/cobol/project",
+        "targetPackage": "com.example.cobol.migrated",
+        "generateTests": true,
+        "targetFramework": "spring-boot"
+      }
+    }
+  }' \
+  http://localhost:8181/
+```
+
+#### Crear Plan de Migración COBOL
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "6",
+    "method": "tools/call",
+    "params": {
+      "name": "cobol.migration.plan",
+      "arguments": {
+        "workspacePath": "/path/to/cobol/project",
+        "migrationStrategy": "incremental",
+        "targetFramework": "spring-boot",
+        "includeComplexityAnalysis": true
+      }
+    }
+  }' \
+  http://localhost:8181/
+```
+
+#### Aplicar Plan de Migración
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "7",
+    "method": "tools/call",
+    "params": {
+      "name": "cobol.migration.apply",
+      "arguments": {
+        "planId": "migration-plan-uuid-12345",
+        "dryRun": true,
+        "outputPath": "/path/to/java/output",
+        "backupOriginal": true
+      }
+    }
+  }' \
+  http://localhost:8181/
+```
+
+#### Calcular Métricas de COBOL
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "8",
+    "method": "tools/call",
+    "params": {
+      "name": "cobol.metrics",
+      "arguments": {
+        "workspacePath": "/path/to/cobol/project",
+        "includeComplexity": true,
+        "includeDependencies": true,
+        "generateReport": true
       }
     }
   }' \
@@ -174,25 +336,57 @@ curl -X POST -H "Content-Type: application/json" \
 ## Estructura del Proyecto
 
 ```
-src/main/java/org/shark/renovatio/
-├── McpServerApplication.java          # Aplicación principal Spring Boot
-├── application/                       # Servicios de aplicación
-│   ├── McpToolingService.java        # Servicio principal MCP
-│   └── RefactorService.java          # Servicio de refactorización
-├── domain/                           # Modelos de dominio
-│   ├── mcp/                          # Modelos del protocolo MCP
-│   │   ├── McpRequest.java
-│   │   ├── McpResponse.java
-│   │   ├── McpError.java
-│   │   ├── McpTool.java
-│   │   └── McpCapabilities.java
-│   ├── RefactorRequest.java
-│   ├── RefactorResponse.java
-│   └── Tool.java
-└── infrastructure/                   # Controladores
-    ├── McpProtocolController.java    # Controlador principal MCP
-    ├── McpController.java            # Controlador REST MCP
-    └── RefactorController.java       # Controlador de refactorización
+renovatio/
+├── renovatio-shared/                   # Modelos y utilidades compartidas
+│   ├── domain/                        # Modelos de dominio base
+│   └── nql/                          # Natural Query Language
+├── renovatio-core/                    # Núcleo de la plataforma
+│   ├── application/                   # Servicios de aplicación
+│   ├── domain/                       # Modelos de dominio principales
+│   └── infrastructure/               # Controladores e infraestructura
+├── renovatio-provider-java/           # Proveedor Java (OpenRewrite)
+│   ├── service/                      # Servicios de refactorización Java
+│   └── infrastructure/               # Integración MCP para Java
+├── renovatio-provider-cobol/          # Proveedor COBOL (Migración a Java)
+│   ├── domain/                       # Modelos de dominio COBOL
+│   │   ├── CobolProgram.java         # Representación de programas COBOL
+│   │   ├── CobolDataItem.java        # Estructuras de datos COBOL
+│   │   └── CobolMcpTool.java         # Herramientas MCP COBOL
+│   ├── service/                      # Servicios de migración COBOL
+│   │   ├── CobolParsingService.java  # Parsing y análisis COBOL
+│   │   ├── JavaGenerationService.java # Generación de código Java
+│   │   ├── MigrationPlanService.java # Planificación de migración
+│   │   ├── IndexingService.java      # Indexación Lucene
+│   │   ├── MetricsService.java       # Cálculo de métricas
+│   │   ├── TemplateCodeGenerationService.java # Generación basada en plantillas
+│   │   ├── LlmIntegrationService.java # Integración LLM
+│   │   └── ResilientMigrationService.java # Operaciones resilientes
+│   └── infrastructure/               # Configuración e integración MCP
+│       ├── CobolProviderConfiguration.java # Configuración Spring
+│       └── CobolMcpToolsProvider.java # Proveedor de herramientas MCP
+├── renovatio-agent/                   # Agente de ejecución
+├── renovatio-web/                     # Aplicación web principal
+│   ├── McpServerApplication.java      # Aplicación principal Spring Boot
+│   ├── application/                   # Servicios de aplicación
+│   │   ├── McpToolingService.java    # Servicio principal MCP
+│   │   └── RefactorService.java      # Servicio de refactorización
+│   ├── domain/                       # Modelos de dominio web
+│   │   ├── mcp/                      # Modelos del protocolo MCP
+│   │   │   ├── McpRequest.java
+│   │   │   ├── McpResponse.java
+│   │   │   ├── McpError.java
+│   │   │   ├── McpTool.java
+│   │   │   └── McpCapabilities.java
+│   │   ├── RefactorRequest.java
+│   │   ├── RefactorResponse.java
+│   │   └── Tool.java
+│   └── infrastructure/               # Controladores
+│       ├── McpProtocolController.java # Controlador principal MCP
+│       ├── McpController.java        # Controlador REST MCP
+│       └── RefactorController.java   # Controlador de refactorización
+└── src/main/resources/
+    ├── templates/                    # Plantillas Freemarker para COBOL
+    └── application.yml              # Configuración principal
 ```
 
 ## Especificación MCP
@@ -208,32 +402,207 @@ Este servidor implementa la especificación del Protocolo de Contenido de Modelo
 
 ### Dependencias Principales
 
-- **Spring Boot 3.2.5**: Framework base
-- **OpenRewrite 8.21.0**: Motor de refactorización
+#### Framework Base
+- **Spring Boot 3.2.5**: Framework base de la aplicación
+- **Jackson 2.15.4**: Serialización JSON
+
+#### Refactorización Java
+- **OpenRewrite 8.21.0**: Motor de refactorización Java
 - **SpringDoc OpenAPI**: Documentación automática de API
-- **Jackson**: Serialización JSON
+
+#### Migración COBOL
+- **JavaPoet 1.13.0**: Generación de código Java type-safe
+- **Freemarker 2.3.32**: Motor de plantillas para generación de código
+- **MapStruct 1.5.5**: Generación automática de mappers
+- **Apache Lucene 9.8.0**: Indexación y búsqueda de código
+- **LangChain4j 0.25.0**: Integración con LLM para asistencia IA
+- **ANTLR4 4.13.1**: Parsing y validación de gramáticas
+- **Resilience4j 2.1.0**: Patrones de resistencia (circuit breaker, retry, timeout)
+- **Micrometer 1.12.1**: Métricas y monitoreo
+
+#### Operaciones Git
+- **JGit 6.7.0**: Operaciones Git programáticas
 
 ### Variables de Entorno
 
-El servidor usa la configuración por defecto de Spring Boot. Puedes personalizar:
-
+#### Configuración General
 - `SERVER_PORT`: Puerto del servidor (por defecto 8181)
 - `SPRING_PROFILES_ACTIVE`: Perfil activo de Spring
 
+#### Configuración COBOL
+- `RENOVATIO_COBOL_PARSER_MAX_FILE_SIZE`: Tamaño máximo de archivo COBOL (por defecto 10MB)
+- `RENOVATIO_COBOL_GENERATION_TARGET_PACKAGE`: Paquete Java objetivo por defecto
+- `RENOVATIO_COBOL_MIGRATION_DEFAULT_STRATEGY`: Estrategia de migración por defecto (incremental)
+- `RENOVATIO_LLM_ENABLED`: Habilitar integración LLM (por defecto false)
+- `RENOVATIO_LLM_PROVIDER`: Proveedor LLM (openai, azure, etc.)
+
+### Configuración Avanzada
+
+#### application.yml Completo
+```yaml
+server:
+  port: 8181
+
+renovatio:
+  cobol:
+    parser:
+      max-file-size: 10MB
+      parallel-processing: true
+      encoding: UTF-8
+      dialect: IBM  # IBM, GNU, Micro Focus
+    generation:
+      target-package: org.shark.renovatio.generated.cobol
+      generate-tests: true
+      target-framework: spring-boot  # spring-boot, quarkus, jakarta-ee
+      java-version: 17
+    migration:
+      default-strategy: incremental  # incremental, full, hybrid
+      backup-original: true
+      dry-run-default: true
+      max-parallel-jobs: 4
+    indexing:
+      enabled: true
+      index-path: ./cobol-index
+      real-time-updates: true
+    metrics:
+      complexity-threshold: 10
+      generate-reports: true
+      export-format: json  # json, csv, xml
+  
+  llm:
+    enabled: false
+    provider: openai  # openai, azure-openai, huggingface
+    model: gpt-3.5-turbo
+    max-tokens: 4000
+    temperature: 0.1
+    
+  resilience:
+    circuit-breaker:
+      failure-rate-threshold: 50
+      wait-duration-in-open-state: 30s
+    retry:
+      max-attempts: 3
+      wait-duration: 1s
+    timeout:
+      duration: 30s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+```
+
 ## Desarrollo
 
-### Compilar
+### Compilar el Proyecto Completo
 ```bash
 mvn clean compile
 ```
 
+### Compilar Solo el Proveedor COBOL
+```bash
+mvn clean compile -pl renovatio-provider-cobol
+```
+
 ### Ejecutar Tests
 ```bash
+# Todos los tests
 mvn test
+
+# Solo tests de COBOL
+mvn test -pl renovatio-provider-cobol
+
+# Solo tests de Java/OpenRewrite
+mvn test -pl renovatio-provider-java
+```
+
+### Ejecutar con Perfil COBOL Habilitado
+```bash
+SERVER_PORT=8181 mvn spring-boot:run -Dspring-boot.run.profiles=cobol
+```
+
+### Desarrollo Local con Hot Reload
+```bash
+# Terminal 1: Compilación automática
+mvn compile -pl renovatio-provider-cobol -T 1C
+
+# Terminal 2: Servidor con reload
+mvn spring-boot:run -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
 ```
 
 ### Generar Documentación
-La documentación OpenAPI se genera automáticamente y está disponible en `/swagger-ui/index.html`
+La documentación OpenAPI se genera automáticamente y está disponible en:
+- Swagger UI: `http://localhost:8181/swagger-ui/index.html`
+- OpenAPI JSON: `http://localhost:8181/v3/api-docs`
+- Documentación COBOL específica: `http://localhost:8181/cobol/docs`
+
+### Testing de Migración COBOL
+
+#### Preparar Proyecto de Prueba
+```bash
+# Crear estructura de prueba
+mkdir -p /tmp/cobol-test/{src,output}
+cat > /tmp/cobol-test/src/CUSTOMER.cbl << 'EOF'
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. CUSTOMER.
+       
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 CUSTOMER-RECORD.
+          05 CUSTOMER-ID     PIC 9(6).
+          05 CUSTOMER-NAME   PIC X(30).
+          05 CUSTOMER-BALANCE PIC 9(8)V99 COMP-3.
+       
+       PROCEDURE DIVISION.
+       MAIN-LOGIC.
+           MOVE 123456 TO CUSTOMER-ID
+           MOVE "JOHN DOE" TO CUSTOMER-NAME
+           MOVE 1234.56 TO CUSTOMER-BALANCE
+           DISPLAY "Customer: " CUSTOMER-NAME
+           STOP RUN.
+EOF
+```
+
+#### Probar Análisis
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "test-1",
+    "method": "tools/call",
+    "params": {
+      "name": "cobol.analyze",
+      "arguments": {
+        "workspacePath": "/tmp/cobol-test/src",
+        "includeMetrics": true
+      }
+    }
+  }' \
+  http://localhost:8181/ | jq .
+```
+
+#### Probar Generación de Stubs
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "test-2",
+    "method": "tools/call",
+    "params": {
+      "name": "cobol.generate.stubs",
+      "arguments": {
+        "workspacePath": "/tmp/cobol-test/src",
+        "targetPackage": "com.example.customer",
+        "generateTests": true
+      }
+    }
+  }' \
+  http://localhost:8181/ | jq .
+```
 
 ## Contribuir
 
@@ -245,18 +614,69 @@ La documentación OpenAPI se genera automáticamente y está disponible en `/swa
 
 ## Roadmap
 
-- [ ] Mejoras en la integración y cobertura de recetas del SDK oficial de OpenRewrite (todas las recetas disponibles localmente)
+### ☕ Mejoras Java (OpenRewrite)
+- [ ] Mejoras en la integración y cobertura de recetas del SDK oficial de OpenRewrite
 - [ ] Soporte para recetas personalizadas
 - [ ] Repositorios de recetas: posibilidad de agregar recetas propias y gestionarlas desde el servidor
-- [ ] Métricas y monitoring
-- [ ] Autenticación y autorización
-- [ ] Soporte para múltiples lenguajes além de Java
+- [ ] Análisis de impacto de refactorizaciones
+- [ ] Integración con sistemas de control de versiones
 
-## Ventajas técnicas
+### 🏢 Mejoras COBOL (Migración)
+- [ ] **Integración ProLeap/Koopa**: Parser COBOL de nivel de producción para análisis completo
+- [ ] **Soporte multi-dialecto**: IBM COBOL, GNU COBOL, Micro Focus COBOL
+- [ ] **Migración de copybooks**: Análisis y conversión de copybooks compartidos
+- [ ] **Migración de JCL**: Conversión de Job Control Language a scripts equivalentes
+- [ ] **Integración CICS**: Soporte para transacciones CICS y generación de equivalentes REST
+- [ ] **Migración de DB2**: Conversión de SQL embebido a JPA/Hibernate
+- [ ] **Análisis de rendimiento**: Comparación de rendimiento antes/después de migración
+- [ ] **Validación automática**: Generación de tests de equivalencia funcional
+- [ ] **Plantillas personalizables**: Sistema de plantillas extensible para diferentes arquitecturas objetivo
+- [ ] **Dashboard de migración**: Interfaz web para monitoreo en tiempo real
+- [ ] **Integración CI/CD**: Plugins para Jenkins, GitLab CI, GitHub Actions
+- [ ] **Reportes ejecutivos**: Dashboards de progreso para stakeholders
 
-- Renovatio utiliza el **SDK oficial de OpenRewrite**: No depende de servicios externos ni requiere API key.
-- Toda la refactorización y análisis se realiza **localmente**, garantizando privacidad y velocidad.
-- Acceso completo a todas las recetas y herramientas del ecosistema OpenRewrite.
+### 🔧 Mejoras de Plataforma
+- [ ] **Métricas y monitoring avanzado**: Dashboards de Grafana, alertas Prometheus
+- [ ] **Autenticación y autorización**: Integración OAuth2, RBAC
+- [ ] **Soporte para múltiples lenguajes**: Expansión a C++, .NET, mainframe assembler
+- [ ] **API GraphQL**: Interfaz alternativa para consultas complejas
+- [ ] **Integración con repositorios**: GitHub, GitLab, Bitbucket
+- [ ] **Cache distribuido**: Redis/Hazelcast para operaciones escalables
+- [ ] **Procesamiento batch**: Migración de proyectos grandes en background
+
+## Ventajas Técnicas
+
+### 🏗️ Arquitectura Robusta
+- **Plataforma multi-lenguaje**: Soporte nativo para Java y COBOL con arquitectura extensible
+- **Patrón Provider**: Arquitectura modular que permite agregar nuevos lenguajes fácilmente
+- **Procesamiento local**: Toda la refactorización y análisis se realiza localmente, garantizando privacidad y velocidad
+- **Sin dependencias externas**: No requiere API keys ni servicios externos para funcionalidad básica
+
+### ☕ Capacidades Java
+- **SDK oficial de OpenRewrite**: Acceso completo a todas las recetas y herramientas del ecosistema OpenRewrite
+- **Refactorización enterprise**: Soporte para proyectos Java de gran escala
+- **Migración de versiones**: Automatización de actualizaciones entre versiones principales de Java
+
+### 🏢 Capacidades COBOL Avanzadas
+- **Migración integral**: No solo conversión de sintaxis, sino generación de arquitecturas Java modernas
+- **Análisis semántico**: Comprensión profunda de la lógica de negocio COBOL
+- **Generación inteligente**: DTOs, servicios, controladores REST y mappers automáticos
+- **Patrones modernos**: Aplicación de mejores prácticas Java y patrones de diseño
+- **Validación de migración**: Generación automática de tests para verificar equivalencia funcional
+- **IA asistida**: Integración opcional con LLM para explicación de lógica compleja
+
+### 🔧 Operaciones Resilientes
+- **Circuit breakers**: Protección contra fallos en cascada durante migraciones grandes
+- **Reintentos inteligentes**: Recuperación automática de fallos transitorios
+- **Timeouts configurables**: Prevención de operaciones que se cuelguen
+- **Monitoreo en tiempo real**: Métricas Prometheus y health checks
+- **Rollback seguro**: Capacidad de revertir migraciones parciales
+
+### 🎯 Productividad del Desarrollador
+- **Dry-run**: Simulación segura de migraciones antes de aplicar cambios
+- **Migración incremental**: Modernización paso a paso sin big-bang
+- **Búsqueda avanzada**: Índices Lucene para navegación rápida en código legacy
+- **Plantillas personalizables**: Adaptación a estándares y arquitecturas específicas
 
 ## Licencia
 
@@ -264,4 +684,20 @@ Este proyecto está bajo la licencia MIT.
 
 ---
 
-**Renovatio** - Haciendo la refactorización de código accesible através del Protocolo de Contenido de Modelo.
+**Renovatio** - La plataforma definitiva para refactorización multi-lenguaje y modernización de aplicaciones legacy. Haciendo la refactorización de código Java y la migración COBOL accesible através del Protocolo de Contenido de Modelo.
+
+### 🌟 Casos de Uso Principales
+
+- **Modernización de Mainframe**: Migración completa de aplicaciones COBOL a arquitecturas Java modernas
+- **Refactorización Enterprise**: Actualización de aplicaciones Java legacy a versiones modernas
+- **Análisis de Código Legacy**: Comprensión profunda de aplicaciones complejas antes de migración
+- **Automatización DevOps**: Integración en pipelines CI/CD para refactorización continua
+- **Evaluación de Migración**: Análisis de complejidad y estimación de esfuerzo para proyectos de modernización
+
+### 🎯 Para Quién es Renovatio
+
+- **Arquitectos de Software**: Planificación y diseño de migraciones complejas
+- **Desarrolladores Senior**: Herramientas avanzadas para refactorización y modernización
+- **Equipos DevOps**: Automatización de procesos de migración y refactorización
+- **CTOs y Gerentes Técnicos**: Visibilidad y control sobre proyectos de modernización
+- **Consultores de Migración**: Herramientas profesionales para evaluación y ejecución
