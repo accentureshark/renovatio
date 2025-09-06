@@ -172,6 +172,48 @@ curl -X POST -H "Content-Type: application/json" \
   http://localhost:8181/
 ```
 
+#### Obtener Manifiesto CLI
+Permite a clientes CLI generar subcomandos automáticamente.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": "5", "method": "cli/manifest", "params": {}}' \
+  http://localhost:8181/
+```
+
+La respuesta incluye un objeto `commands` con elementos que exponen los campos `name`, `description` e `inputSchema`:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "5",
+  "result": {
+    "commands": [
+      {
+        "name": "org.openrewrite.java.format.AutoFormat",
+        "description": "Automatically format Java code",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sourceCode": {
+              "type": "string",
+              "description": "Java source code to refactor"
+            },
+            "projectPath": {
+              "type": "string",
+              "description": "Path to the project (optional)"
+            }
+          },
+          "required": ["sourceCode"]
+        }
+      }
+    ]
+  }
+}
+```
+
+Los clientes pueden iterar sobre `commands` y utilizar cada `name`, `description` e `inputSchema` para generar subcomandos CLI.
+
 #### Ejecutar Herramienta Java (OpenRewrite)
 ```bash
 curl -X POST -H "Content-Type: application/json" \
