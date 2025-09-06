@@ -9,6 +9,7 @@ public class AnalyzeResult extends ProviderResult {
     private Map<String, Object> ast;
     private Map<String, Object> dependencies;
     private Map<String, Object> symbols;
+    private Map<String, Object> data;
     
     public AnalyzeResult() {}
     
@@ -24,4 +25,7 @@ public class AnalyzeResult extends ProviderResult {
     
     public Map<String, Object> getSymbols() { return symbols; }
     public void setSymbols(Map<String, Object> symbols) { this.symbols = symbols; }
+    
+    public Map<String, Object> getData() { return data; }
+    public void setData(Map<String, Object> data) { this.data = data; }
 }
