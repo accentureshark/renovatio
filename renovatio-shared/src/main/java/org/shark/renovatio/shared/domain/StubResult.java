@@ -9,6 +9,7 @@ public class StubResult extends ProviderResult {
     private String targetLanguage;
     private Map<String, String> generatedFiles;
     private String stubTemplate;
+    private Map<String, String> generatedCode;
     
     public StubResult() {}
     
@@ -24,4 +25,7 @@ public class StubResult extends ProviderResult {
     
     public String getStubTemplate() { return stubTemplate; }
     public void setStubTemplate(String stubTemplate) { this.stubTemplate = stubTemplate; }
+    
+    public Map<String, String> getGeneratedCode() { return generatedCode; }
+    public void setGeneratedCode(Map<String, String> generatedCode) { this.generatedCode = generatedCode; }
 }

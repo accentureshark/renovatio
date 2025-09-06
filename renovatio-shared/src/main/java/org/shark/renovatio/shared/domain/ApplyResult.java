@@ -1,5 +1,6 @@
 package org.shark.renovatio.shared.domain;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -9,6 +10,7 @@ public class ApplyResult extends ProviderResult {
     private String diff;
     private Map<String, Object> changes;
     private boolean dryRun;
+    private List<String> modifiedFiles;
     
     public ApplyResult() {}
     
@@ -24,4 +26,7 @@ public class ApplyResult extends ProviderResult {
     
     public boolean isDryRun() { return dryRun; }
     public void setDryRun(boolean dryRun) { this.dryRun = dryRun; }
+    
+    public List<String> getModifiedFiles() { return modifiedFiles; }
+    public void setModifiedFiles(List<String> modifiedFiles) { this.modifiedFiles = modifiedFiles; }
 }

@@ -25,6 +25,15 @@
         <openrewrite.version>8.21.0</openrewrite.version>
         <springdoc.version>2.3.0</springdoc.version>
         <jackson.version>2.15.4</jackson.version>
+        <javapoet.version>1.13.0</javapoet.version>
+        <freemarker.version>2.3.32</freemarker.version>
+        <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <lucene.version>9.8.0</lucene.version>
+        <jgit.version>6.7.0.202309050840-r</jgit.version>
+        <langchain4j.version>0.25.0</langchain4j.version>
+        <antlr4.version>4.13.1</antlr4.version>
+        <resilience4j.version>2.1.0</resilience4j.version>
+        <micrometer.version>1.12.1</micrometer.version>
     </properties>
     
     <modules>
@@ -80,13 +89,89 @@
             <dependency>
                 <groupId>org.eclipse.jgit</groupId>
                 <artifactId>org.eclipse.jgit</artifactId>
-                <version>6.7.0.202309050840-r</version>
+                <version>${jgit.version}</version>
             </dependency>
-            <!-- Lucene for indexing -->
+            
+            <!-- Lucene for indexing and search -->
             <dependency>
                 <groupId>org.apache.lucene</groupId>
                 <artifactId>lucene-core</artifactId>
-                <version>9.8.0</version>
+                <version>${lucene.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-queryparser</artifactId>
+                <version>${lucene.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-analysis-common</artifactId>
+                <version>${lucene.version}</version>
+            </dependency>
+            
+            <!-- Java code generation -->
+            <dependency>
+                <groupId>com.squareup</groupId>
+                <artifactId>javapoet</artifactId>
+                <version>${javapoet.version}</version>
+            </dependency>
+            
+            <!-- Template engines -->
+            <dependency>
+                <groupId>org.freemarker</groupId>
+                <artifactId>freemarker</artifactId>
+                <version>${freemarker.version}</version>
+            </dependency>
+            
+            <!-- Object mapping -->
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct-processor</artifactId>
+                <version>${mapstruct.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            
+            <!-- LLM integration -->
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j</artifactId>
+                <version>${langchain4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-open-ai</artifactId>
+                <version>${langchain4j.version}</version>
+            </dependency>
+            
+            <!-- ANTLR for NQL grammar validation -->
+            <dependency>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-runtime</artifactId>
+                <version>${antlr4.version}</version>
+            </dependency>
+            
+            <!-- Resilience and monitoring -->
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-spring-boot3</artifactId>
+                <version>${resilience4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-registry-prometheus</artifactId>
+                <version>${micrometer.version}</version>
+            </dependency>
+            
+            <!-- COBOL parsing (using available parser as placeholder) -->
+            <dependency>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4</artifactId>
+                <version>${antlr4.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

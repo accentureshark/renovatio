@@ -1,0 +1,59 @@
+package org.shark.renovatio.provider.cobol.infrastructure;
+
+import org.shark.renovatio.provider.cobol.CobolLanguageProvider;
+import org.shark.renovatio.provider.cobol.service.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.ComponentScan;
+
+/**
+ * Spring configuration for COBOL provider
+ * Ensures all services are properly wired and available
+ */
+@Configuration
+@ComponentScan(basePackages = "org.shark.renovatio.provider.cobol")
+public class CobolProviderConfiguration {
+    
+    @Bean
+    public CobolParsingService cobolParsingService() {
+        return new CobolParsingService();
+    }
+    
+    @Bean
+    public JavaGenerationService javaGenerationService(CobolParsingService parsingService) {
+        return new JavaGenerationService(parsingService);
+    }
+    
+    @Bean
+    public MigrationPlanService migrationPlanService(
+            CobolParsingService parsingService,
+            JavaGenerationService javaGenerationService) {
+        return new MigrationPlanService(parsingService, javaGenerationService);
+    }
+    
+    @Bean
+    public IndexingService indexingService() {
+        return new IndexingService();
+    }
+    
+    @Bean
+    public MetricsService metricsService() {
+        return new MetricsService();
+    }
+    
+    @Bean
+    public CobolLanguageProvider cobolLanguageProvider(
+            CobolParsingService parsingService,
+            JavaGenerationService javaGenerationService,
+            MigrationPlanService migrationPlanService,
+            IndexingService indexingService,
+            MetricsService metricsService) {
+        return new CobolLanguageProvider(
+            parsingService,
+            javaGenerationService,
+            migrationPlanService,
+            indexingService,
+            metricsService
+        );
+    }
+}
