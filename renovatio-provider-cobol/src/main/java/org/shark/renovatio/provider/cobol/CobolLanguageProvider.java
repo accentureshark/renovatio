@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 import java.util.Set;
 import java.util.EnumSet;
+import java.util.List;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * COBOL Language Provider implementation supporting COBOL to Java migration
@@ -22,18 +25,21 @@ public class CobolLanguageProvider implements LanguageProvider {
     private final MigrationPlanService migrationPlanService;
     private final IndexingService indexingService;
     private final MetricsService metricsService;
+    private final TemplateCodeGenerationService templateCodeGenerationService;
     
     public CobolLanguageProvider(
             CobolParsingService parsingService,
             JavaGenerationService javaGenerationService,
             MigrationPlanService migrationPlanService,
             IndexingService indexingService,
-            MetricsService metricsService) {
+            MetricsService metricsService,
+            TemplateCodeGenerationService templateCodeGenerationService) {
         this.parsingService = parsingService;
         this.javaGenerationService = javaGenerationService;
         this.migrationPlanService = migrationPlanService;
         this.indexingService = indexingService;
         this.metricsService = metricsService;
+        this.templateCodeGenerationService = templateCodeGenerationService;
     }
     
     @Override
@@ -106,6 +112,47 @@ public class CobolLanguageProvider implements LanguageProvider {
             return metricsService.calculateMetrics(scope, workspace);
         } catch (Exception e) {
             return new MetricsResult(false, "Metrics calculation failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Migrate a specific COBOL copybook to Java artifacts using templates.
+     */
+    public StubResult migrateCopybook(NqlQuery query, Workspace workspace) {
+        try {
+            String copybookName = null;
+            if (query.getParameters() != null) {
+                Object cb = query.getParameters().get("copybook");
+                if (cb != null) {
+                    copybookName = cb.toString();
+                }
+            }
+            if (copybookName == null) {
+                return new StubResult(false, "No copybook specified");
+            }
+
+            Path root = Paths.get(workspace.getPath());
+            List<Path> copybooks = parsingService.findCopybooks(root);
+            Optional<Path> copybookPath = copybooks.stream()
+                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(copybookName))
+                    .findFirst();
+            if (copybookPath.isEmpty()) {
+                return new StubResult(false, "Copybook not found: " + copybookName);
+            }
+
+            Map<String, Object> metadata = parsingService.parseCopybook(copybookPath.get(), parsingService.getDefaultDialect());
+            metadata.put("filePath", copybookPath.get().toString());
+
+            Map<String, String> generated = templateCodeGenerationService.generateFromCopybook(
+                    copybookName.replaceFirst("\\.[^.]+$", ""), metadata);
+
+            boolean success = !generated.isEmpty();
+            StubResult result = new StubResult(success,
+                    success ? "Generated " + generated.size() + " artifacts" : "No artifacts generated");
+            result.setGeneratedCode(generated);
+            return result;
+        } catch (Exception e) {
+            return new StubResult(false, "Copybook migration failed: " + e.getMessage());
         }
     }
 }

@@ -48,13 +48,15 @@ public class CobolProviderConfiguration {
             JavaGenerationService javaGenerationService,
             MigrationPlanService migrationPlanService,
             IndexingService indexingService,
-            MetricsService metricsService) {
+            MetricsService metricsService,
+            TemplateCodeGenerationService templateCodeGenerationService) {
         return new CobolLanguageProvider(
             parsingService,
             javaGenerationService,
             migrationPlanService,
             indexingService,
-            metricsService
+            metricsService,
+            templateCodeGenerationService
         );
     }
 }

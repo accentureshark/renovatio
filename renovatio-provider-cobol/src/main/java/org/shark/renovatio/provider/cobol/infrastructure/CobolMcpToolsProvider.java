@@ -33,6 +33,7 @@ public class CobolMcpToolsProvider {
         tools.add(createApplyMigrationPlanTool());
         tools.add(createCalculateMetricsTool());
         tools.add(createGenerateDiffTool());
+        tools.add(createCopybookMigrationTool());
         
         return tools;
     }
@@ -48,6 +49,7 @@ public class CobolMcpToolsProvider {
             case "cobol.migration.apply" -> executeApplyPlanTool(arguments);
             case "cobol.metrics" -> executeMetricsTool(arguments);
             case "cobol.diff" -> executeDiffTool(arguments);
+            case "cobol.copybook.migrate" -> executeCopybookMigrationTool(arguments);
             default -> Map.of("error", "Unknown COBOL tool: " + toolName);
         };
     }
@@ -155,6 +157,23 @@ public class CobolMcpToolsProvider {
         ));
         schema.put("required", List.of("runId"));
         
+        tool.setInputSchema(schema);
+        return tool;
+    }
+
+    private CobolMcpTool createCopybookMigrationTool() {
+        CobolMcpTool tool = new CobolMcpTool();
+        tool.setName("cobol.copybook.migrate");
+        tool.setDescription("Generate Java artifacts from a COBOL copybook");
+
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", Map.of(
+            "workspacePath", Map.of("type", "string", "description", "Path to COBOL workspace"),
+            "copybook", Map.of("type", "string", "description", "Copybook file name to migrate")
+        ));
+        schema.put("required", List.of("workspacePath", "copybook"));
+
         tool.setInputSchema(schema);
         return tool;
     }
@@ -340,6 +359,35 @@ public class CobolMcpToolsProvider {
                 "semantic", result.getSemanticDiff()
             );
             
+        } catch (Exception e) {
+            return Map.of("success", false, "error", e.getMessage());
+        }
+    }
+
+    private Object executeCopybookMigrationTool(Map<String, Object> arguments) {
+        try {
+            String workspacePath = (String) arguments.get("workspacePath");
+            String copybook = (String) arguments.get("copybook");
+
+            Workspace workspace = new Workspace();
+            workspace.setId("mcp-" + System.currentTimeMillis());
+            workspace.setPath(workspacePath);
+            workspace.setBranch("main");
+
+            NqlQuery query = new NqlQuery();
+            query.setType(NqlQuery.QueryType.FIND);
+            query.setTarget("copybook");
+            query.setLanguage("cobol");
+            Map<String, Object> params = new HashMap<>();
+            params.put("copybook", copybook);
+            query.setParameters(params);
+
+            StubResult result = cobolProvider.migrateCopybook(query, workspace);
+            return Map.of(
+                "success", result.isSuccess(),
+                "message", result.getMessage(),
+                "files", result.getGeneratedCode()
+            );
         } catch (Exception e) {
             return Map.of("success", false, "error", e.getMessage());
         }
