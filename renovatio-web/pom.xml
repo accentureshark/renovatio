@@ -14,9 +14,23 @@
     <packaging>jar</packaging>
     <name>Renovatio Web Frontend</name>
     <description>React frontend with Copilot-style UI</description>
-    
-    <!-- Placeholder module for future React frontend implementation -->
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>
