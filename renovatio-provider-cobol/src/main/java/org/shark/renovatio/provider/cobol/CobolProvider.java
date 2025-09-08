@@ -3,16 +3,23 @@ package org.shark.renovatio.provider.cobol;
 import org.shark.renovatio.shared.spi.LanguageProvider;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
+import org.shark.renovatio.provider.cobol.service.CobolParsingService;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
 
 /**
- * COBOL language provider implementation using ProLeap/Koopa parsers
+ * COBOL language provider implementation using real COBOL file analysis
  */
 @Component
 public class CobolProvider implements LanguageProvider {
     
+    private final CobolParsingService parsingService;
+
+    public CobolProvider(CobolParsingService parsingService) {
+        this.parsingService = parsingService;
+    }
+
     @Override
     public String language() {
         return "cobol";
@@ -32,27 +39,14 @@ public class CobolProvider implements LanguageProvider {
     
     @Override
     public AnalyzeResult analyze(NqlQuery query, Workspace workspace) {
-        AnalyzeResult result = new AnalyzeResult(true, "COBOL analysis completed");
-        result.setRunId(generateRunId());
-        
-        // Placeholder implementation - would use ProLeap/Koopa parsers
-        Map<String, Object> ast = new HashMap<>();
-        ast.put("language", "cobol");
-        ast.put("divisions", Arrays.asList("IDENTIFICATION", "ENVIRONMENT", "DATA", "PROCEDURE"));
-        ast.put("programs", Arrays.asList("MAIN-PROGRAM", "SUB-PROGRAM"));
-        result.setAst(ast);
-        
-        Map<String, Object> dependencies = new HashMap<>();
-        dependencies.put("copybooks", Arrays.asList("CUSTOMER-RECORD", "TRANSACTION-RECORD"));
-        dependencies.put("fileControls", Arrays.asList("CUSTOMER-FILE", "TRANSACTION-FILE"));
-        result.setDependencies(dependencies);
-        
-        Map<String, Object> symbols = new HashMap<>();
-        symbols.put("workingStorage", Arrays.asList("WS-COUNTER", "WS-TOTAL", "WS-RECORD"));
-        symbols.put("procedures", Arrays.asList("PROCESS-RECORDS", "VALIDATE-DATA", "WRITE-OUTPUT"));
-        result.setSymbols(symbols);
-        
-        return result;
+        try {
+            // Use the real COBOL parsing service instead of mock data
+            return parsingService.analyzeCOBOL(query, workspace);
+        } catch (Exception e) {
+            AnalyzeResult result = new AnalyzeResult(false, "COBOL analysis failed: " + e.getMessage());
+            result.setRunId(generateRunId());
+            return result;
+        }
     }
     
     @Override
@@ -244,3 +238,4 @@ public class CobolProvider implements LanguageProvider {
             """;
     }
 }
+

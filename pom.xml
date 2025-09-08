@@ -43,6 +43,7 @@
         <module>renovatio-provider-cobol</module>
         <module>renovatio-agent</module>
         <module>renovatio-web</module>
+        <module>renovatio-client</module>
     </modules>
     
     <dependencyManagement>
@@ -198,4 +199,3 @@
         </pluginManagement>
     </build>
 </project>
-

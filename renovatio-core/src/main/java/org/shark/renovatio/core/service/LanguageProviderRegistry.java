@@ -209,7 +209,8 @@ public class LanguageProviderRegistry {
             // Extract common parameters
             String nqlString = (String) arguments.get("nql");
             String scopeString = (String) arguments.get("scope");
-            
+            String workspacePath = (String) arguments.get("workspacePath");
+
             // Create basic NQL query object
             NqlQuery query = new NqlQuery();
             query.setOriginalQuery(nqlString);
@@ -221,10 +222,10 @@ public class LanguageProviderRegistry {
                 scope.setPaths(List.of(scopeString.split(",")));
             }
             
-            // Create basic workspace
+            // Create workspace with the correct path from arguments
             Workspace workspace = new Workspace();
-            workspace.setId("default");
-            workspace.setPath(".");
+            workspace.setId("mcp-" + System.currentTimeMillis());
+            workspace.setPath(workspacePath != null ? workspacePath : ".");
             workspace.setBranch("main");
             
             Map<String, Object> result = new HashMap<>();
@@ -239,6 +240,10 @@ public class LanguageProviderRegistry {
                     result.put("ast", analyzeResult.getAst());
                     result.put("dependencies", analyzeResult.getDependencies());
                     result.put("symbols", analyzeResult.getSymbols());
+                    // Include data if available
+                    if (analyzeResult.getData() != null) {
+                        result.put("data", analyzeResult.getData());
+                    }
                     break;
                     
                 case "plan":

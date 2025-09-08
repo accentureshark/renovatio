@@ -176,8 +176,39 @@ public class CobolMcpToolsProvider {
             query.setLanguage("cobol");
             
             AnalyzeResult result = cobolProvider.analyze(query, workspace);
-            return Map.of("success", result.isSuccess(), "message", result.getMessage(), "data", result.getData());
-            
+
+            // Crear respuesta completa con todos los datos del análisis
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", result.isSuccess());
+            response.put("message", result.getMessage());
+
+            // Incluir todos los datos del análisis real
+            if (result.getData() != null) {
+                response.put("data", result.getData());
+            }
+
+            // Incluir AST si está disponible
+            if (result.getAst() != null) {
+                response.put("ast", result.getAst());
+            }
+
+            // Incluir símbolos si están disponibles
+            if (result.getSymbols() != null) {
+                response.put("symbols", result.getSymbols());
+            }
+
+            // Incluir dependencias si están disponibles
+            if (result.getDependencies() != null) {
+                response.put("dependencies", result.getDependencies());
+            }
+
+            // Incluir runId si está disponible
+            if (result.getRunId() != null) {
+                response.put("runId", result.getRunId());
+            }
+
+            return response;
+
         } catch (Exception e) {
             return Map.of("success", false, "error", e.getMessage());
         }
@@ -314,3 +345,4 @@ public class CobolMcpToolsProvider {
         }
     }
 }
+

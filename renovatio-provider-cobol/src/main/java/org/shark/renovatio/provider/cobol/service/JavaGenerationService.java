@@ -36,34 +36,38 @@ public class JavaGenerationService {
             if (!analyzeResult.isSuccess()) {
                 return new StubResult(false, "Failed to analyze COBOL: " + analyzeResult.getMessage());
             }
-            
+
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> programs = (List<Map<String, Object>>) 
+            List<org.shark.renovatio.provider.cobol.domain.CobolProgram> programs = (List<org.shark.renovatio.provider.cobol.domain.CobolProgram>)
                 ((Map<String, Object>) analyzeResult.getData()).get("programs");
-            
+
             Map<String, String> generatedFiles = new HashMap<>();
-            
-            for (Map<String, Object> programData : programs) {
-                String programName = (String) programData.get("programName");
-                
+
+            for (org.shark.renovatio.provider.cobol.domain.CobolProgram program : programs) {
+                String programName = program.getProgramName();
+                Map<String, Object> metadata = program.getMetadata();
+                // Usar el nombre del archivo COBOL para los nombres de clases y archivos generados
+                String fileName = (String) metadata.get("filePath");
+                String baseName = Paths.get(fileName).getFileName().toString();
+                // El nombre de la clase debe ser SampleCobDTO, SampleCobService, etc.
+                String classBase = baseName.replace(".", "");
                 // Generate DTO class for data structures
-                String dtoClass = generateDataTransferObject(programName, programData);
-                generatedFiles.put(programName + "DTO.java", dtoClass);
-                
+                String dtoClass = generateDataTransferObject(classBase, metadata);
+                generatedFiles.put(baseName + "DTO.java", dtoClass);
                 // Generate service interface
-                String serviceInterface = generateServiceInterface(programName, programData);
-                generatedFiles.put(programName + "Service.java", serviceInterface);
-                
+                String serviceInterface = generateServiceInterface(classBase, metadata);
+                generatedFiles.put(baseName + "Service.java", serviceInterface);
                 // Generate implementation template
-                String serviceImpl = generateServiceImplementation(programName, programData);
-                generatedFiles.put(programName + "ServiceImpl.java", serviceImpl);
+                String serviceImpl = generateServiceImplementation(classBase, metadata);
+                generatedFiles.put(baseName + "ServiceImpl.java", serviceImpl);
             }
-            
-            StubResult result = new StubResult(true, "Generated " + generatedFiles.size() + " Java files");
+
+            // Depuración: imprimir las claves generadas
+            System.out.println("Claves generadas: " + generatedFiles.keySet());
+            boolean success = !generatedFiles.isEmpty();
+            StubResult result = new StubResult(success, (success ? "Generated " + generatedFiles.size() + " Java files" : "No Java files generated"));
             result.setGeneratedCode(generatedFiles);
-            
             return result;
-            
         } catch (Exception e) {
             return new StubResult(false, "Stub generation failed: " + e.getMessage());
         }
@@ -86,9 +90,8 @@ public class JavaGenerationService {
         
         // Extract data items from metadata
         @SuppressWarnings("unchecked")
-        List<Map<String, Object>> dataItems = (List<Map<String, Object>>) 
-            ((Map<String, Object>) programData.get("metadata")).get("dataItems");
-        
+        List<Map<String, Object>> dataItems = (List<Map<String, Object>>) programData.get("dataItems");
+
         if (dataItems != null) {
             for (Map<String, Object> item : dataItems) {
                 String fieldName = (String) item.get("name");
@@ -251,27 +254,37 @@ public class JavaGenerationService {
     }
     
     /**
-     * Converts string to camelCase
+     * Converts string to PascalCase (preserva mayúsculas en siglas y nombres COBOL, separa por punto también)
+     */
+    private String toPascalCase(String input) {
+        if (input == null || input.isEmpty()) return input;
+        String[] parts = input.split("[-_\\s.]+");
+        StringBuilder result = new StringBuilder();
+        for (String part : parts) {
+            if (part.length() == 0) continue;
+            result.append(part.substring(0, 1).toUpperCase());
+            if (part.length() > 1) {
+                result.append(part.substring(1).toLowerCase());
+            }
+        }
+        return result.toString();
+    }
+
+    /**
+     * Converts string to camelCase (preserva mayúsculas en siglas y nombres COBOL)
      */
     private String toCamelCase(String input) {
         if (input == null || input.isEmpty()) return input;
-        
-        String[] parts = input.split("[-_\\s]+");
+        String[] parts = input.split("[-_\s]+");
         StringBuilder result = new StringBuilder(parts[0].toLowerCase());
-        
         for (int i = 1; i < parts.length; i++) {
-            result.append(capitalize(parts[i]));
+            if (parts[i].length() == 0) continue;
+            result.append(parts[i].substring(0, 1).toUpperCase());
+            if (parts[i].length() > 1) {
+                result.append(parts[i].substring(1).toLowerCase());
+            }
         }
-        
         return result.toString();
-    }
-    
-    /**
-     * Converts string to PascalCase
-     */
-    private String toPascalCase(String input) {
-        String camelCase = toCamelCase(input);
-        return capitalize(camelCase);
     }
     
     /**
