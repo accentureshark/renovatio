@@ -4,6 +4,7 @@ import org.shark.renovatio.shared.spi.LanguageProvider;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.provider.cobol.service.CobolParsingService;
+import org.shark.renovatio.provider.cobol.service.CobolParsingService.Dialect;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
@@ -49,7 +50,7 @@ public class CobolProvider implements LanguageProvider {
 
             List<Map<String, Object>> astPrograms = new ArrayList<>();
             for (Path cobolFile : cobolFiles) {
-                astPrograms.add(parsingService.parseCobolFile(cobolFile));
+                astPrograms.add(parsingService.parseCobolFile(cobolFile, resolveDialect(query, workspace)));
             }
 
             Map<String, Object> ast = new HashMap<>();
@@ -141,6 +142,26 @@ public class CobolProvider implements LanguageProvider {
         result.setDetails(details);
         
         return result;
+    }
+
+    private Dialect resolveDialect(NqlQuery query, Workspace workspace) {
+        String value = null;
+        if (query != null && query.getParameters() != null) {
+            Object p = query.getParameters().get("dialect");
+            if (p != null) {
+                value = p.toString();
+            }
+        }
+        if (value == null && workspace != null && workspace.getMetadata() != null) {
+            Object m = workspace.getMetadata().get("dialect");
+            if (m != null) {
+                value = m.toString();
+            }
+        }
+        if (value == null) {
+            return parsingService.getDefaultDialect();
+        }
+        return Dialect.fromString(value);
     }
     
     private String generateRunId() {
