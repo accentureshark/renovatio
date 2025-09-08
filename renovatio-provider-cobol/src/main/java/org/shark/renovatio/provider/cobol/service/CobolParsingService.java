@@ -18,6 +18,7 @@ import java.util.*;
 import java.util.stream.Stream;
 
 import org.shark.renovatio.shared.domain.AnalyzeResult;
+import org.shark.renovatio.shared.domain.PerformanceMetrics;
 import org.shark.renovatio.shared.domain.Workspace;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.provider.cobol.domain.CobolProgram;
@@ -117,6 +118,8 @@ public class CobolParsingService {
      * absent the service's default dialect is used.
      */
     public AnalyzeResult analyzeCOBOL(NqlQuery query, Workspace workspace) throws IOException {
+        long start = System.nanoTime();
+
         Dialect dialect = resolveDialect(query, workspace);
         Path root = Paths.get(workspace.getPath());
         List<Path> cobolFiles = findCobolFiles(root);
@@ -137,6 +140,9 @@ public class CobolParsingService {
 
         AnalyzeResult result = new AnalyzeResult(true, "Parsed " + programs.size() + " COBOL files");
         result.setData(data);
+
+        long elapsed = System.nanoTime() - start;
+        result.setPerformance(new PerformanceMetrics(elapsed / 1_000_000));
         return result;
     }
 

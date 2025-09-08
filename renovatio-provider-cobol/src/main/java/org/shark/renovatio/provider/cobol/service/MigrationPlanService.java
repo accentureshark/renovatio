@@ -1,6 +1,7 @@
 package org.shark.renovatio.provider.cobol.service;
 
 import org.shark.renovatio.shared.domain.*;
+import org.shark.renovatio.shared.util.BenchmarkUtils;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.springframework.stereotype.Service;
 
@@ -86,7 +87,10 @@ public class MigrationPlanService {
             
             List<String> executedSteps = new ArrayList<>();
             Map<String, String> generatedFiles = new HashMap<>();
-            
+
+            AnalyzeResult baseline = parsingService.analyzeCOBOL(plan.getQuery(), workspace);
+
+            long migrationStart = System.nanoTime();
             for (MigrationStep step : plan.getSteps()) {
                 try {
                     if (step.getType() == StepType.GENERATE_JAVA_STUBS) {
@@ -96,30 +100,34 @@ public class MigrationPlanService {
                             generatedFiles.putAll(stubResult.getGeneratedCode());
                         }
                     }
-                    
+
                     executedSteps.add(step.getDescription());
-                    
+
                 } catch (Exception e) {
                     run.setError("Failed to execute step: " + step.getDescription() + " - " + e.getMessage());
                     break;
                 }
             }
-            
+            long migratedElapsed = System.nanoTime() - migrationStart;
+            AnalyzeResult migrated = new AnalyzeResult(true, "Migration execution");
+            migrated.setPerformance(new PerformanceMetrics(migratedElapsed / 1_000_000));
+
             run.setCompletedAt(LocalDateTime.now());
             run.setExecutedSteps(executedSteps);
             run.setGeneratedFiles(generatedFiles);
             completedRuns.put(runId, run);
-            
+
             ApplyResult result = new ApplyResult(true, "Migration plan applied successfully");
             result.setRunId(runId);
             result.setModifiedFiles(new ArrayList<>(generatedFiles.keySet()));
-            
+
             Map<String, Object> changes = new HashMap<>();
             changes.put("generatedFiles", generatedFiles.size());
             changes.put("executedSteps", executedSteps.size());
             changes.put("dryRun", dryRun);
+            changes.put("performance", BenchmarkUtils.compare(baseline, migrated));
             result.setChanges(changes);
-            
+
             return result;
             
         } catch (Exception e) {

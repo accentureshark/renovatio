@@ -2,6 +2,7 @@ package org.shark.renovatio.shared.domain;
 
 import java.util.Map;
 
+
 /**
  * Result of analyze operation
  */
@@ -10,6 +11,7 @@ public class AnalyzeResult extends ProviderResult {
     private Map<String, Object> dependencies;
     private Map<String, Object> symbols;
     private Map<String, Object> data;
+    private PerformanceMetrics performance;
     
     public AnalyzeResult() {}
     
@@ -28,4 +30,7 @@ public class AnalyzeResult extends ProviderResult {
     
     public Map<String, Object> getData() { return data; }
     public void setData(Map<String, Object> data) { this.data = data; }
+
+    public PerformanceMetrics getPerformance() { return performance; }
+    public void setPerformance(PerformanceMetrics performance) { this.performance = performance; }
 }
