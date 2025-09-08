@@ -97,6 +97,21 @@ public class CobolParsingService {
     }
 
     /**
+     * Locate COBOL copybooks inside a workspace. Copybooks typically use the
+     * {@code .cpy} extension.
+     */
+    public List<Path> findCopybooks(Path workspacePath) throws IOException {
+        List<Path> copybooks = new ArrayList<>();
+        try (Stream<Path> walkStream = Files.walk(workspacePath)) {
+            walkStream
+                .filter(Files::isRegularFile)
+                .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".cpy"))
+                .forEach(copybooks::add);
+        }
+        return copybooks;
+    }
+
+    /**
      * Analyze all COBOL files in the given workspace. The dialect can be
      * provided via query parameters ("dialect") or workspace metadata. When
      * absent the service's default dialect is used.
@@ -176,6 +191,38 @@ public class CobolParsingService {
         ast.put("copies", listener.getCopies());
         ast.put("dataItems", listener.getDataItems());
         ast.put("parseTree", tree.toStringTree(parser));
+        ast.put("dialect", dialect.name());
+        return ast;
+    }
+
+    /**
+     * Parse a COBOL copybook. Since copybooks often contain fragments that are
+     * not valid standalone programs, the contents are wrapped in a minimal
+     * program structure before parsing.
+     */
+    public Map<String, Object> parseCopybook(Path copybookFile, Dialect dialect) throws IOException {
+        String content = Files.readString(copybookFile);
+        String wrapped = "       IDENTIFICATION DIVISION.\n" +
+                         "       PROGRAM-ID. DUMMY.\n" +
+                         "       DATA DIVISION.\n" +
+                         "       WORKING-STORAGE SECTION.\n" +
+                         content + "\n" +
+                         "       END PROGRAM DUMMY.";
+
+        CharStream input = CharStreams.fromString(wrapped);
+        Cobol85Lexer lexer = new Cobol85Lexer(input);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        Cobol85Parser parser = new Cobol85Parser(tokens);
+        configureParserForDialect(lexer, parser, dialect);
+
+        ParserRuleContext tree = parser.startRule();
+        CollectingListener listener = new CollectingListener();
+        ParseTreeWalker.DEFAULT.walk(listener, tree);
+
+        Map<String, Object> ast = new HashMap<>();
+        String programId = copybookFile.getFileName().toString();
+        ast.put("programId", programId.replaceFirst("\\.[^.]+$", ""));
+        ast.put("dataItems", listener.getDataItems());
         ast.put("dialect", dialect.name());
         return ast;
     }
