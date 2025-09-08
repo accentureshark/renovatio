@@ -78,6 +78,13 @@
             <groupId>org.antlr</groupId>
             <artifactId>antlr4-runtime</artifactId>
         </dependency>
+
+        <!-- ProLeap COBOL parser for AST generation -->
+        <dependency>
+            <groupId>io.proleap</groupId>
+            <artifactId>proleap-cobol-parser</artifactId>
+            <version>2.3.0</version>
+        </dependency>
         
         <!-- Resilience -->
         <dependency>

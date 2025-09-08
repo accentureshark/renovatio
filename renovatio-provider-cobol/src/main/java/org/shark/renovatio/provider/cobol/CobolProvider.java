@@ -6,6 +6,8 @@ import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.provider.cobol.service.CobolParsingService;
 import org.springframework.stereotype.Component;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 /**
@@ -39,14 +41,29 @@ public class CobolProvider implements LanguageProvider {
     
     @Override
     public AnalyzeResult analyze(NqlQuery query, Workspace workspace) {
+        AnalyzeResult result = new AnalyzeResult();
+        result.setRunId(generateRunId());
         try {
-            // Use the real COBOL parsing service instead of mock data
-            return parsingService.analyzeCOBOL(query, workspace);
+            Path root = Paths.get(workspace.getPath());
+            List<Path> cobolFiles = parsingService.findCobolFiles(root);
+
+            List<Map<String, Object>> astPrograms = new ArrayList<>();
+            for (Path cobolFile : cobolFiles) {
+                astPrograms.add(parsingService.parseCobolFile(cobolFile));
+            }
+
+            Map<String, Object> ast = new HashMap<>();
+            ast.put("programs", astPrograms);
+            ast.put("fileCount", cobolFiles.size());
+            result.setAst(ast);
+
+            result.setSuccess(true);
+            result.setMessage("Parsed " + cobolFiles.size() + " COBOL files");
         } catch (Exception e) {
-            AnalyzeResult result = new AnalyzeResult(false, "COBOL analysis failed: " + e.getMessage());
-            result.setRunId(generateRunId());
-            return result;
+            result.setSuccess(false);
+            result.setMessage("COBOL analysis failed: " + e.getMessage());
         }
+        return result;
     }
     
     @Override
