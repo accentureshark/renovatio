@@ -7,7 +7,7 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 ## Features
 
 ### 🔍 COBOL Analysis & Parsing
-- **Pattern-based COBOL parsing** with extensible architecture for future ProLeap/Koopa integration
+- **Runtime ProLeap/Koopa integration** with fallback pattern-based parser
 - **AST extraction** for COBOL programs, data divisions, and procedure divisions
 - **Symbol detection** for data items, paragraphs, sections, and program structures
 - **Dependency analysis** across COBOL programs
