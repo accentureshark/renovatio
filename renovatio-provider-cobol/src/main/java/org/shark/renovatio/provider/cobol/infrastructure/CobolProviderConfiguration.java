@@ -2,6 +2,7 @@ package org.shark.renovatio.provider.cobol.infrastructure;
 
 import org.shark.renovatio.provider.cobol.CobolLanguageProvider;
 import org.shark.renovatio.provider.cobol.service.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ComponentScan;
@@ -15,8 +16,8 @@ import org.springframework.context.annotation.ComponentScan;
 public class CobolProviderConfiguration {
     
     @Bean
-    public CobolParsingService cobolParsingService() {
-        return new CobolParsingService();
+    public CobolParsingService cobolParsingService(@Value("${renovatio.cobol.parser.dialect:IBM}") String dialect) {
+        return new CobolParsingService(CobolParsingService.Dialect.fromString(dialect));
     }
     
     @Bean
