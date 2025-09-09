@@ -61,6 +61,25 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 - **Configurable CICS service** with real or mock implementations via `renovatio.cics.*` properties
 - **Automatic endpoint scaffolding** for detected transactions
 
+#### Manual invocation example
+
+Once a controller has been generated and the CICS service is configured for
+real connectivity (`renovatio.cics.mock=false`), transactions can be tested
+manually.  The generated endpoints follow the pattern
+`POST /api/cics/<transaction>` using lower-case transaction names.
+
+Example:
+
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"account":"12345"}' \
+  http://localhost:8080/api/cics/tran1
+```
+
+The request above is routed through `RealCicsService`, which maps the
+`TRAN1` transaction to the corresponding Zowe CICS/JCICS REST endpoint.
+
 ## Dialect Profiles
 
 Different COBOL dialects can be selected at build time.
