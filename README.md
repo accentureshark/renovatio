@@ -25,7 +25,6 @@
 - **Planificación de migración**: Sistema Plan/Apply con capacidades de dry-run y rollback.
 - **Búsqueda e indexación**: Integración con Apache Lucene para búsqueda de símbolos y análisis de dependencias.
 - **Métricas de código**: Análisis de complejidad ciclomática y evaluación de la complejidad de migración.
-- **Integración LLM**: Asistencia de IA con LangChain4j para migración guiada.
 - **Patrones de resistencia**: Circuit breakers, reintentos y monitoreo para operaciones robustas.
 - **Generación basada en plantillas**: Sistema Freemarker para generación sofisticada de código.
 - **Generación de modelos desde copybooks**: Adaptadores de datasets y modelos Java creados automáticamente a partir de copybooks COBOL.
@@ -411,7 +410,6 @@ renovatio/
 │   │   ├── IndexingService.java      # Indexación Lucene
 │   │   ├── MetricsService.java       # Cálculo de métricas
 │   │   ├── TemplateCodeGenerationService.java # Generación basada en plantillas
-│   │   ├── LlmIntegrationService.java # Integración LLM
 │   │   └── ResilientMigrationService.java # Operaciones resilientes
 │   └── infrastructure/               # Configuración e integración MCP
 │       ├── CobolProviderConfiguration.java # Configuración Spring
@@ -470,7 +468,6 @@ Este servidor implementa la especificación del Protocolo de Contenido de Modelo
 - **Freemarker 2.3.32**: Motor de plantillas para generación de código
 - **MapStruct 1.5.5**: Generación automática de mappers
 - **Apache Lucene 9.8.0**: Indexación y búsqueda de código
-- **LangChain4j 0.25.0**: Integración con LLM para asistencia IA
 - **ANTLR4 4.13.1**: Parsing y validación de gramáticas
 - **Resilience4j 2.1.0**: Patrones de resistencia (circuit breaker, retry, timeout)
 - **Micrometer 1.12.1**: Métricas y monitoreo
@@ -488,8 +485,6 @@ Este servidor implementa la especificación del Protocolo de Contenido de Modelo
 - `RENOVATIO_COBOL_PARSER_MAX_FILE_SIZE`: Tamaño máximo de archivo COBOL (por defecto 10MB)
 - `RENOVATIO_COBOL_GENERATION_TARGET_PACKAGE`: Paquete Java objetivo por defecto
 - `RENOVATIO_COBOL_MIGRATION_DEFAULT_STRATEGY`: Estrategia de migración por defecto (incremental)
-- `RENOVATIO_LLM_ENABLED`: Habilitar integración LLM (por defecto false)
-- `RENOVATIO_LLM_PROVIDER`: Proveedor LLM (openai, azure, etc.)
 
 ### Configuración Avanzada
 
@@ -524,13 +519,6 @@ renovatio:
       generate-reports: true
       export-format: json  # json, csv, xml
   
-  llm:
-    enabled: false
-    provider: openai  # openai, azure-openai, huggingface
-    model: gpt-3.5-turbo
-    max-tokens: 4000
-    temperature: 0.1
-    
   resilience:
     circuit-breaker:
       failure-rate-threshold: 50
@@ -687,10 +675,10 @@ curl -X POST -H "Content-Type: application/json" \
 ### 🏢 Mejoras COBOL (Migración)
 - [ ] **Integración ProLeap/Koopa**: Parser COBOL de nivel de producción para análisis completo
 - [ ] **Soporte multi-dialecto**: IBM COBOL, GNU COBOL, Micro Focus COBOL
-- [ ] **Migración de copybooks**: Análisis y conversión de copybooks compartidos
-- [ ] **Migración de JCL**: Conversión de Job Control Language a scripts equivalentes
-- [ ] **Integración CICS**: Soporte para transacciones CICS y generación de equivalentes REST
-- [ ] **Migración de DB2**: Conversión de SQL embebido a JPA/Hibernate
+- [x] **Migración de copybooks**: Análisis y conversión de copybooks compartidos
+- [x] **Migración de JCL**: Conversión de Job Control Language a scripts equivalentes
+- [x] **Integración CICS**: Soporte para transacciones CICS y generación de equivalentes REST
+- [x] **Migración de DB2**: Conversión de SQL embebido a JPA/Hibernate
 - [ ] **Análisis de rendimiento**: Comparación de rendimiento antes/después de migración
 - [ ] **Validación automática**: Generación de tests de equivalencia funcional
 - [ ] **Plantillas personalizables**: Sistema de plantillas extensible para diferentes arquitecturas objetivo
@@ -726,7 +714,6 @@ curl -X POST -H "Content-Type: application/json" \
 - **Generación inteligente**: DTOs, servicios, controladores REST y mappers automáticos
 - **Patrones modernos**: Aplicación de mejores prácticas Java y patrones de diseño
 - **Validación de migración**: Generación automática de tests para verificar equivalencia funcional
-- **IA asistida**: Integración opcional con LLM para explicación de lógica compleja
 
 ### 🔧 Operaciones Resilientes
 - **Circuit breakers**: Protección contra fallos en cascada durante migraciones grandes

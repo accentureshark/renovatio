@@ -38,12 +38,6 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 - **Migration complexity assessment** for effort estimation
 - **Dependency analysis** for migration planning
 
-### 🤖 LLM Integration (Optional)
-- **LangChain4j integration** for AI-assisted migration
-- **Natural language to NQL translation** for intuitive queries
-- **Migration advice** and best practice suggestions
-- **Business logic explanation** for better understanding
-
 ### 🛡️ Resilience & Monitoring
 - **Resilience4j integration** with circuit breakers, retries, and timeouts
 - **Micrometer metrics** with Prometheus export
@@ -121,7 +115,6 @@ renovatio-provider-cobol/
 │   │   ├── IndexingService.java           # Lucene-based indexing
 │   │   ├── MetricsService.java            # Code metrics calculation
 │   │   ├── TemplateCodeGenerationService.java # Template-based generation
-│   │   ├── LlmIntegrationService.java     # LLM integration
 │   │   └── ResilientMigrationService.java # Resilient operations
 │   └── infrastructure/                     # Configuration and MCP integration
 │       ├── CobolProviderConfiguration.java # Spring configuration
@@ -273,10 +266,6 @@ renovatio:
     migration:
       default-strategy: incremental
       backup-original: true
-  llm:
-    enabled: false  # Enable for AI assistance
-    provider: openai
-    model: gpt-3.5-turbo
 ```
 
 ## Implementation Status
