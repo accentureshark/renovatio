@@ -21,13 +21,17 @@
 
 ### 🏢 Migración COBOL a Java
 - **Análisis profundo de COBOL**: Parsing avanzado con soporte para parsers ProLeap/Koopa.
-- **Generación de código Java**: DTOs, servicios, controladores REST y mappers automáticos.
+- **Generación de código Java**: DTOs, servicios, controladores REST con documentación OpenAPI y mappers MapStruct automáticos.
 - **Planificación de migración**: Sistema Plan/Apply con capacidades de dry-run y rollback.
 - **Búsqueda e indexación**: Integración con Apache Lucene para búsqueda de símbolos y análisis de dependencias.
 - **Métricas de código**: Análisis de complejidad ciclomática y evaluación de la complejidad de migración.
 - **Integración LLM**: Asistencia de IA con LangChain4j para migración guiada.
 - **Patrones de resistencia**: Circuit breakers, reintentos y monitoreo para operaciones robustas.
 - **Generación basada en plantillas**: Sistema Freemarker para generación sofisticada de código.
+- **Generación de modelos desde copybooks**: Adaptadores de datasets y modelos Java creados automáticamente a partir de copybooks COBOL.
+- **Migración DB2**: Conversión de SQL embebido a APIs modernas JPA/Hibernate.
+- **Detección y exposición de CICS**: Identificación de comandos `EXEC CICS`, generación de controladores REST e integración con cliente Zowe/JCICS.
+- **Conversión de JCL**: Parser JCL que genera AST y traduce pasos a scripts shell, GitHub Actions, Spring Batch o Airflow.
 
 ## Estándar Model Content Protocol (MCP)
 
@@ -139,6 +143,12 @@ Renovatio expone más de 23 herramientas de refactorización y migración organi
   - Diffs semánticos para análisis de cambios lógicos
   - Comparación antes/después de la migración
   - Análisis de impacto de cambios
+
+#### 📑 Copybooks y Datasets
+- `cobol.copybook.migrate` - Generación de modelos y artefactos Java desde copybooks COBOL
+
+### 📑 Herramientas JCL
+- `jcl.convert` - Conversión de pasos JCL a scripts shell, GitHub Actions, Spring Batch o Airflow
 
 ## Inicio Rápido
 
