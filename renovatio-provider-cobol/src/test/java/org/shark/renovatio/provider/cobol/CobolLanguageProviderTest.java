@@ -29,6 +29,8 @@ class CobolLanguageProviderTest {
         // Initialize services
         CobolParsingService parsingService = new CobolParsingService();
         JavaGenerationService javaGenerationService = new JavaGenerationService(parsingService);
+        TemplateCodeGenerationService templateService = new TemplateCodeGenerationService();
+        Db2MigrationService db2Service = new Db2MigrationService(parsingService);
         MigrationPlanService migrationPlanService = new MigrationPlanService(parsingService, javaGenerationService);
         IndexingService indexingService = new IndexingService();
         MetricsService metricsService = new MetricsService();
@@ -38,7 +40,9 @@ class CobolLanguageProviderTest {
             javaGenerationService,
             migrationPlanService,
             indexingService,
-            metricsService
+            metricsService,
+            templateService,
+            db2Service
         );
 
         // Setup test workspace

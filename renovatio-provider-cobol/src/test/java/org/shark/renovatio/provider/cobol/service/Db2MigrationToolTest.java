@@ -10,16 +10,23 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class CopybookMigrationToolTest {
+/**
+ * Tests for DB2 migration MCP tool.
+ */
+public class Db2MigrationToolTest {
 
     @Test
-    void migrateCopybookGeneratesArtifacts() throws Exception {
-        Path temp = Files.createTempDirectory("cobol-copybook");
-        String copybook = "       01 CUSTOMER-REC.\n" +
-                "          05 CUSTOMER-ID PIC X(10).\n" +
-                "          05 CUSTOMER-AGE PIC 9(3).";
-        Path copybookFile = temp.resolve("CUSTOMER.cpy");
-        Files.writeString(copybookFile, copybook);
+    void migrateDb2GeneratesJpaArtifacts() throws Exception {
+        Path temp = Files.createTempDirectory("cobol-db2");
+        String cobol = "       IDENTIFICATION DIVISION.\n" +
+                "       PROGRAM-ID. SAMPLE.\n" +
+                "       PROCEDURE DIVISION.\n" +
+                "           EXEC SQL\n" +
+                "               SELECT * FROM CUSTOMER\n" +
+                "           END-EXEC.\n" +
+                "           STOP RUN.";
+        Path programFile = temp.resolve("SAMPLE.cob");
+        Files.writeString(programFile, cobol);
 
         CobolParsingService parsingService = new CobolParsingService();
         JavaGenerationService javaGenerationService = new JavaGenerationService(parsingService);
@@ -35,15 +42,16 @@ public class CopybookMigrationToolTest {
 
         Map<String, Object> args = Map.of(
                 "workspacePath", temp.toString(),
-                "copybook", "CUSTOMER.cpy"
+                "program", "SAMPLE.cob"
         );
 
-        Object result = tools.executeCobolTool("cobol.copybook.migrate", args);
+        Object result = tools.executeCobolTool("cobol.db2.migrate", args);
         assertTrue(result instanceof Map);
         Map<?,?> resMap = (Map<?,?>) result;
         assertEquals(true, resMap.get("success"));
         Map<?,?> files = (Map<?,?>) resMap.get("files");
-        assertTrue(files.containsKey("CustomerDTO.java"));
-        assertTrue(files.containsKey("CustomerService.java"));
+        assertTrue(files.containsKey("Customer.java"));
+        assertTrue(files.containsKey("CustomerRepository.java"));
     }
 }
+

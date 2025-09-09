@@ -34,6 +34,7 @@ public class CobolMcpToolsProvider {
         tools.add(createCalculateMetricsTool());
         tools.add(createGenerateDiffTool());
         tools.add(createCopybookMigrationTool());
+        tools.add(createDb2MigrationTool());
         
         return tools;
     }
@@ -50,8 +51,26 @@ public class CobolMcpToolsProvider {
             case "cobol.metrics" -> executeMetricsTool(arguments);
             case "cobol.diff" -> executeDiffTool(arguments);
             case "cobol.copybook.migrate" -> executeCopybookMigrationTool(arguments);
+            case "cobol.db2.migrate" -> executeDb2MigrationTool(arguments);
             default -> Map.of("error", "Unknown COBOL tool: " + toolName);
         };
+    }
+
+    private CobolMcpTool createDb2MigrationTool() {
+        CobolMcpTool tool = new CobolMcpTool();
+        tool.setName("cobol.db2.migrate");
+        tool.setDescription("Generate JPA code from embedded DB2 EXEC SQL statements");
+
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", Map.of(
+                "workspacePath", Map.of("type", "string", "description", "Path to COBOL workspace"),
+                "program", Map.of("type", "string", "description", "COBOL program file")
+        ));
+        schema.put("required", List.of("workspacePath", "program"));
+
+        tool.setInputSchema(schema);
+        return tool;
     }
     
     private CobolMcpTool createAnalyzeCobolTool() {
@@ -387,6 +406,35 @@ public class CobolMcpToolsProvider {
                 "success", result.isSuccess(),
                 "message", result.getMessage(),
                 "files", result.getGeneratedCode()
+            );
+        } catch (Exception e) {
+            return Map.of("success", false, "error", e.getMessage());
+        }
+    }
+
+    private Object executeDb2MigrationTool(Map<String, Object> arguments) {
+        try {
+            String workspacePath = (String) arguments.get("workspacePath");
+            String program = (String) arguments.get("program");
+
+            Workspace workspace = new Workspace();
+            workspace.setId("mcp-" + System.currentTimeMillis());
+            workspace.setPath(workspacePath);
+            workspace.setBranch("main");
+
+            NqlQuery query = new NqlQuery();
+            query.setType(NqlQuery.QueryType.FIND);
+            query.setTarget("db2");
+            query.setLanguage("cobol");
+            Map<String, Object> params = new HashMap<>();
+            params.put("program", program);
+            query.setParameters(params);
+
+            StubResult result = cobolProvider.migrateDb2(query, workspace);
+            return Map.of(
+                    "success", result.isSuccess(),
+                    "message", result.getMessage(),
+                    "files", result.getGeneratedCode()
             );
         } catch (Exception e) {
             return Map.of("success", false, "error", e.getMessage());
