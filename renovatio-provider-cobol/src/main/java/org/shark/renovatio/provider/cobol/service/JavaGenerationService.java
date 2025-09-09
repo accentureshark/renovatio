@@ -21,9 +21,11 @@ import java.util.*;
 public class JavaGenerationService {
     
     private final CobolParsingService parsingService;
-    
-    public JavaGenerationService(CobolParsingService parsingService) {
+    private final TemplateCodeGenerationService templateService;
+
+    public JavaGenerationService(CobolParsingService parsingService, TemplateCodeGenerationService templateService) {
         this.parsingService = parsingService;
+        this.templateService = templateService;
     }
     
     /**
@@ -60,6 +62,16 @@ public class JavaGenerationService {
                 // Generate implementation template
                 String serviceImpl = generateServiceImplementation(classBase, metadata);
                 generatedFiles.put(baseName + "ServiceImpl.java", serviceImpl);
+
+                @SuppressWarnings("unchecked")
+                Set<String> cics = (Set<String>) metadata.get("cicsCommands");
+                if (cics != null && !cics.isEmpty()) {
+                    Map<String, Object> tmplData = new HashMap<>();
+                    tmplData.put("className", classBase + "CicsController");
+                    tmplData.put("transactions", cics);
+                    String controller = templateService.generateCicsController(tmplData);
+                    generatedFiles.put(baseName + "CicsController.java", controller);
+                }
             }
 
             // Depuración: imprimir las claves generadas

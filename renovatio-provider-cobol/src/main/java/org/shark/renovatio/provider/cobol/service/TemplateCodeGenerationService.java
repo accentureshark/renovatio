@@ -220,6 +220,47 @@ public class TemplateCodeGenerationService {
         template.process(templateData, writer);
         return writer.toString();
     }
+
+    /**
+     * Generates a simple REST controller exposing CICS transactions as endpoints.
+     */
+    public String generateCicsController(Map<String, Object> templateData) throws IOException, TemplateException {
+        String templateContent = """
+        package org.shark.renovatio.generated.cobol;
+
+        import org.springframework.web.bind.annotation.*;
+        import org.springframework.http.ResponseEntity;
+        import java.util.Map;
+        import org.shark.renovatio.provider.cobol.service.CicsService;
+
+        /**
+         * Generated controller that forwards REST calls to CICS transactions.
+         */
+        @RestController
+        @RequestMapping("/api/cics")
+        public class ${className} {
+
+            private final CicsService cicsService;
+
+            public ${className}(CicsService cicsService) {
+                this.cicsService = cicsService;
+            }
+
+            <#list transactions as tx>
+            @PostMapping("/${tx?lower_case}")
+            public ResponseEntity<String> ${tx?lower_case}(@RequestBody Map<String, Object> payload) {
+                String result = cicsService.invokeTransaction("${tx}", payload);
+                return ResponseEntity.ok(result);
+            }
+            </#list>
+        }
+        """;
+
+        Template template = new Template("cicsController", new StringReader(templateContent), freemarkerConfig);
+        StringWriter writer = new StringWriter();
+        template.process(templateData, writer);
+        return writer.toString();
+    }
     
     /**
      * Generates MapStruct mapper interface

@@ -11,6 +11,7 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 - **AST extraction** for COBOL programs, data divisions, and procedure divisions
 - **Symbol detection** for data items, paragraphs, sections, and program structures
 - **Dependency analysis** across COBOL programs
+- **CICS command detection** for identifying transactional calls
 
 ### ☕ Java Code Generation
 - **JavaPoet integration** for type-safe Java code generation
@@ -54,6 +55,11 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 - **Customizable templates** for different target frameworks
 - **Multi-file generation** with proper package structure
 - **Test code generation** for migration validation
+- **REST endpoint generation** for CICS transactions
+
+### 🔌 CICS Integration
+- **Configurable CICS service** with real or mock implementations via `renovatio.cics.*` properties
+- **Automatic endpoint scaffolding** for detected transactions
 
 ## Architecture
 

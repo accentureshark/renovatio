@@ -76,6 +76,12 @@ renovatio:
       default-strategy: incremental
       backup-original: true
       validation-enabled: true
+
+    cics:
+      # Use a mock CICS service by default
+      mock: true
+      # Base URL for real CICS services
+      url: http://localhost:10080
       
     # Indexing configuration
     indexing:

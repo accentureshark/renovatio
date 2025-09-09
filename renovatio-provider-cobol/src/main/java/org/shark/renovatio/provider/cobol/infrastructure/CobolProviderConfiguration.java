@@ -21,8 +21,10 @@ public class CobolProviderConfiguration {
     }
     
     @Bean
-    public JavaGenerationService javaGenerationService(CobolParsingService parsingService) {
-        return new JavaGenerationService(parsingService);
+    public JavaGenerationService javaGenerationService(
+            CobolParsingService parsingService,
+            TemplateCodeGenerationService templateCodeGenerationService) {
+        return new JavaGenerationService(parsingService, templateCodeGenerationService);
     }
     
     @Bean
@@ -40,6 +42,13 @@ public class CobolProviderConfiguration {
     @Bean
     public MetricsService metricsService() {
         return new MetricsService();
+    }
+
+    @Bean
+    public CicsService cicsService(
+            @Value("${renovatio.cics.mock:true}") boolean mock,
+            @Value("${renovatio.cics.url:http://localhost:10080}") String url) {
+        return mock ? new MockCicsService() : new RealCicsService(url);
     }
     
     @Bean
