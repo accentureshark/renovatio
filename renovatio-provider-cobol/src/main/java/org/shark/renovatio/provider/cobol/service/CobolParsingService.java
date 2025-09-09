@@ -16,6 +16,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Stream;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.shark.renovatio.shared.domain.AnalyzeResult;
 import org.shark.renovatio.shared.domain.Workspace;
@@ -109,6 +111,34 @@ public class CobolParsingService {
                 .forEach(copybooks::add);
         }
         return copybooks;
+    }
+
+    /**
+     * Extract all embedded EXEC SQL statements from a COBOL source file.
+     * <p>
+     * This method performs a lightweight pattern scan rather than a full
+     * parse of the contained SQL. The returned list contains the raw SQL
+     * text between {@code EXEC SQL} and {@code END-EXEC} blocks.
+     */
+    public List<String> extractExecSqlStatements(Path cobolFile) throws IOException {
+        String content = Files.readString(cobolFile);
+        return extractExecSqlStatements(content);
+    }
+
+    /**
+     * Extract embedded EXEC SQL statements from COBOL source content.
+     */
+    public List<String> extractExecSqlStatements(String cobolSource) {
+        List<String> statements = new ArrayList<>();
+        Pattern pattern = Pattern.compile("EXEC\s+SQL(.*?)END-EXEC", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(cobolSource);
+        while (matcher.find()) {
+            String sql = matcher.group(1).trim();
+            if (!sql.isEmpty()) {
+                statements.add(sql);
+            }
+        }
+        return statements;
     }
 
     /**

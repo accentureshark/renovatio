@@ -41,6 +41,11 @@ public class CobolProviderConfiguration {
     public MetricsService metricsService() {
         return new MetricsService();
     }
+
+    @Bean
+    public Db2MigrationService db2MigrationService(CobolParsingService parsingService) {
+        return new Db2MigrationService(parsingService);
+    }
     
     @Bean
     public CobolLanguageProvider cobolLanguageProvider(
@@ -49,14 +54,16 @@ public class CobolProviderConfiguration {
             MigrationPlanService migrationPlanService,
             IndexingService indexingService,
             MetricsService metricsService,
-            TemplateCodeGenerationService templateCodeGenerationService) {
+            TemplateCodeGenerationService templateCodeGenerationService,
+            Db2MigrationService db2MigrationService) {
         return new CobolLanguageProvider(
             parsingService,
             javaGenerationService,
             migrationPlanService,
             indexingService,
             metricsService,
-            templateCodeGenerationService
+            templateCodeGenerationService,
+            db2MigrationService
         );
     }
 }

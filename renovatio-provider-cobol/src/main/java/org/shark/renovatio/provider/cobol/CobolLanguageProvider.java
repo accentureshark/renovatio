@@ -26,6 +26,7 @@ public class CobolLanguageProvider implements LanguageProvider {
     private final IndexingService indexingService;
     private final MetricsService metricsService;
     private final TemplateCodeGenerationService templateCodeGenerationService;
+    private final Db2MigrationService db2MigrationService;
     
     public CobolLanguageProvider(
             CobolParsingService parsingService,
@@ -33,13 +34,15 @@ public class CobolLanguageProvider implements LanguageProvider {
             MigrationPlanService migrationPlanService,
             IndexingService indexingService,
             MetricsService metricsService,
-            TemplateCodeGenerationService templateCodeGenerationService) {
+            TemplateCodeGenerationService templateCodeGenerationService,
+            Db2MigrationService db2MigrationService) {
         this.parsingService = parsingService;
         this.javaGenerationService = javaGenerationService;
         this.migrationPlanService = migrationPlanService;
         this.indexingService = indexingService;
         this.metricsService = metricsService;
         this.templateCodeGenerationService = templateCodeGenerationService;
+        this.db2MigrationService = db2MigrationService;
     }
     
     @Override
@@ -153,6 +156,42 @@ public class CobolLanguageProvider implements LanguageProvider {
             return result;
         } catch (Exception e) {
             return new StubResult(false, "Copybook migration failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Generate JPA artifacts from embedded DB2 EXEC SQL statements.
+     */
+    public StubResult migrateDb2(NqlQuery query, Workspace workspace) {
+        try {
+            String programName = null;
+            if (query.getParameters() != null) {
+                Object p = query.getParameters().get("program");
+                if (p != null) {
+                    programName = p.toString();
+                }
+            }
+            if (programName == null) {
+                return new StubResult(false, "No COBOL program specified");
+            }
+
+            Path root = Paths.get(workspace.getPath());
+            List<Path> cobolFiles = parsingService.findCobolFiles(root);
+            Optional<Path> programPath = cobolFiles.stream()
+                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(programName))
+                    .findFirst();
+            if (programPath.isEmpty()) {
+                return new StubResult(false, "COBOL program not found: " + programName);
+            }
+
+            Map<String, String> generated = db2MigrationService.migrateCobolFile(programPath.get());
+            boolean success = !generated.isEmpty();
+            StubResult result = new StubResult(success,
+                    success ? "Generated " + generated.size() + " artifacts" : "No SQL statements found");
+            result.setGeneratedCode(generated);
+            return result;
+        } catch (Exception e) {
+            return new StubResult(false, "DB2 migration failed: " + e.getMessage());
         }
     }
 }
