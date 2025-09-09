@@ -33,6 +33,10 @@
             <artifactId>renovatio-provider-cobol</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.shark.renovatio</groupId>
+            <artifactId>renovatio-provider-jcl</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
