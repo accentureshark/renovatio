@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Locale;
+import com.github.mustachejava.DefaultMustacheFactory;
+import com.github.mustachejava.Mustache;
 
 /**
  * Template-based code generation service using Freemarker
@@ -300,6 +302,48 @@ public class TemplateCodeGenerationService {
         Template template = new Template("mapper", new StringReader(templateContent), freemarkerConfig);
         StringWriter writer = new StringWriter();
         template.process(templateData, writer);
+        return writer.toString();
+    }
+
+    /**
+     * Generates a simple exporter class that produces SQL insert statements for RDBMS targets.
+     */
+    public String generateRdbmsExporter(Map<String, Object> templateData) throws IOException, TemplateException {
+        String templateContent = """
+        package org.shark.renovatio.generated.cobol;
+
+        /**
+         * Utility class for exporting DTOs to a relational database.
+         */
+        public class ${className}RdbmsExporter {
+
+            public String toInsertSql(${className} dto) {
+                // Simplified example - build INSERT statement from DTO
+                return "INSERT INTO ${tableName} (...) VALUES (...);";
+            }
+        }
+        """;
+
+        Template template = new Template("rdbmsExporter", new StringReader(templateContent), freemarkerConfig);
+        StringWriter writer = new StringWriter();
+        template.process(templateData, writer);
+        return writer.toString();
+    }
+
+    /**
+     * Generates a basic exporter class that uploads DTO representations to S3 using Mustache templates.
+     */
+    public String generateS3Exporter(Map<String, Object> templateData) throws IOException {
+        String templateContent = "package org.shark.renovatio.generated.cobol;\n\n" +
+                "public class {{className}}S3Exporter {\n" +
+                "    public void export({{className}} dto) {\n" +
+                "        // TODO: stream DTO to S3 bucket {{bucketName}}\n" +
+                "    }\n" +
+                "}\n";
+        DefaultMustacheFactory mf = new DefaultMustacheFactory();
+        Mustache mustache = mf.compile(new StringReader(templateContent), "s3Exporter");
+        StringWriter writer = new StringWriter();
+        mustache.execute(writer, templateData).flush();
         return writer.toString();
     }
 
