@@ -7,7 +7,7 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 ## Features
 
 ### 🔍 COBOL Analysis & Parsing
-- **Pattern-based COBOL parsing** with extensible architecture for future ProLeap/Koopa integration
+- **Pluggable parsers** with ProLeap (default) and Koopa dialects seleccionables via perfiles de build
 - **AST extraction** for COBOL programs, data divisions, and procedure divisions
 - **Symbol detection** for data items, paragraphs, sections, and program structures
 - **Dependency analysis** across COBOL programs
@@ -60,6 +60,31 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 ### 🔌 CICS Integration
 - **Configurable CICS service** with real or mock implementations via `renovatio.cics.*` properties
 - **Automatic endpoint scaffolding** for detected transactions
+
+## Dialect Profiles
+
+Different COBOL dialects can be selected at build time.
+
+### Maven
+
+- ProLeap (predeterminado):
+  ```bash
+  mvn -pl renovatio-provider-cobol -Pproleap test
+  ```
+- Koopa:
+  ```bash
+  mvn -pl renovatio-provider-cobol -Pkoopa test
+  ```
+
+### Gradle
+
+Usando la propiedad `dialect`:
+```bash
+gradle :renovatio-provider-cobol:test             # ProLeap
+gradle :renovatio-provider-cobol:test -Pdialect=koopa
+```
+
+Para ejemplos de árboles de sintaxis generados consulta [AST_EXAMPLES.md](AST_EXAMPLES.md).
 
 ## Architecture
 
