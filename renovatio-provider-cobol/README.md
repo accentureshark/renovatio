@@ -125,6 +125,13 @@ Creates a migration plan for COBOL to Java transformation.
 - `migrationStrategy`: Migration strategy (full, incremental, hybrid)
 - `targetFramework`: Target Java framework
 
+### `cobol.db2.migrate`
+Generates JPA entity and repository classes from embedded DB2 `EXEC SQL` blocks.
+
+**Parameters:**
+- `workspacePath` (required): Path to COBOL workspace
+- `program` (required): COBOL program file containing SQL statements
+
 ### `cobol.migration.apply`
 Applies a migration plan to transform COBOL to Java.
 

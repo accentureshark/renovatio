@@ -71,13 +71,45 @@ public class JavaGenerationService {
                     tmplData.put("transactions", cics);
                     String controller = templateService.generateCicsController(tmplData);
                     generatedFiles.put(baseName + "CicsController.java", controller);
+
+
+                System.out.println("DEBUG: Processing file: " + fileName + ", baseName: " + baseName);
+
+                // Limpiar el nombre base correctamente desde el principio
+                String classBase = toPascalCase(baseName);
+
+                System.out.println("DEBUG: Generated classBase: " + classBase);
+
+                try {
+                    // Generate DTO class for data structures
+                    String dtoClass = generateDataTransferObject(classBase, metadata);
+                    generatedFiles.put(classBase + "DTO.java", dtoClass);
+                    // Generate service interface
+                    String serviceInterface = generateServiceInterface(classBase, metadata);
+                    generatedFiles.put(classBase + "Service.java", serviceInterface);
+                    // Generate implementation template
+                    String serviceImpl = generateServiceImplementation(classBase, metadata);
+                    generatedFiles.put(classBase + "ServiceImpl.java", serviceImpl);
+                } catch (Exception e) {
+                    System.out.println("DEBUG: Error generating for classBase '" + classBase + "': " + e.getMessage());
+                    throw e;
+
                 }
             }
 
+            // Escribir archivos al disco
+            String outputPath = writeGeneratedFilesToDisk(generatedFiles, workspace);
+
             // Depuración: imprimir las claves generadas
             System.out.println("Claves generadas: " + generatedFiles.keySet());
+            System.out.println("Archivos escritos en: " + outputPath);
+
             boolean success = !generatedFiles.isEmpty();
-            StubResult result = new StubResult(success, (success ? "Generated " + generatedFiles.size() + " Java files" : "No Java files generated"));
+            String message = success ?
+                "Generated " + generatedFiles.size() + " Java files in: " + outputPath :
+                "No Java files generated";
+
+            StubResult result = new StubResult(success, message);
             result.setGeneratedCode(generatedFiles);
             return result;
         } catch (Exception e) {
@@ -88,13 +120,17 @@ public class JavaGenerationService {
     /**
      * Generates a Java DTO class from COBOL data structures
      */
-    private String generateDataTransferObject(String programName, Map<String, Object> programData) {
-        String className = toPascalCase(programName) + "DTO";
-        
+    private String generateDataTransferObject(String cleanClassName, Map<String, Object> programData) {
+        // Asegurar que el cleanClassName esté completamente limpio
+        String sanitizedClassName = sanitizeClassName(cleanClassName);
+        String className = sanitizedClassName + "DTO";
+
+        System.out.println("DEBUG: generateDataTransferObject - original: '" + cleanClassName + "', sanitized: '" + sanitizedClassName + "', final: '" + className + "'");
+
         TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className)
             .addModifiers(Modifier.PUBLIC)
-            .addJavadoc("Data Transfer Object generated from COBOL program: $L\n", programName);
-        
+            .addJavadoc("Data Transfer Object generated from COBOL program: $L\n", sanitizedClassName);
+
         // Add default constructor
         classBuilder.addMethod(MethodSpec.constructorBuilder()
             .addModifiers(Modifier.PUBLIC)
@@ -126,16 +162,20 @@ public class JavaGenerationService {
     /**
      * Generates a service interface for COBOL program functionality
      */
-    private String generateServiceInterface(String programName, Map<String, Object> programData) {
-        String interfaceName = toPascalCase(programName) + "Service";
-        String dtoName = toPascalCase(programName) + "DTO";
-        
+    private String generateServiceInterface(String cleanClassName, Map<String, Object> programData) {
+        // Asegurar que el cleanClassName esté completamente limpio
+        String sanitizedClassName = sanitizeClassName(cleanClassName);
+        String interfaceName = sanitizedClassName + "Service";
+        String dtoName = sanitizedClassName + "DTO";
+
+        System.out.println("DEBUG: generateServiceInterface - original: '" + cleanClassName + "', sanitized: '" + sanitizedClassName + "'");
+
         ClassName dtoClass = ClassName.get("org.shark.renovatio.generated.cobol", dtoName);
-        
+
         TypeSpec.Builder interfaceBuilder = TypeSpec.interfaceBuilder(interfaceName)
             .addModifiers(Modifier.PUBLIC)
-            .addJavadoc("Service interface for COBOL program: $L\n", programName);
-        
+            .addJavadoc("Service interface for COBOL program: $L\n", sanitizedClassName);
+
         // Add process method
         MethodSpec processMethod = MethodSpec.methodBuilder("process")
             .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
@@ -171,21 +211,25 @@ public class JavaGenerationService {
     /**
      * Generates a service implementation template
      */
-    private String generateServiceImplementation(String programName, Map<String, Object> programData) {
-        String className = toPascalCase(programName) + "ServiceImpl";
-        String interfaceName = toPascalCase(programName) + "Service";
-        String dtoName = toPascalCase(programName) + "DTO";
-        
+    private String generateServiceImplementation(String cleanClassName, Map<String, Object> programData) {
+        // Asegurar que el cleanClassName esté completamente limpio
+        String sanitizedClassName = sanitizeClassName(cleanClassName);
+        String className = sanitizedClassName + "ServiceImpl";
+        String interfaceName = sanitizedClassName + "Service";
+        String dtoName = sanitizedClassName + "DTO";
+
+        System.out.println("DEBUG: generateServiceImplementation - original: '" + cleanClassName + "', sanitized: '" + sanitizedClassName + "'");
+
         ClassName interfaceClass = ClassName.get("org.shark.renovatio.generated.cobol", interfaceName);
         ClassName dtoClass = ClassName.get("org.shark.renovatio.generated.cobol", dtoName);
-        
+
         TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className)
             .addModifiers(Modifier.PUBLIC)
             .addSuperinterface(interfaceClass)
             .addAnnotation(ClassName.get("org.springframework.stereotype", "Service"))
             .addJavadoc("Implementation of $L\n", interfaceName)
-            .addJavadoc("Generated from COBOL program: $L\n", programName);
-        
+            .addJavadoc("Generated from COBOL program: $L\n", sanitizedClassName);
+
         // Implement process method
         MethodSpec processMethod = MethodSpec.methodBuilder("process")
             .addModifiers(Modifier.PUBLIC)
@@ -193,7 +237,7 @@ public class JavaGenerationService {
             .addParameter(dtoClass, "input")
             .returns(dtoClass)
             .addStatement("// TODO: Implement COBOL business logic")
-            .addStatement("// Original COBOL program: $L", programName)
+            .addStatement("// Original COBOL program: $L", cleanClassName)
             .addStatement("$T output = new $T()", dtoClass, dtoClass)
             .addStatement("return output")
             .build();
@@ -269,17 +313,64 @@ public class JavaGenerationService {
      * Converts string to PascalCase (preserva mayúsculas en siglas y nombres COBOL, separa por punto también)
      */
     private String toPascalCase(String input) {
-        if (input == null || input.isEmpty()) return input;
-        String[] parts = input.split("[-_\\s.]+");
+        if (input == null || input.isEmpty()) return "CobolProgram";
+
+        System.out.println("DEBUG: toPascalCase input: '" + input + "'");
+
+        // Limpiar caracteres especiales que no son válidos en nombres de clase Java (incluyendo apostrofes)
+        // Primero quitar la extensión del archivo si existe
+        String withoutExtension = input.replaceAll("\\.(cob|cobol|cbl|cpy)$", "");
+
+        // Limpiar todos los caracteres especiales incluyendo apostrofes, guiones, espacios, etc.
+        String cleaned = withoutExtension.replaceAll("[^a-zA-Z0-9]", " ");
+        System.out.println("DEBUG: after cleaning: '" + cleaned + "'");
+
+        // Dividir por espacios múltiples y procesar cada parte
+        String[] parts = cleaned.trim().split("\\s+");
         StringBuilder result = new StringBuilder();
+
+        System.out.println("DEBUG: parts array: " + java.util.Arrays.toString(parts));
+
         for (String part : parts) {
-            if (part.length() == 0) continue;
+            if (part.isEmpty()) continue;
+
+            // Ignorar palabras comunes que no aportan valor al nombre de clase
+            if (part.equalsIgnoreCase("cob") || part.equalsIgnoreCase("cobol") ||
+                part.equalsIgnoreCase("cbl") || part.equalsIgnoreCase("cpy") ||
+                part.equalsIgnoreCase("program") || part.equalsIgnoreCase("file")) {
+                System.out.println("DEBUG: skipping common word: '" + part + "'");
+                continue;
+            }
+
+            System.out.println("DEBUG: processing part: '" + part + "'");
+            // Capitalizar primera letra y hacer el resto lowercase
             result.append(part.substring(0, 1).toUpperCase());
             if (part.length() > 1) {
                 result.append(part.substring(1).toLowerCase());
             }
         }
-        return result.toString();
+
+        // Si el resultado está vacío, usar un nombre por defecto
+        String finalResult = result.toString();
+        if (finalResult.isEmpty()) {
+            System.out.println("DEBUG: empty result, using default");
+            finalResult = "CobolProgram";
+        }
+
+        // Asegurar que el nombre comience con una letra
+        if (!Character.isLetter(finalResult.charAt(0))) {
+            finalResult = "Cobol" + finalResult;
+        }
+
+        // Validación final para asegurar que el nombre sea válido para Java
+        // Solo permitir letras, números y guiones bajos, debe comenzar con letra
+        finalResult = finalResult.replaceAll("[^A-Za-z0-9]", "");
+        if (finalResult.isEmpty() || !Character.isLetter(finalResult.charAt(0))) {
+            finalResult = "CobolProgram";
+        }
+
+        System.out.println("DEBUG: toPascalCase final output: '" + finalResult + "'");
+        return finalResult;
     }
 
     /**
@@ -287,16 +378,29 @@ public class JavaGenerationService {
      */
     private String toCamelCase(String input) {
         if (input == null || input.isEmpty()) return input;
-        String[] parts = input.split("[-_\s]+");
+
+        // Limpiar caracteres especiales que no son válidos en nombres de variable Java
+        String cleaned = input.replaceAll("[^a-zA-Z0-9\\s\\-_]", "");
+
+        String[] parts = cleaned.split("[-_\\s]+");
+        if (parts.length == 0) return "field";
+
         StringBuilder result = new StringBuilder(parts[0].toLowerCase());
         for (int i = 1; i < parts.length; i++) {
-            if (parts[i].length() == 0) continue;
+            if (parts[i].isEmpty()) continue;
             result.append(parts[i].substring(0, 1).toUpperCase());
             if (parts[i].length() > 1) {
                 result.append(parts[i].substring(1).toLowerCase());
             }
         }
-        return result.toString();
+
+        // Si el resultado está vacío o comienza con número, agregar prefijo
+        String finalResult = result.toString();
+        if (finalResult.isEmpty() || Character.isDigit(finalResult.charAt(0))) {
+            return "field" + capitalize(finalResult);
+        }
+
+        return finalResult;
     }
     
     /**
@@ -305,5 +409,93 @@ public class JavaGenerationService {
     private String capitalize(String input) {
         if (input == null || input.isEmpty()) return input;
         return input.substring(0, 1).toUpperCase() + input.substring(1).toLowerCase();
+    }
+
+    /**
+     * Sanitizes the class name to ensure it is a valid Java identifier
+     */
+    private String sanitizeClassName(String className) {
+        if (className == null || className.isEmpty()) return "CobolProgram";
+
+        System.out.println("DEBUG: sanitizeClassName input: '" + className + "'");
+
+        // Limpiar caracteres especiales que no son válidos en nombres de clase Java
+        String sanitized = className.replaceAll("[^a-zA-Z0-9_$]", " ");
+
+        // Dividir por espacios múltiples y procesar cada parte
+        String[] parts = sanitized.trim().split("\\s+");
+        StringBuilder result = new StringBuilder();
+
+        for (String part : parts) {
+            if (part.isEmpty()) continue;
+
+            // Ignorar palabras comunes que no aportan valor al nombre de clase
+            if (part.equalsIgnoreCase("cob") || part.equalsIgnoreCase("cobol") ||
+                part.equalsIgnoreCase("cbl") || part.equalsIgnoreCase("cpy") ||
+                part.equalsIgnoreCase("program") || part.equalsIgnoreCase("file")) {
+                continue;
+            }
+
+            // Capitalizar primera letra y hacer el resto lowercase
+            result.append(part.substring(0, 1).toUpperCase());
+            if (part.length() > 1) {
+                result.append(part.substring(1).toLowerCase());
+            }
+        }
+
+        // Si el resultado está vacío, usar un nombre por defecto
+        String finalResult = result.toString();
+        if (finalResult.isEmpty()) {
+            finalResult = "CobolProgram";
+        }
+
+        // Asegurar que el nombre comience con una letra
+        if (!Character.isLetter(finalResult.charAt(0))) {
+            finalResult = "Cobol" + finalResult;
+        }
+
+        // Validación final para asegurar que el nombre sea válido para Java
+        // Solo permitir letras, números y guiones bajos, debe comenzar con letra
+        finalResult = finalResult.replaceAll("[^A-Za-z0-9]", "");
+        if (finalResult.isEmpty() || !Character.isLetter(finalResult.charAt(0))) {
+            finalResult = "CobolProgram";
+        }
+
+        System.out.println("DEBUG: sanitizeClassName output: '" + finalResult + "'");
+        return finalResult;
+    }
+
+    /**
+     * Writes the generated Java files to disk
+     */
+    private String writeGeneratedFilesToDisk(Map<String, String> generatedFiles, Workspace workspace) {
+        try {
+            // Crear directorio de salida dentro del workspace
+            Path workspacePath = Paths.get(workspace.getPath());
+            Path outputDir = workspacePath.resolve("generated-java-stubs");
+
+            // Crear directorio si no existe
+            if (!java.nio.file.Files.exists(outputDir)) {
+                java.nio.file.Files.createDirectories(outputDir);
+            }
+
+            // Escribir cada archivo generado
+            for (Map.Entry<String, String> entry : generatedFiles.entrySet()) {
+                String fileName = entry.getKey();
+                String fileContent = entry.getValue();
+
+                Path filePath = outputDir.resolve(fileName);
+                java.nio.file.Files.write(filePath, fileContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+                System.out.println("Archivo escrito: " + filePath.toString());
+            }
+
+            return outputDir.toAbsolutePath().toString();
+
+        } catch (Exception e) {
+            System.err.println("Error escribiendo archivos: " + e.getMessage());
+            e.printStackTrace();
+            return "Error: No se pudieron escribir los archivos - " + e.getMessage();
+        }
     }
 }

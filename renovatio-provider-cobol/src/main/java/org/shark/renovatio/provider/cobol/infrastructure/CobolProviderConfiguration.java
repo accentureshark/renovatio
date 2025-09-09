@@ -49,6 +49,8 @@ public class CobolProviderConfiguration {
             @Value("${renovatio.cics.mock:true}") boolean mock,
             @Value("${renovatio.cics.url:http://localhost:10080}") String url) {
         return mock ? new MockCicsService() : new RealCicsService(url);
+    public Db2MigrationService db2MigrationService(CobolParsingService parsingService) {
+        return new Db2MigrationService(parsingService);
     }
     
     @Bean
@@ -57,13 +59,17 @@ public class CobolProviderConfiguration {
             JavaGenerationService javaGenerationService,
             MigrationPlanService migrationPlanService,
             IndexingService indexingService,
-            MetricsService metricsService) {
+            MetricsService metricsService,
+            TemplateCodeGenerationService templateCodeGenerationService,
+            Db2MigrationService db2MigrationService) {
         return new CobolLanguageProvider(
             parsingService,
             javaGenerationService,
             migrationPlanService,
             indexingService,
-            metricsService
+            metricsService,
+            templateCodeGenerationService,
+            db2MigrationService
         );
     }
 }

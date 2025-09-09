@@ -16,8 +16,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Stream;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.shark.renovatio.shared.domain.AnalyzeResult;
+import org.shark.renovatio.shared.domain.PerformanceMetrics;
 import org.shark.renovatio.shared.domain.Workspace;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.provider.cobol.domain.CobolProgram;
@@ -97,11 +100,56 @@ public class CobolParsingService {
     }
 
     /**
+     * Locate COBOL copybooks inside a workspace. Copybooks typically use the
+     * {@code .cpy} extension.
+     */
+    public List<Path> findCopybooks(Path workspacePath) throws IOException {
+        List<Path> copybooks = new ArrayList<>();
+        try (Stream<Path> walkStream = Files.walk(workspacePath)) {
+            walkStream
+                .filter(Files::isRegularFile)
+                .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".cpy"))
+                .forEach(copybooks::add);
+        }
+        return copybooks;
+    }
+
+    /**
+     * Extract all embedded EXEC SQL statements from a COBOL source file.
+     * <p>
+     * This method performs a lightweight pattern scan rather than a full
+     * parse of the contained SQL. The returned list contains the raw SQL
+     * text between {@code EXEC SQL} and {@code END-EXEC} blocks.
+     */
+    public List<String> extractExecSqlStatements(Path cobolFile) throws IOException {
+        String content = Files.readString(cobolFile);
+        return extractExecSqlStatements(content);
+    }
+
+    /**
+     * Extract embedded EXEC SQL statements from COBOL source content.
+     */
+    public List<String> extractExecSqlStatements(String cobolSource) {
+        List<String> statements = new ArrayList<>();
+        Pattern pattern = Pattern.compile("EXEC\s+SQL(.*?)END-EXEC", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(cobolSource);
+        while (matcher.find()) {
+            String sql = matcher.group(1).trim();
+            if (!sql.isEmpty()) {
+                statements.add(sql);
+            }
+        }
+        return statements;
+    }
+
+    /**
      * Analyze all COBOL files in the given workspace. The dialect can be
      * provided via query parameters ("dialect") or workspace metadata. When
      * absent the service's default dialect is used.
      */
     public AnalyzeResult analyzeCOBOL(NqlQuery query, Workspace workspace) throws IOException {
+        long start = System.nanoTime();
+
         Dialect dialect = resolveDialect(query, workspace);
         Path root = Paths.get(workspace.getPath());
         List<Path> cobolFiles = findCobolFiles(root);
@@ -122,6 +170,9 @@ public class CobolParsingService {
 
         AnalyzeResult result = new AnalyzeResult(true, "Parsed " + programs.size() + " COBOL files");
         result.setData(data);
+
+        long elapsed = System.nanoTime() - start;
+        result.setPerformance(new PerformanceMetrics(elapsed / 1_000_000));
         return result;
     }
 
@@ -177,6 +228,38 @@ public class CobolParsingService {
         ast.put("dataItems", listener.getDataItems());
         ast.put("cicsCommands", listener.getCicsCommands());
         ast.put("parseTree", tree.toStringTree(parser));
+        ast.put("dialect", dialect.name());
+        return ast;
+    }
+
+    /**
+     * Parse a COBOL copybook. Since copybooks often contain fragments that are
+     * not valid standalone programs, the contents are wrapped in a minimal
+     * program structure before parsing.
+     */
+    public Map<String, Object> parseCopybook(Path copybookFile, Dialect dialect) throws IOException {
+        String content = Files.readString(copybookFile);
+        String wrapped = "       IDENTIFICATION DIVISION.\n" +
+                         "       PROGRAM-ID. DUMMY.\n" +
+                         "       DATA DIVISION.\n" +
+                         "       WORKING-STORAGE SECTION.\n" +
+                         content + "\n" +
+                         "       END PROGRAM DUMMY.";
+
+        CharStream input = CharStreams.fromString(wrapped);
+        Cobol85Lexer lexer = new Cobol85Lexer(input);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        Cobol85Parser parser = new Cobol85Parser(tokens);
+        configureParserForDialect(lexer, parser, dialect);
+
+        ParserRuleContext tree = parser.startRule();
+        CollectingListener listener = new CollectingListener();
+        ParseTreeWalker.DEFAULT.walk(listener, tree);
+
+        Map<String, Object> ast = new HashMap<>();
+        String programId = copybookFile.getFileName().toString();
+        ast.put("programId", programId.replaceFirst("\\.[^.]+$", ""));
+        ast.put("dataItems", listener.getDataItems());
         ast.put("dialect", dialect.name());
         return ast;
     }
