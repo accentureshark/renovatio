@@ -21,9 +21,11 @@ import java.util.*;
 public class JavaGenerationService {
     
     private final CobolParsingService parsingService;
-    
-    public JavaGenerationService(CobolParsingService parsingService) {
+    private final TemplateCodeGenerationService templateService;
+
+    public JavaGenerationService(CobolParsingService parsingService, TemplateCodeGenerationService templateService) {
         this.parsingService = parsingService;
+        this.templateService = templateService;
     }
     
     /**
@@ -49,6 +51,27 @@ public class JavaGenerationService {
                 // Usar el nombre del archivo COBOL para los nombres de clases y archivos generados
                 String fileName = (String) metadata.get("filePath");
                 String baseName = Paths.get(fileName).getFileName().toString();
+                // El nombre de la clase debe ser SampleCobDTO, SampleCobService, etc.
+                String classBase = baseName.replace(".", "");
+                // Generate DTO class for data structures
+                String dtoClass = generateDataTransferObject(classBase, metadata);
+                generatedFiles.put(baseName + "DTO.java", dtoClass);
+                // Generate service interface
+                String serviceInterface = generateServiceInterface(classBase, metadata);
+                generatedFiles.put(baseName + "Service.java", serviceInterface);
+                // Generate implementation template
+                String serviceImpl = generateServiceImplementation(classBase, metadata);
+                generatedFiles.put(baseName + "ServiceImpl.java", serviceImpl);
+
+                @SuppressWarnings("unchecked")
+                Set<String> cics = (Set<String>) metadata.get("cicsCommands");
+                if (cics != null && !cics.isEmpty()) {
+                    Map<String, Object> tmplData = new HashMap<>();
+                    tmplData.put("className", classBase + "CicsController");
+                    tmplData.put("transactions", cics);
+                    String controller = templateService.generateCicsController(tmplData);
+                    generatedFiles.put(baseName + "CicsController.java", controller);
+
 
                 System.out.println("DEBUG: Processing file: " + fileName + ", baseName: " + baseName);
 
@@ -70,6 +93,7 @@ public class JavaGenerationService {
                 } catch (Exception e) {
                     System.out.println("DEBUG: Error generating for classBase '" + classBase + "': " + e.getMessage());
                     throw e;
+
                 }
             }
 

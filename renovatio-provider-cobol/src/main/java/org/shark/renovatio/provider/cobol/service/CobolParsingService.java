@@ -226,6 +226,7 @@ public class CobolParsingService {
         ast.put("calls", listener.getCalls());
         ast.put("copies", listener.getCopies());
         ast.put("dataItems", listener.getDataItems());
+        ast.put("cicsCommands", listener.getCicsCommands());
         ast.put("parseTree", tree.toStringTree(parser));
         ast.put("dialect", dialect.name());
         return ast;
@@ -291,6 +292,7 @@ public class CobolParsingService {
         private final Set<String> calls = new HashSet<>();
         private final Set<String> copies = new HashSet<>();
         private final List<Map<String, Object>> dataItems = new ArrayList<>();
+        private final Set<String> cicsCommands = new HashSet<>();
 
         @Override
         public void enterProgramIdParagraph(Cobol85Parser.ProgramIdParagraphContext ctx) {
@@ -316,6 +318,21 @@ public class CobolParsingService {
                 copies.add(ctx.textName().getText());
             }
         }
+
+        @Override
+        public void enterExecStatement(Cobol85Parser.ExecStatementContext ctx) {
+            String text = ctx.getText().toUpperCase(Locale.ROOT);
+            if (text.startsWith("EXECCICS")) {
+                String body = text.substring("EXECCICS".length());
+                if (body.endsWith("ENDEXEC")) {
+                    body = body.substring(0, body.length() - "ENDEXEC".length());
+                }
+                String[] parts = body.trim().split("\\s+");
+                if (parts.length > 0) {
+                    cicsCommands.add(parts[0]);
+                }
+            }
+        }
         
         @Override
         public void enterDataDescriptionEntryFormat1(Cobol85Parser.DataDescriptionEntryFormat1Context ctx) {
@@ -334,5 +351,6 @@ public class CobolParsingService {
         public Set<String> getCalls() { return calls; }
         public Set<String> getCopies() { return copies; }
         public List<Map<String, Object>> getDataItems() { return dataItems; }
+        public Set<String> getCicsCommands() { return cicsCommands; }
     }
 }
