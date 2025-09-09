@@ -2,7 +2,7 @@ package org.shark.renovatio.agent;
 
 import org.shark.renovatio.core.service.LanguageProviderRegistry;
 import org.shark.renovatio.provider.java.JavaProvider;
-import org.shark.renovatio.provider.cobol.CobolProvider;
+import org.shark.renovatio.provider.cobol.CobolLanguageProvider;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.CommandLineRunner;
@@ -31,7 +31,7 @@ public class AgentGatewayApplication {
     public CommandLineRunner initializeProviders(
             @Autowired LanguageProviderRegistry registry,
             @Autowired JavaProvider javaProvider,
-            @Autowired CobolProvider cobolProvider) {
+            @Autowired CobolLanguageProvider cobolProvider) {
         return args -> {
             registry.registerProvider(javaProvider);
             registry.registerProvider(cobolProvider);
@@ -50,5 +50,16 @@ public class AgentGatewayApplication {
             }
             System.out.println("===============================================================\n");
         };
+    }
+
+    @Bean
+    public org.springframework.web.filter.CommonsRequestLoggingFilter requestLoggingFilter() {
+        org.springframework.web.filter.CommonsRequestLoggingFilter loggingFilter = new org.springframework.web.filter.CommonsRequestLoggingFilter();
+        loggingFilter.setIncludeClientInfo(true);
+        loggingFilter.setIncludeQueryString(true);
+        loggingFilter.setIncludePayload(true);
+        loggingFilter.setMaxPayloadLength(10000);
+        loggingFilter.setIncludeHeaders(false);
+        return loggingFilter;
     }
 }

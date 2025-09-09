@@ -24,7 +24,8 @@ public class McpToolingService {
 
     public McpToolingService(LanguageProviderRegistry providerRegistry) {
         this.providerRegistry = providerRegistry;
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper()
+            .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_COMMENTS, true);
         try {
             var resource = new ClassPathResource("mcp-tooling.json");
             JsonNode root = mapper.readTree(resource.getInputStream());

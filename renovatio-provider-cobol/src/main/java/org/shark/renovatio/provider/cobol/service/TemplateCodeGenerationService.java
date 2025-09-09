@@ -10,6 +10,9 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Locale;
 
 /**
  * Template-based code generation service using Freemarker
@@ -220,6 +223,47 @@ public class TemplateCodeGenerationService {
         template.process(templateData, writer);
         return writer.toString();
     }
+
+    /**
+     * Generates a simple REST controller exposing CICS transactions as endpoints.
+     */
+    public String generateCicsController(Map<String, Object> templateData) throws IOException, TemplateException {
+        String templateContent = """
+        package org.shark.renovatio.generated.cobol;
+
+        import org.springframework.web.bind.annotation.*;
+        import org.springframework.http.ResponseEntity;
+        import java.util.Map;
+        import org.shark.renovatio.provider.cobol.service.CicsService;
+
+        /**
+         * Generated controller that forwards REST calls to CICS transactions.
+         */
+        @RestController
+        @RequestMapping("/api/cics")
+        public class ${className} {
+
+            private final CicsService cicsService;
+
+            public ${className}(CicsService cicsService) {
+                this.cicsService = cicsService;
+            }
+
+            <#list transactions as tx>
+            @PostMapping("/${tx?lower_case}")
+            public ResponseEntity<String> ${tx?lower_case}(@RequestBody Map<String, Object> payload) {
+                String result = cicsService.invokeTransaction("${tx}", payload);
+                return ResponseEntity.ok(result);
+            }
+            </#list>
+        }
+        """;
+
+        Template template = new Template("cicsController", new StringReader(templateContent), freemarkerConfig);
+        StringWriter writer = new StringWriter();
+        template.process(templateData, writer);
+        return writer.toString();
+    }
     
     /**
      * Generates MapStruct mapper interface
@@ -257,5 +301,94 @@ public class TemplateCodeGenerationService {
         StringWriter writer = new StringWriter();
         template.process(templateData, writer);
         return writer.toString();
+    }
+
+    /**
+     * Generate a set of Java artifacts (service, DTO, controller and mapper)
+     * from a parsed copybook structure.
+     */
+    public Map<String, String> generateFromCopybook(String copybookName, Map<String, Object> metadata)
+            throws IOException, TemplateException {
+        String baseName = toPascalCase(copybookName);
+        Map<String, String> generated = new HashMap<>();
+
+        // Service class
+        Map<String, Object> serviceData = new HashMap<>();
+        serviceData.put("programName", baseName);
+        serviceData.put("fileName", metadata.getOrDefault("filePath", copybookName));
+        serviceData.put("className", baseName + "Service");
+        serviceData.put("dataItems", metadata.get("dataItems"));
+        serviceData.put("businessRules", List.of());
+        serviceData.put("validationRules", List.of());
+        generated.put(baseName + "Service.java", generateServiceClass(serviceData));
+
+        // DTO class
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> items = (List<Map<String, Object>>) metadata.get("dataItems");
+        List<Map<String, Object>> fields = new ArrayList<>();
+        if (items != null) {
+            for (Map<String, Object> item : items) {
+                String cobolName = (String) item.get("name");
+                Map<String, Object> field = new HashMap<>();
+                field.put("level", item.get("level"));
+                field.put("cobolName", cobolName);
+                field.put("picture", item.get("picture"));
+                field.put("javaName", toCamelCase(cobolName));
+                field.put("javaType", mapPictureToJavaType((String) item.get("picture")));
+                fields.add(field);
+            }
+        }
+        Map<String, Object> dtoData = new HashMap<>();
+        dtoData.put("programName", baseName);
+        dtoData.put("className", baseName + "DTO");
+        dtoData.put("fields", fields);
+        generated.put(baseName + "DTO.java", generateDtoClass(dtoData));
+
+        // REST controller
+        Map<String, Object> controllerData = new HashMap<>();
+        controllerData.put("programName", baseName);
+        controllerData.put("className", baseName);
+        controllerData.put("serviceName", baseName + "Service");
+        controllerData.put("requestName", baseName + "Request");
+        controllerData.put("responseName", baseName + "Response");
+        generated.put(baseName + "Controller.java", generateRestController(controllerData));
+
+        // Mapper
+        Map<String, Object> mapperData = new HashMap<>();
+        mapperData.put("programName", baseName);
+        mapperData.put("className", baseName + "Mapper");
+        mapperData.put("sourceClass", baseName + "DTO");
+        mapperData.put("targetClass", baseName + "Entity");
+        mapperData.put("mappings", List.of());
+        generated.put(baseName + "Mapper.java", generateMapper(mapperData));
+
+        return generated;
+    }
+
+    private String toPascalCase(String text) {
+        if (text == null || text.isEmpty()) return "";
+        String[] parts = text.toLowerCase(Locale.ROOT).split("[^a-z0-9]");
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) continue;
+            sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+        }
+        return sb.toString();
+    }
+
+    private String toCamelCase(String text) {
+        String pascal = toPascalCase(text);
+        if (pascal.isEmpty()) return pascal;
+        return Character.toLowerCase(pascal.charAt(0)) + pascal.substring(1);
+    }
+
+    private String mapPictureToJavaType(String picture) {
+        if (picture == null) {
+            return "String";
+        }
+        if (picture.contains("9")) {
+            return "Integer";
+        }
+        return "String";
     }
 }

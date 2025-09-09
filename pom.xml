@@ -36,14 +36,16 @@
         <micrometer.version>1.12.1</micrometer.version>
     </properties>
     
-    <modules>
-        <module>renovatio-shared</module>
-        <module>renovatio-core</module>
-        <module>renovatio-provider-java</module>
-        <module>renovatio-provider-cobol</module>
-        <module>renovatio-agent</module>
-        <module>renovatio-web</module>
-    </modules>
+      <modules>
+          <module>renovatio-shared</module>
+          <module>renovatio-core</module>
+          <module>renovatio-provider-java</module>
+          <module>renovatio-provider-cobol</module>
+          <module>renovatio-provider-jcl</module>
+          <module>renovatio-agent</module>
+          <module>renovatio-web</module>
+          <module>renovatio-client</module>
+      </modules>
     
     <dependencyManagement>
         <dependencies>
@@ -63,11 +65,16 @@
                 <artifactId>renovatio-provider-java</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <dependency>
-                <groupId>org.shark.renovatio</groupId>
-                <artifactId>renovatio-provider-cobol</artifactId>
-                <version>${project.version}</version>
-            </dependency>
+              <dependency>
+                  <groupId>org.shark.renovatio</groupId>
+                  <artifactId>renovatio-provider-cobol</artifactId>
+                  <version>${project.version}</version>
+              </dependency>
+              <dependency>
+                  <groupId>org.shark.renovatio</groupId>
+                  <artifactId>renovatio-provider-jcl</artifactId>
+                  <version>${project.version}</version>
+              </dependency>
             
             <!-- External dependencies -->
             <dependency>
@@ -198,4 +205,3 @@
         </pluginManagement>
     </build>
 </project>
-

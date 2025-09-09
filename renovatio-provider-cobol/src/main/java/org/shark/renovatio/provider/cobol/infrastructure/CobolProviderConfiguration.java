@@ -2,6 +2,7 @@ package org.shark.renovatio.provider.cobol.infrastructure;
 
 import org.shark.renovatio.provider.cobol.CobolLanguageProvider;
 import org.shark.renovatio.provider.cobol.service.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ComponentScan;
@@ -15,13 +16,15 @@ import org.springframework.context.annotation.ComponentScan;
 public class CobolProviderConfiguration {
     
     @Bean
-    public CobolParsingService cobolParsingService() {
-        return new CobolParsingService();
+    public CobolParsingService cobolParsingService(@Value("${renovatio.cobol.parser.dialect:IBM}") String dialect) {
+        return new CobolParsingService(CobolParsingService.Dialect.fromString(dialect));
     }
     
     @Bean
-    public JavaGenerationService javaGenerationService(CobolParsingService parsingService) {
-        return new JavaGenerationService(parsingService);
+    public JavaGenerationService javaGenerationService(
+            CobolParsingService parsingService,
+            TemplateCodeGenerationService templateCodeGenerationService) {
+        return new JavaGenerationService(parsingService, templateCodeGenerationService);
     }
     
     @Bean
@@ -40,6 +43,15 @@ public class CobolProviderConfiguration {
     public MetricsService metricsService() {
         return new MetricsService();
     }
+
+    @Bean
+    public CicsService cicsService(
+            @Value("${renovatio.cics.mock:true}") boolean mock,
+            @Value("${renovatio.cics.url:http://localhost:10080}") String url) {
+        return mock ? new MockCicsService() : new RealCicsService(url);
+    public Db2MigrationService db2MigrationService(CobolParsingService parsingService) {
+        return new Db2MigrationService(parsingService);
+    }
     
     @Bean
     public CobolLanguageProvider cobolLanguageProvider(
@@ -47,13 +59,17 @@ public class CobolProviderConfiguration {
             JavaGenerationService javaGenerationService,
             MigrationPlanService migrationPlanService,
             IndexingService indexingService,
-            MetricsService metricsService) {
+            MetricsService metricsService,
+            TemplateCodeGenerationService templateCodeGenerationService,
+            Db2MigrationService db2MigrationService) {
         return new CobolLanguageProvider(
             parsingService,
             javaGenerationService,
             migrationPlanService,
             indexingService,
-            metricsService
+            metricsService,
+            templateCodeGenerationService,
+            db2MigrationService
         );
     }
 }

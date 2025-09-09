@@ -11,6 +11,7 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 - **AST extraction** for COBOL programs, data divisions, and procedure divisions
 - **Symbol detection** for data items, paragraphs, sections, and program structures
 - **Dependency analysis** across COBOL programs
+- **CICS command detection** for identifying transactional calls
 
 ### ☕ Java Code Generation
 - **JavaPoet integration** for type-safe Java code generation
@@ -54,6 +55,11 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 - **Customizable templates** for different target frameworks
 - **Multi-file generation** with proper package structure
 - **Test code generation** for migration validation
+- **REST endpoint generation** for CICS transactions
+
+### 🔌 CICS Integration
+- **Configurable CICS service** with real or mock implementations via `renovatio.cics.*` properties
+- **Automatic endpoint scaffolding** for detected transactions
 
 ## Architecture
 
@@ -118,6 +124,13 @@ Creates a migration plan for COBOL to Java transformation.
 - `workspacePath` (required): Path to COBOL workspace
 - `migrationStrategy`: Migration strategy (full, incremental, hybrid)
 - `targetFramework`: Target Java framework
+
+### `cobol.db2.migrate`
+Generates JPA entity and repository classes from embedded DB2 `EXEC SQL` blocks.
+
+**Parameters:**
+- `workspacePath` (required): Path to COBOL workspace
+- `program` (required): COBOL program file containing SQL statements
 
 ### `cobol.migration.apply`
 Applies a migration plan to transform COBOL to Java.
