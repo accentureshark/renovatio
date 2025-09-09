@@ -35,6 +35,22 @@
             <groupId>org.freemarker</groupId>
             <artifactId>freemarker</artifactId>
         </dependency>
+
+        <!-- Copybook parsing and model generation -->
+        <dependency>
+            <groupId>net.sf.cb2xml</groupId>
+            <artifactId>cb2xml</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.jrecord</groupId>
+            <artifactId>jrecord</artifactId>
+        </dependency>
+
+        <!-- Additional templating engine -->
+        <dependency>
+            <groupId>com.github.spullara.mustache.java</groupId>
+            <artifactId>compiler</artifactId>
+        </dependency>
         
         <!-- Object mapping -->
         <dependency>
