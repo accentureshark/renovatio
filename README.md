@@ -406,6 +406,9 @@ renovatio/
 │   └── infrastructure/               # Configuración e integración MCP
 │       ├── CobolProviderConfiguration.java # Configuración Spring
 │       └── CobolMcpToolsProvider.java # Proveedor de herramientas MCP
+├── renovatio-provider-jcl/            # Proveedor JCL (traducción a shell/CI)
+│   ├── service/                      # Parser y traductor JCL
+│   └── infrastructure/               # Herramientas MCP para conversión
 ├── renovatio-agent/                   # Agente de ejecución
 ├── renovatio-web/                     # Aplicación web principal
 │   ├── McpServerApplication.java      # Aplicación principal Spring Boot
@@ -550,6 +553,11 @@ mvn clean compile
 mvn clean compile -pl renovatio-provider-cobol
 ```
 
+### Compilar Solo el Proveedor JCL
+```bash
+mvn clean compile -pl renovatio-provider-jcl
+```
+
 ### Ejecutar Tests
 ```bash
 # Todos los tests
@@ -560,6 +568,9 @@ mvn test -pl renovatio-provider-cobol
 
 # Solo tests de Java/OpenRewrite
 mvn test -pl renovatio-provider-java
+
+# Solo tests de JCL
+mvn test -pl renovatio-provider-jcl
 ```
 
 ### Ejecutar con Perfil COBOL Habilitado
