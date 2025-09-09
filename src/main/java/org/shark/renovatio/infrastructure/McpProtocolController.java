@@ -58,6 +58,8 @@ public class McpProtocolController {
                     return handleResourcesList(request);
                 case "resources/read":
                     return handleResourcesRead(request);
+                case "cli/manifest":
+                    return handleCliManifest(request);
                 default:
                     return new McpResponse(request.getId(),
                         new McpError(-32601, "Method not found: " + request.getMethod()));
@@ -98,6 +100,12 @@ public class McpProtocolController {
     private McpResponse handleToolsList(McpRequest request) {
         Map<String, Object> result = new HashMap<>();
         result.put("tools", mcpToolingService.getMcpTools());
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleCliManifest(McpRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("commands", mcpToolingService.getMcpTools());
         return new McpResponse(request.getId(), result);
     }
 

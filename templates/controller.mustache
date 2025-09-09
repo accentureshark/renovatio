@@ -1,0 +1,14 @@
+package {{packageName}};
+
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/users")
+public class {{className}} {
+
+    @GetMapping
+    public List<UserDto> list() {
+        // TODO: implement
+        return Collections.emptyList();
+    }
+}

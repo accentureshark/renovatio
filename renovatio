@@ -1,0 +1,275 @@
+#!/bin/bash
+# Renovatio CLI - User Friendly Interface
+# Usage: ./renovatio <command> [options]
+
+SERVER_URL="http://localhost:8181/"
+
+show_help() {
+    echo "Renovatio CLI - Análisis de Código Legacy"
+    echo ""
+    echo "COMANDOS DISPONIBLES:"
+    echo "  analyze cobol <path>        - Analizar código COBOL"
+    echo "  analyze java <path>         - Analizar código Java"
+    echo "  metrics cobol <path>        - Métricas de código COBOL"
+    echo "  metrics java <path>         - Métricas de código Java"
+    echo "  stubs cobol <path>          - Generar stubs Java desde COBOL"
+    echo "  diff cobol <path1> <path2>  - Comparar archivos COBOL"
+    echo "  diff java <path1> <path2>   - Comparar archivos Java"
+    echo "  search <query>              - Buscar en repositorio indexado"
+    echo "  index <path>                - Indexar repositorio"
+    echo "  list                        - Listar todas las herramientas"
+    echo ""
+    echo "EJEMPLOS:"
+    echo "  ./renovatio analyze cobol /path/to/cobol/files"
+    echo "  ./renovatio metrics cobol /path/to/cobol/files"
+    echo "  ./renovatio stubs cobol /path/to/cobol/files"
+    echo ""
+    echo "OPCIONES:"
+    echo "  -h, --help     Mostrar esta ayuda"
+    echo "  -v, --verbose  Salida detallada"
+    echo "  -j, --json     Salida en formato JSON"
+}
+
+check_server() {
+    if ! curl -s "$SERVER_URL" > /dev/null 2>&1; then
+        echo "❌ Error: El servidor Renovatio no está disponible en $SERVER_URL"
+        echo "   Asegúrate de que el servidor esté ejecutándose:"
+        echo "   cd renovatio-agent && mvn spring-boot:run"
+        exit 1
+    fi
+}
+
+call_tool() {
+    local tool_name="$1"
+    local args="$2"
+    local req_json="{\"jsonrpc\": \"2.0\", \"id\": \"cli\", \"method\": \"tools/call\", \"params\": {\"name\": \"$tool_name\", \"arguments\": $args}}"
+
+    local result=$(curl -s -X POST -H "Content-Type: application/json" -d "$req_json" "$SERVER_URL")
+    echo "$result"
+}
+
+format_output() {
+    local json_data="$1"
+    local format="$2"
+
+    if [ "$format" = "json" ]; then
+        echo "$json_data" | jq
+    else
+        # Formato amigable
+        local success=$(echo "$json_data" | jq -r '.result.content.success // false')
+        local message=$(echo "$json_data" | jq -r '.result.content.message // "Operación completada"')
+
+        if [ "$success" = "true" ]; then
+            echo "✅ $message"
+
+            # Mostrar datos del análisis real si están disponibles
+            local data=$(echo "$json_data" | jq -r '.result.content.data // null')
+            if [ "$data" != "null" ]; then
+                echo ""
+                echo "📁 ANÁLISIS DE ARCHIVOS:"
+                local fileCount=$(echo "$json_data" | jq -r '.result.content.data.fileCount // 0')
+                local programCount=$(echo "$json_data" | jq -r '.result.content.data.programCount // 0')
+                echo "  Archivos COBOL encontrados: $fileCount"
+                echo "  Programas COBOL procesados: $programCount"
+
+                # Mostrar logs de análisis
+                local logs=$(echo "$json_data" | jq -r '.result.content.data.logs // null')
+                if [ "$logs" != "null" ]; then
+                    echo ""
+                    echo "📝 LOGS DEL ANÁLISIS:"
+                    echo "$json_data" | jq -r '.result.content.data.logs[]? // empty'
+                fi
+
+                # Mostrar programas encontrados
+                local programs=$(echo "$json_data" | jq -r '.result.content.data.programs // null')
+                if [ "$programs" != "null" ]; then
+                    echo ""
+                    echo "🔍 PROGRAMAS COBOL ENCONTRADOS:"
+                    echo "$json_data" | jq -r '.result.content.data.programs[]? | "  - \(.programName) (\(.programId))"' | head -5
+                fi
+            fi
+
+            # Mostrar RunId si está disponible
+            local runId=$(echo "$json_data" | jq -r '.result.content.runId // null')
+            if [ "$runId" != "null" ]; then
+                echo ""
+                echo "🆔 RUN ID: $runId"
+            fi
+
+            # Mostrar información de símbolos si está disponible
+            local symbols=$(echo "$json_data" | jq -r '.result.content.symbols // null')
+            if [ "$symbols" != "null" ]; then
+                echo ""
+                echo "🔍 ANÁLISIS DE SÍMBOLOS:"
+                local symbolCount=$(echo "$json_data" | jq -r '.result.content.symbols.symbolCount // 0')
+                echo "  Total de símbolos encontrados: $symbolCount"
+
+                local symbolsByType=$(echo "$json_data" | jq -r '.result.content.symbols.symbolsByType // null')
+                if [ "$symbolsByType" != "null" ]; then
+                    echo "  📊 Distribución por tipo:"
+                    local totalDataItems=$(echo "$json_data" | jq -r '.result.content.symbols.symbolsByType.totalDataItems // 0')
+                    local totalSections=$(echo "$json_data" | jq -r '.result.content.symbols.symbolsByType.totalSections // 0')
+                    local totalParagraphs=$(echo "$json_data" | jq -r '.result.content.symbols.symbolsByType.totalParagraphs // 0')
+                    echo "    - Elementos de datos: $totalDataItems"
+                    echo "    - Secciones: $totalSections"
+                    echo "    - Párrafos: $totalParagraphs"
+                fi
+            fi
+
+            # Mostrar información de dependencias si está disponible
+            local dependencies=$(echo "$json_data" | jq -r '.result.content.dependencies // null')
+            if [ "$dependencies" != "null" ]; then
+                echo ""
+                echo "🔗 ANÁLISIS DE DEPENDENCIAS:"
+
+                local circularDeps=$(echo "$json_data" | jq -r '.result.content.dependencies.circularDependencies // null')
+                if [ "$circularDeps" != "null" ]; then
+                    local circularCount=$(echo "$json_data" | jq -r '.result.content.dependencies.circularDependencies | length')
+                    echo "  Dependencias circulares encontradas: $circularCount"
+                    if [ "$circularCount" -gt 0 ]; then
+                        echo "$json_data" | jq -r '.result.content.dependencies.circularDependencies[]? | "    - \(.)"'
+                    fi
+                fi
+
+                local depGraph=$(echo "$json_data" | jq -r '.result.content.dependencies.dependencyGraph // null')
+                if [ "$depGraph" != "null" ]; then
+                    local nodeCount=$(echo "$json_data" | jq -r '.result.content.dependencies.dependencyGraph.nodes | length // 0')
+                    local edgeCount=$(echo "$json_data" | jq -r '.result.content.dependencies.dependencyGraph.edges | length // 0')
+                    echo "  Programas en grafo de dependencias: $nodeCount"
+                    echo "  Conexiones de dependencia: $edgeCount"
+                fi
+            fi
+
+            # Mostrar AST si está disponible
+            local ast=$(echo "$json_data" | jq -r '.result.content.ast // null')
+            if [ "$ast" != "null" ]; then
+                echo ""
+                echo "🌳 ÁRBOL DE SINTAXIS ABSTRACTA (AST):"
+                local astFileCount=$(echo "$json_data" | jq -r '.result.content.ast.fileCount // 0')
+                local astProgramCount=$(echo "$json_data" | jq -r '.result.content.ast.programCount // 0')
+                echo "  Archivos en AST: $astFileCount"
+                echo "  Programas en AST: $astProgramCount"
+            fi
+
+            # Mostrar métricas si están disponibles
+            local metrics=$(echo "$json_data" | jq -r '.result.content.metrics // null')
+            if [ "$metrics" != "null" ]; then
+                echo ""
+                echo "📊 MÉTRICAS:"
+                echo "$json_data" | jq -r '.result.content.metrics | to_entries[] | "  \(.key): \(.value)"'
+            fi
+        else
+            echo "❌ Error: $message"
+        fi
+    fi
+}
+
+# Parsear argumentos
+VERBOSE=false
+JSON_OUTPUT=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -j|--json)
+            JSON_OUTPUT=true
+            shift
+            ;;
+        analyze)
+            COMMAND="analyze"
+            LANGUAGE="$2"
+            PATH_ARG="$3"
+            shift 3
+            ;;
+        metrics)
+            COMMAND="metrics"
+            LANGUAGE="$2"
+            PATH_ARG="$3"
+            shift 3
+            ;;
+        stubs)
+            COMMAND="stubs"
+            LANGUAGE="$2"
+            PATH_ARG="$3"
+            shift 3
+            ;;
+        diff)
+            COMMAND="diff"
+            LANGUAGE="$2"
+            PATH1="$3"
+            PATH2="$4"
+            shift 4
+            ;;
+        search)
+            COMMAND="search"
+            QUERY="$2"
+            shift 2
+            ;;
+        index)
+            COMMAND="index"
+            PATH_ARG="$2"
+            shift 2
+            ;;
+        list)
+            COMMAND="list"
+            shift
+            ;;
+        *)
+            echo "❌ Comando desconocido: $1"
+            echo "Usa './renovatio --help' para ver los comandos disponibles"
+            exit 1
+            ;;
+    esac
+done
+
+# Verificar servidor
+check_server
+
+# Ejecutar comando
+case $COMMAND in
+    analyze)
+        if [ -z "$LANGUAGE" ] || [ -z "$PATH_ARG" ]; then
+            echo "❌ Uso: ./renovatio analyze <cobol|java> <path>"
+            exit 1
+        fi
+        echo "🔍 Analizando código $LANGUAGE en: $PATH_ARG"
+        args="{\"workspacePath\": \"$PATH_ARG\"}"
+        result=$(call_tool "${LANGUAGE}.analyze" "$args")
+        format_output "$result" "$( [ "$JSON_OUTPUT" = true ] && echo json || echo pretty )"
+        ;;
+    metrics)
+        if [ -z "$LANGUAGE" ] || [ -z "$PATH_ARG" ]; then
+            echo "❌ Uso: ./renovatio metrics <cobol|java> <path>"
+            exit 1
+        fi
+        echo "📊 Calculando métricas de $LANGUAGE en: $PATH_ARG"
+        args="{\"workspacePath\": \"$PATH_ARG\"}"
+        result=$(call_tool "${LANGUAGE}.metrics" "$args")
+        format_output "$result" "$( [ "$JSON_OUTPUT" = true ] && echo json || echo pretty )"
+        ;;
+    stubs)
+        if [ "$LANGUAGE" != "cobol" ] || [ -z "$PATH_ARG" ]; then
+            echo "❌ Uso: ./renovatio stubs cobol <path>"
+            exit 1
+        fi
+        echo "🏗️  Generando stubs Java desde COBOL en: $PATH_ARG"
+        args="{\"workspacePath\": \"$PATH_ARG\"}"
+        result=$(call_tool "cobol.generate_stubs" "$args")
+        format_output "$result" "$( [ "$JSON_OUTPUT" = true ] && echo json || echo pretty )"
+        ;;
+    list)
+        echo "📋 Herramientas disponibles:"
+        tools_json=$(curl -s -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "id": "list", "method": "tools/list", "params": {}}' "$SERVER_URL")
+        echo "$tools_json" | jq -r '.result.tools[] | "  \(.name): \(.description // "Sin descripción")"'
+        ;;
+    *)
+        show_help
+        ;;
+esac
