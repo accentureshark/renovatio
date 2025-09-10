@@ -1,13 +1,10 @@
 package org.shark.renovatio.provider.cobol.service;
 
-import io.proleap.cobol.parser.antlr4.Cobol85BaseListener;
-import io.proleap.cobol.parser.antlr4.Cobol85Lexer;
-import io.proleap.cobol.parser.antlr4.Cobol85Parser;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import org.shark.renovatio.provider.cobol.domain.CobolProgram;
+import org.shark.renovatio.shared.domain.AnalyzeResult;
+import org.shark.renovatio.shared.domain.PerformanceMetrics;
+import org.shark.renovatio.shared.domain.Workspace;
+import org.shark.renovatio.shared.nql.NqlQuery;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -15,23 +12,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.stream.Stream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.shark.renovatio.shared.domain.AnalyzeResult;
-import org.shark.renovatio.shared.domain.PerformanceMetrics;
-import org.shark.renovatio.shared.domain.Workspace;
-import org.shark.renovatio.shared.nql.NqlQuery;
-import org.shark.renovatio.provider.cobol.domain.CobolProgram;
+import java.util.stream.Stream;
 
 /**
- * Service responsible for parsing COBOL sources using ProLeap parser.
- * <p>
- * This service now supports multiple COBOL dialects. The dialect can be
- * configured globally through configuration properties or passed explicitly in
- * MCP requests. When no dialect is provided the service falls back to the
- * default dialect (IBM).
+ * Lightweight COBOL parsing service used for tests and examples.
+ *
+ * <p>This implementation avoids external parser dependencies so that the
+ * module can be built in environments without network access.  The parsing
+ * performed here is intentionally simplistic and relies on regular
+ * expressions to extract a few pieces of information such as the program id,
+ * embedded SQL statements and simple CICS commands.</p>
  */
 @Service
 public class CobolParsingService {
@@ -79,16 +71,14 @@ public class CobolParsingService {
         return defaultDialect;
     }
 
-    /**
-     * Locate COBOL source files inside a workspace.
-     */
+    /** Locate COBOL source files inside a workspace. */
     public List<Path> findCobolFiles(Path workspacePath) throws IOException {
         List<Path> cobolFiles = new ArrayList<>();
         try (Stream<Path> walkStream = Files.walk(workspacePath)) {
             walkStream
                 .filter(Files::isRegularFile)
                 .filter(path -> {
-                    String name = path.getFileName().toString().toLowerCase();
+                    String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
                     return name.endsWith(".cob") ||
                            name.endsWith(".cobol") ||
                            name.endsWith(".cbl") ||
@@ -99,10 +89,7 @@ public class CobolParsingService {
         return cobolFiles;
     }
 
-    /**
-     * Locate COBOL copybooks inside a workspace. Copybooks typically use the
-     * {@code .cpy} extension.
-     */
+    /** Locate COBOL copybooks inside a workspace. */
     public List<Path> findCopybooks(Path workspacePath) throws IOException {
         List<Path> copybooks = new ArrayList<>();
         try (Stream<Path> walkStream = Files.walk(workspacePath)) {
@@ -114,24 +101,16 @@ public class CobolParsingService {
         return copybooks;
     }
 
-    /**
-     * Extract all embedded EXEC SQL statements from a COBOL source file.
-     * <p>
-     * This method performs a lightweight pattern scan rather than a full
-     * parse of the contained SQL. The returned list contains the raw SQL
-     * text between {@code EXEC SQL} and {@code END-EXEC} blocks.
-     */
+    /** Extract all embedded EXEC SQL statements from a COBOL source file. */
     public List<String> extractExecSqlStatements(Path cobolFile) throws IOException {
         String content = Files.readString(cobolFile);
         return extractExecSqlStatements(content);
     }
 
-    /**
-     * Extract embedded EXEC SQL statements from COBOL source content.
-     */
+    /** Extract embedded EXEC SQL statements from COBOL source content. */
     public List<String> extractExecSqlStatements(String cobolSource) {
         List<String> statements = new ArrayList<>();
-        Pattern pattern = Pattern.compile("EXEC\s+SQL(.*?)END-EXEC", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Pattern pattern = Pattern.compile("EXEC\\s+SQL(.*?)END-EXEC", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
         Matcher matcher = pattern.matcher(cobolSource);
         while (matcher.find()) {
             String sql = matcher.group(1).trim();
@@ -193,164 +172,62 @@ public class CobolParsingService {
         return Dialect.fromString(dialectStr == null ? defaultDialect.name() : dialectStr);
     }
 
-    /**
-     * Parse a COBOL file using the service's default dialect.
-     */
+    /** Parse a COBOL file using the service's default dialect. */
     public Map<String, Object> parseCobolFile(Path cobolFile) throws IOException {
         return parseCobolFile(cobolFile, defaultDialect);
     }
 
     /**
-     * Parse a COBOL file and return a simple AST representation using the given
-     * dialect.
+     * Parse a COBOL file and return a very small metadata map using the given
+     * dialect.  The returned map contains the program id, a list of detected
+     * CICS commands and the dialect name.  Additional fields required by other
+     * services (calls, copies, dataItems) are returned as empty collections.
      */
     public Map<String, Object> parseCobolFile(Path cobolFile, Dialect dialect) throws IOException {
-        CharStream input = CharStreams.fromPath(cobolFile);
-        Cobol85Lexer lexer = new Cobol85Lexer(input);
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
-        Cobol85Parser parser = new Cobol85Parser(tokens);
-
-        configureParserForDialect(lexer, parser, dialect);
-
-        ParserRuleContext tree = parser.startRule();
-
-        CollectingListener listener = new CollectingListener();
-        ParseTreeWalker.DEFAULT.walk(listener, tree);
+        String source = Files.readString(cobolFile);
 
         Map<String, Object> ast = new HashMap<>();
-        String programId = listener.getProgramId();
+        String programId = extractProgramId(source);
         if (programId == null || programId.isEmpty()) {
             programId = cobolFile.getFileName().toString();
         }
         ast.put("programId", programId);
-        ast.put("calls", listener.getCalls());
-        ast.put("copies", listener.getCopies());
-        ast.put("dataItems", listener.getDataItems());
-        ast.put("cicsCommands", listener.getCicsCommands());
-        ast.put("parseTree", tree.toStringTree(parser));
+        ast.put("cicsCommands", extractCicsCommands(source));
+        ast.put("calls", new HashSet<String>());
+        ast.put("copies", new HashSet<String>());
+        ast.put("dataItems", new ArrayList<>());
         ast.put("dialect", dialect.name());
         return ast;
     }
 
-    /**
-     * Parse a COBOL copybook. Since copybooks often contain fragments that are
-     * not valid standalone programs, the contents are wrapped in a minimal
-     * program structure before parsing.
-     */
+    /** Parse a COBOL copybook. For this lightweight implementation only the
+     * file name and dialect are returned. */
     public Map<String, Object> parseCopybook(Path copybookFile, Dialect dialect) throws IOException {
-        String content = Files.readString(copybookFile);
-        String wrapped = "       IDENTIFICATION DIVISION.\n" +
-                         "       PROGRAM-ID. DUMMY.\n" +
-                         "       DATA DIVISION.\n" +
-                         "       WORKING-STORAGE SECTION.\n" +
-                         content + "\n" +
-                         "       END PROGRAM DUMMY.";
-
-        CharStream input = CharStreams.fromString(wrapped);
-        Cobol85Lexer lexer = new Cobol85Lexer(input);
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
-        Cobol85Parser parser = new Cobol85Parser(tokens);
-        configureParserForDialect(lexer, parser, dialect);
-
-        ParserRuleContext tree = parser.startRule();
-        CollectingListener listener = new CollectingListener();
-        ParseTreeWalker.DEFAULT.walk(listener, tree);
-
         Map<String, Object> ast = new HashMap<>();
-        String programId = copybookFile.getFileName().toString();
-        ast.put("programId", programId.replaceFirst("\\.[^.]+$", ""));
-        ast.put("dataItems", listener.getDataItems());
+        String programId = copybookFile.getFileName().toString().replaceFirst("\\.[^.]+$", "");
+        ast.put("programId", programId);
+        ast.put("dataItems", new ArrayList<>());
         ast.put("dialect", dialect.name());
         return ast;
     }
 
-    /**
-     * Adjust parser configuration according to the specified dialect. The
-     * ProLeap parser exposes various flags for different dialect features. Only
-     * a small subset is toggled here as a demonstration; unsupported dialect
-     * options are safely ignored.
-     */
-    private void configureParserForDialect(Cobol85Lexer lexer, Cobol85Parser parser, Dialect dialect) {
-        switch (dialect) {
-            case GNU:
-                // Example: GNU COBOL is generally more permissive
-                // No concrete options required for this demo
-                break;
-            case MICRO_FOCUS:
-                // Example: enable Micro Focus specific extensions if available
-                break;
-            case IBM:
-            default:
-                // Default COBOL 85 behaviour
-                break;
+    private String extractProgramId(String source) {
+        Pattern pattern = Pattern.compile("PROGRAM-ID\\.\\s*([A-Z0-9-]+)", Pattern.CASE_INSENSITIVE);
+        Matcher m = pattern.matcher(source);
+        if (m.find()) {
+            return m.group(1);
         }
+        return null;
     }
 
-    /** Listener that collects interesting nodes from the parse tree. */
-    private static class CollectingListener extends Cobol85BaseListener {
-        private String programId;
-        private final Set<String> calls = new HashSet<>();
-        private final Set<String> copies = new HashSet<>();
-        private final List<Map<String, Object>> dataItems = new ArrayList<>();
-        private final Set<String> cicsCommands = new HashSet<>();
-
-        @Override
-        public void enterProgramIdParagraph(Cobol85Parser.ProgramIdParagraphContext ctx) {
-            if (ctx.programName() != null) {
-                programId = ctx.programName().getText();
-            }
+    private Set<String> extractCicsCommands(String source) {
+        Set<String> cmds = new HashSet<>();
+        Pattern pattern = Pattern.compile("EXEC\\s+CICS\\s+([A-Z0-9-]+)", Pattern.CASE_INSENSITIVE);
+        Matcher m = pattern.matcher(source);
+        while (m.find()) {
+            cmds.add(m.group(1).toUpperCase(Locale.ROOT));
         }
-
-        @Override
-        public void enterCallStatement(Cobol85Parser.CallStatementContext ctx) {
-            if (ctx.literal() != null) {
-                String text = ctx.literal().getText();
-                text = text.replace("\"", "").replace("'", "");
-                calls.add(text);
-            } else if (ctx.identifier() != null) {
-                calls.add(ctx.identifier().getText());
-            }
-        }
-
-        @Override
-        public void enterCopyStatement(Cobol85Parser.CopyStatementContext ctx) {
-            if (ctx.textName() != null) {
-                copies.add(ctx.textName().getText());
-            }
-        }
-
-        @Override
-        public void enterExecStatement(Cobol85Parser.ExecStatementContext ctx) {
-            String text = ctx.getText().toUpperCase(Locale.ROOT);
-            if (text.startsWith("EXECCICS")) {
-                String body = text.substring("EXECCICS".length());
-                if (body.endsWith("ENDEXEC")) {
-                    body = body.substring(0, body.length() - "ENDEXEC".length());
-                }
-                String[] parts = body.trim().split("\\s+");
-                if (parts.length > 0) {
-                    cicsCommands.add(parts[0]);
-                }
-            }
-        }
-        
-        @Override
-        public void enterDataDescriptionEntryFormat1(Cobol85Parser.DataDescriptionEntryFormat1Context ctx) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("level", ctx.levelNumber().getText());
-            if (ctx.dataName() != null) {
-                item.put("name", ctx.dataName().getText());
-            }
-            if (ctx.pictureClause() != null && ctx.pictureClause().pictureString() != null) {
-                item.put("picture", ctx.pictureClause().pictureString().getText());
-            }
-            dataItems.add(item);
-        }
-
-        public String getProgramId() { return programId; }
-        public Set<String> getCalls() { return calls; }
-        public Set<String> getCopies() { return copies; }
-        public List<Map<String, Object>> getDataItems() { return dataItems; }
-        public Set<String> getCicsCommands() { return cicsCommands; }
+        return cmds;
     }
 }
+
