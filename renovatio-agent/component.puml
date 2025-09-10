@@ -1,0 +1,9 @@
+@startuml
+package "renovatio-agent" {
+  [AgentMain]
+  [Orchestrator]
+}
+
+[renovatio-agent] --> [renovatio-core] : Orquestación/servicios
+@enduml
+

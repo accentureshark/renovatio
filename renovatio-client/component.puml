@@ -1,0 +1,9 @@
+@startuml
+package "renovatio-client" {
+  [ClientMain]
+  [ApiConsumer]
+}
+
+[renovatio-client] --> [renovatio-core] : API/servicios
+@enduml
+

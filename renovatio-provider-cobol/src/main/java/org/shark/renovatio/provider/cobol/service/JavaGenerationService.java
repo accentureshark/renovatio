@@ -75,8 +75,8 @@ public class JavaGenerationService {
 
                 System.out.println("DEBUG: Processing file: " + fileName + ", baseName: " + baseName);
 
-                // Limpiar el nombre base correctamente desde el principio
-                String classBase = toPascalCase(baseName);
+                // Limpiar y sanitizar el nombre base correctamente desde el principio
+                String classBase = sanitizeClassName(toPascalCase(baseName));
 
                 System.out.println("DEBUG: Generated classBase: " + classBase);
 

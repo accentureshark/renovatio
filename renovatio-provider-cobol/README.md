@@ -7,7 +7,9 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 ## Features
 
 ### 🔍 COBOL Analysis & Parsing
+
 - **Runtime ProLeap/Koopa integration** with fallback pattern-based parser
+
 - **AST extraction** for COBOL programs, data divisions, and procedure divisions
 - **Symbol detection** for data items, paragraphs, sections, and program structures
 - **Dependency analysis** across COBOL programs
@@ -38,12 +40,6 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 - **Migration complexity assessment** for effort estimation
 - **Dependency analysis** for migration planning
 
-### 🤖 LLM Integration (Optional)
-- **LangChain4j integration** for AI-assisted migration
-- **Natural language to NQL translation** for intuitive queries
-- **Migration advice** and best practice suggestions
-- **Business logic explanation** for better understanding
-
 ### 🛡️ Resilience & Monitoring
 - **Resilience4j integration** with circuit breakers, retries, and timeouts
 - **Micrometer metrics** with Prometheus export
@@ -61,6 +57,50 @@ The COBOL Provider is a comprehensive extension to Renovatio that adds capabilit
 - **Configurable CICS service** with real or mock implementations via `renovatio.cics.*` properties
 - **Automatic endpoint scaffolding** for detected transactions
 
+#### Manual invocation example
+
+Once a controller has been generated and the CICS service is configured for
+real connectivity (`renovatio.cics.mock=false`), transactions can be tested
+manually.  The generated endpoints follow the pattern
+`POST /api/cics/<transaction>` using lower-case transaction names.
+
+Example:
+
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"account":"12345"}' \
+  http://localhost:8080/api/cics/tran1
+```
+
+The request above is routed through `RealCicsService`, which maps the
+`TRAN1` transaction to the corresponding Zowe CICS/JCICS REST endpoint.
+
+## Dialect Profiles
+
+Different COBOL dialects can be selected at build time.
+
+### Maven
+
+- ProLeap (predeterminado):
+  ```bash
+  mvn -pl renovatio-provider-cobol -Pproleap test
+  ```
+- Koopa:
+  ```bash
+  mvn -pl renovatio-provider-cobol -Pkoopa test
+  ```
+
+### Gradle
+
+Usando la propiedad `dialect`:
+```bash
+gradle :renovatio-provider-cobol:test             # ProLeap
+gradle :renovatio-provider-cobol:test -Pdialect=koopa
+```
+
+Para ejemplos de árboles de sintaxis generados consulta [AST_EXAMPLES.md](AST_EXAMPLES.md).
+
 ## Architecture
 
 ```
@@ -77,7 +117,6 @@ renovatio-provider-cobol/
 │   │   ├── IndexingService.java           # Lucene-based indexing
 │   │   ├── MetricsService.java            # Code metrics calculation
 │   │   ├── TemplateCodeGenerationService.java # Template-based generation
-│   │   ├── LlmIntegrationService.java     # LLM integration
 │   │   └── ResilientMigrationService.java # Resilient operations
 │   └── infrastructure/                     # Configuration and MCP integration
 │       ├── CobolProviderConfiguration.java # Spring configuration
@@ -229,10 +268,6 @@ renovatio:
     migration:
       default-strategy: incremental
       backup-original: true
-  llm:
-    enabled: false  # Enable for AI assistance
-    provider: openai
-    model: gpt-3.5-turbo
 ```
 
 ## Implementation Status

@@ -35,6 +35,24 @@
             <groupId>org.freemarker</groupId>
             <artifactId>freemarker</artifactId>
         </dependency>
+
+        <!-- Copybook parsing and model generation -->
+        <dependency>
+            <groupId>net.sf.cb2xml</groupId>
+            <artifactId>cb2xml</artifactId>
+            <version>1.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.jrecord</groupId>
+            <artifactId>jrecord</artifactId>
+            <version>0.89.0</version>
+        </dependency>
+
+        <!-- Additional templating engine -->
+        <dependency>
+            <groupId>com.github.spullara.mustache.java</groupId>
+            <artifactId>compiler</artifactId>
+        </dependency>
         
         <!-- Object mapping -->
         <dependency>
@@ -78,13 +96,6 @@
             <groupId>org.antlr</groupId>
             <artifactId>antlr4-runtime</artifactId>
         </dependency>
-
-        <!-- ProLeap COBOL parser for AST generation -->
-        <dependency>
-            <groupId>io.proleap</groupId>
-            <artifactId>proleap-cobol-parser</artifactId>
-            <version>2.3.0</version>
-        </dependency>
         
         <!-- Resilience -->
         <dependency>
@@ -99,4 +110,46 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
+    <profiles>
+        <!-- Default parsing using ProLeap -->
+        <profile>
+            <id>proleap</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <cobol.dialect>proleap</cobol.dialect>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>com.github.uwol</groupId>
+                    <artifactId>proleap-cobol-parser</artifactId>
+                    <version>master-SNAPSHOT</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <!-- Alternative parsing using Koopa -->
+        <profile>
+            <id>koopa</id>
+            <properties>
+                <cobol.dialect>koopa</cobol.dialect>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>net.sf.koopa</groupId>
+                    <artifactId>koopa</artifactId>
+                    <version>1.0.0</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>

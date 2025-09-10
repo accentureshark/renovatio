@@ -1,0 +1,30 @@
+@startuml
+' Diagrama de componentes Renovatio
+
+package "Renovatio Providers" {
+  [renovatio-provider-cobol]
+  [renovatio-provider-java]
+  [renovatio-provider-jcl]
+}
+
+[renovatio-shared]
+[renovatio-core]
+[renovatio-agent]
+[renovatio-client]
+[renovatio-web]
+
+' Dependencias principales
+[renovatio-core] --> [renovatio-shared] : Utiliza modelos/contratos
+[renovatio-core] --> [renovatio-provider-cobol] : Usa provider COBOL
+[renovatio-core] --> [renovatio-provider-java] : Usa provider Java
+[renovatio-core] --> [renovatio-provider-jcl] : Usa provider JCL
+
+[renovatio-provider-cobol] --> [renovatio-shared] : Implementa interfaces
+[renovatio-provider-java] --> [renovatio-shared] : Implementa interfaces
+[renovatio-provider-jcl] --> [renovatio-shared] : Implementa interfaces
+
+[renovatio-agent] --> [renovatio-core] : Orquestación/servicios
+[renovatio-client] --> [renovatio-core] : API/servicios
+[renovatio-web] --> [renovatio-core] : Exposición web
+
+@enduml
