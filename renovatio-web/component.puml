@@ -1,0 +1,9 @@
+@startuml
+package "renovatio-web" {
+  [WebController]
+  [WebConfig]
+}
+
+[renovatio-web] --> [renovatio-core] : Exposición web
+@enduml
+

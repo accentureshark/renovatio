@@ -1,0 +1,10 @@
+@startuml
+package "renovatio-provider-cobol" {
+  [CobolLanguageProvider]
+  [CobolAnalyzer]
+}
+
+[renovatio-provider-cobol] --> [renovatio-shared] : Implementa interfaces
+[renovatio-core] --> [renovatio-provider-cobol] : Usa provider COBOL
+@enduml
+

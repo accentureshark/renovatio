@@ -1,0 +1,14 @@
+@startuml
+package "renovatio-shared" {
+  [NqlQuery]
+  [Workspace]
+  [Capabilities]
+  [LanguageProvider]
+}
+
+[renovatio-provider-cobol] --> [renovatio-shared] : Implementa interfaces
+[renovatio-provider-java] --> [renovatio-shared] : Implementa interfaces
+[renovatio-provider-jcl] --> [renovatio-shared] : Implementa interfaces
+[renovatio-core] --> [renovatio-shared] : Utiliza modelos/contratos
+@enduml
+
