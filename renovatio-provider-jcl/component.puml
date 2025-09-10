@@ -1,0 +1,22 @@
+@startuml
+package "renovatio-provider-jcl" {
+  [JclLanguageProvider]
+  [JclAnalyzer]
+}
+
+[renovatio-provider-jcl] --> [renovatio-shared] : Implementa interfaces
+[renovatio-core] --> [renovatio-provider-jcl] : Usa provider JCL
+@enduml
+@startuml
+package "renovatio-core" {
+  [MigrationReportService]
+  [ReportAccessService]
+  [LanguageProviderRegistry]
+}
+
+[renovatio-core] --> [renovatio-shared] : Utiliza modelos/contratos
+[renovatio-core] --> [renovatio-provider-cobol] : Usa provider COBOL
+[renovatio-core] --> [renovatio-provider-java] : Usa provider Java
+[renovatio-core] --> [renovatio-provider-jcl] : Usa provider JCL
+@enduml
+

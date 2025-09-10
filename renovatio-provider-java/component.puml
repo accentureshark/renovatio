@@ -1,0 +1,10 @@
+@startuml
+package "renovatio-provider-java" {
+  [JavaLanguageProvider]
+  [JavaAnalyzer]
+}
+
+[renovatio-provider-java] --> [renovatio-shared] : Implementa interfaces
+[renovatio-core] --> [renovatio-provider-java] : Usa provider Java
+@enduml
+

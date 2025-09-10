@@ -3,6 +3,7 @@ package org.shark.renovatio.core.service;
 import org.junit.jupiter.api.Test;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.spi.LanguageProvider;
+import org.shark.renovatio.shared.nql.NqlQuery;
 
 import java.util.EnumSet;
 import java.util.Map;
