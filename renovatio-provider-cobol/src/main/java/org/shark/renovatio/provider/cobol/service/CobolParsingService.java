@@ -7,6 +7,7 @@ import org.shark.renovatio.shared.domain.Workspace;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -263,22 +264,96 @@ public class CobolParsingService {
         ast.put("cicsCommands", extractCicsCommands(source));
         ast.put("calls", new HashSet<String>());
         ast.put("copies", new HashSet<String>());
-        ast.put("dataItems", new ArrayList<>());
+        ast.put("dataItems", extractDataItems(source));
         ast.put("dialect", dialect.name());
         return ast;
     }
 
-    /** Parse a COBOL copybook. For this lightweight implementation only the
-     * file name and dialect are returned. */
-    public Map<String, Object> parseCopybook(Path copybookFile, Dialect dialect) throws IOException {
-        Map<String, Object> ast = new HashMap<>();
-        String programId = copybookFile.getFileName().toString().replaceFirst("\\.[^.]+$", "");
-        ast.put("programId", programId);
-        ast.put("dataItems", new ArrayList<>());
-        ast.put("dialect", dialect.name());
-        return ast;
+    /**
+     * Extrae los campos de la sección WORKING-STORAGE y los mapea a tipos Java.
+     */
+    private List<Map<String, Object>> extractDataItems(String source) {
+        List<Map<String, Object>> items = new ArrayList<>();
+        // Buscar la sección WORKING-STORAGE
+        Pattern wsPattern = Pattern.compile("WORKING-STORAGE SECTION\\.(.*?)(PROCEDURE DIVISION\\.|\\Z)", Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
+        Matcher wsMatcher = wsPattern.matcher(source);
+        if (wsMatcher.find()) {
+            String wsSection = wsMatcher.group(1);
+            // Mejorar expresión regular para capturar tipos con números, paréntesis y V
+            Pattern fieldPattern = Pattern.compile("^\\s*\\d+\\s+([A-Z0-9-]+)\\s+PIC\\s+([A-Z0-9\\(\\)V]+)\\.", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+            Matcher fieldMatcher = fieldPattern.matcher(wsSection);
+            while (fieldMatcher.find()) {
+                String name = fieldMatcher.group(1);
+                String pic = fieldMatcher.group(2);
+                String javaType = mapCobolTypeToJava(pic);
+                Map<String, Object> item = new HashMap<>();
+                item.put("name", toCamelCase(name));
+                item.put("javaType", javaType);
+                items.add(item);
+            }
+        }
+        return items;
     }
 
+    /**
+     * Mapea el tipo PIC COBOL a tipo Java.
+     */
+    private String mapCobolTypeToJava(String pic) {
+        pic = pic.toUpperCase(Locale.ROOT);
+        // Integer: PIC 9, PIC 9(n)
+        if (pic.matches("9\\(\\d+\\)") || pic.equals("9")) {
+            return "Integer";
+        }
+        // BigDecimal: PIC 9(n)V99, PIC 9(n)V9(n)
+        if (pic.matches("9\\(\\d+\\)V\\d+") || pic.contains("V")) {
+            return "BigDecimal";
+        }
+        // String: PIC X, PIC X(n)
+        if (pic.startsWith("X")) {
+            return "String";
+        }
+        return "String";
+    }
+
+    private String toCamelCase(String name) {
+        String[] parts = name.split("[-_]");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i].toLowerCase(Locale.ROOT);
+            if (i == 0) {
+                sb.append(part);
+            } else {
+                sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Parses a COBOL file using regular expressions and returns a CobolProgram object.
+     */
+    private CobolProgram parseWithRegex(Path cobolFile) throws IOException {
+        String source = Files.readString(cobolFile);
+        Map<String, Object> metadata = new HashMap<>();
+        String programId = extractProgramId(source);
+        if (programId == null || programId.isEmpty()) {
+            programId = cobolFile.getFileName().toString();
+        }
+        metadata.put("programId", programId);
+        metadata.put("cicsCommands", extractCicsCommands(source));
+        metadata.put("calls", new HashSet<String>());
+        metadata.put("copies", new HashSet<String>());
+        metadata.put("dataItems", new ArrayList<>());
+        metadata.put("dialect", defaultDialect.name());
+
+        CobolProgram program = new CobolProgram();
+        program.setProgramId(programId);
+        program.setProgramName(programId);
+        program.setMetadata(metadata);
+        return program;
+    }
+
+    // Métodos auxiliares para parsing COBOL
     private String extractProgramId(String source) {
         Pattern pattern = Pattern.compile("PROGRAM-ID\\.\\s*([A-Z0-9-]+)", Pattern.CASE_INSENSITIVE);
         Matcher m = pattern.matcher(source);
@@ -296,5 +371,18 @@ public class CobolParsingService {
             cmds.add(m.group(1).toUpperCase(Locale.ROOT));
         }
         return cmds;
+    }
+
+    /**
+     * Parse a COBOL copybook. For this lightweight implementation only the
+     * file name and dialect are returned.
+     */
+    public Map<String, Object> parseCopybook(Path copybookFile, Dialect dialect) throws IOException {
+        Map<String, Object> ast = new HashMap<>();
+        String programId = copybookFile.getFileName().toString().replaceFirst("\\.[^.]+$", "");
+        ast.put("programId", programId);
+        ast.put("dataItems", new ArrayList<>());
+        ast.put("dialect", dialect.name());
+        return ast;
     }
 }

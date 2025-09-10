@@ -22,8 +22,8 @@ public class CopybookMigrationToolTest {
         Files.writeString(copybookFile, copybook);
 
         CobolParsingService parsingService = new CobolParsingService();
-        JavaGenerationService javaGenerationService = new JavaGenerationService(parsingService);
         TemplateCodeGenerationService templateService = new TemplateCodeGenerationService();
+        JavaGenerationService javaGenerationService = new JavaGenerationService(parsingService, templateService);
         Db2MigrationService db2Service = new Db2MigrationService(parsingService);
         MigrationPlanService migrationPlanService = new MigrationPlanService(parsingService, javaGenerationService);
         IndexingService indexingService = new IndexingService();

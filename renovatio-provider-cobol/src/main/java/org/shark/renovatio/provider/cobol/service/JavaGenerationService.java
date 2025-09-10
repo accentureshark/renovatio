@@ -252,30 +252,26 @@ public class JavaGenerationService {
      * Adds a field with getter and setter to a class builder
      */
     private void addFieldToClass(TypeSpec.Builder classBuilder, String fieldName, String javaType) {
-        String normalizedFieldName = toCamelCase(fieldName);
         ClassName fieldType = getClassNameForType(javaType);
-        
         // Add field
-        FieldSpec field = FieldSpec.builder(fieldType, normalizedFieldName)
+        FieldSpec field = FieldSpec.builder(fieldType, fieldName)
             .addModifiers(Modifier.PRIVATE)
             .build();
         classBuilder.addField(field);
-        
         // Add getter
-        String getterName = "get" + toPascalCase(normalizedFieldName);
+        String getterName = "get" + toPascalCase(fieldName);
         MethodSpec getter = MethodSpec.methodBuilder(getterName)
             .addModifiers(Modifier.PUBLIC)
             .returns(fieldType)
-            .addStatement("return $L", normalizedFieldName)
+            .addStatement("return $L", fieldName)
             .build();
         classBuilder.addMethod(getter);
-        
         // Add setter
-        String setterName = "set" + toPascalCase(normalizedFieldName);
+        String setterName = "set" + toPascalCase(fieldName);
         MethodSpec setter = MethodSpec.methodBuilder(setterName)
             .addModifiers(Modifier.PUBLIC)
-            .addParameter(fieldType, normalizedFieldName)
-            .addStatement("this.$L = $L", normalizedFieldName, normalizedFieldName)
+            .addParameter(fieldType, fieldName)
+            .addStatement("this.$L = $L", fieldName, fieldName)
             .build();
         classBuilder.addMethod(setter);
     }

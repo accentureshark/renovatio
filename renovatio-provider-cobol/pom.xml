@@ -92,20 +92,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Copybook parsing and model generation -->
-        <dependency>
-            <groupId>net.sf.cb2xml</groupId>
-            <artifactId>cb2xml</artifactId>
-            <version>1.0.2</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/../../libs/cb2xml.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>net.sf.jrecord</groupId>
-            <artifactId>jrecord</artifactId>
-            <version>0.89.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/../../libs/JRecord.jar</systemPath>
-        </dependency>
+
     </dependencies>
 </project>

@@ -29,8 +29,8 @@ public class Db2MigrationToolTest {
         Files.writeString(programFile, cobol);
 
         CobolParsingService parsingService = new CobolParsingService();
-        JavaGenerationService javaGenerationService = new JavaGenerationService(parsingService);
         TemplateCodeGenerationService templateService = new TemplateCodeGenerationService();
+        JavaGenerationService javaGenerationService = new JavaGenerationService(parsingService, templateService);
         Db2MigrationService db2Service = new Db2MigrationService(parsingService);
         MigrationPlanService migrationPlanService = new MigrationPlanService(parsingService, javaGenerationService);
         IndexingService indexingService = new IndexingService();
@@ -54,4 +54,3 @@ public class Db2MigrationToolTest {
         assertTrue(files.containsKey("CustomerRepository.java"));
     }
 }
-

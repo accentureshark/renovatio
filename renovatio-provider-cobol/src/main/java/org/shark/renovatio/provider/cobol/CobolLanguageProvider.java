@@ -6,10 +6,7 @@ import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.provider.cobol.service.*;
 import org.springframework.stereotype.Component;
 
-import java.util.Optional;
-import java.util.Set;
-import java.util.EnumSet;
-import java.util.List;
+import java.util.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -133,11 +130,11 @@ public class CobolLanguageProvider implements LanguageProvider {
             if (copybookName == null) {
                 return new StubResult(false, "No copybook specified");
             }
-
+            final String finalCopybookName = copybookName;
             Path root = Paths.get(workspace.getPath());
             List<Path> copybooks = parsingService.findCopybooks(root);
             Optional<Path> copybookPath = copybooks.stream()
-                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(copybookName))
+                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(finalCopybookName))
                     .findFirst();
             if (copybookPath.isEmpty()) {
                 return new StubResult(false, "Copybook not found: " + copybookName);
@@ -174,11 +171,11 @@ public class CobolLanguageProvider implements LanguageProvider {
             if (programName == null) {
                 return new StubResult(false, "No COBOL program specified");
             }
-
+            final String finalProgramName = programName;
             Path root = Paths.get(workspace.getPath());
             List<Path> cobolFiles = parsingService.findCobolFiles(root);
             Optional<Path> programPath = cobolFiles.stream()
-                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(programName))
+                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(finalProgramName))
                     .findFirst();
             if (programPath.isEmpty()) {
                 return new StubResult(false, "COBOL program not found: " + programName);
