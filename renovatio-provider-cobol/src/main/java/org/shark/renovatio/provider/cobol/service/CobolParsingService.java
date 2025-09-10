@@ -24,6 +24,7 @@ import java.util.stream.Stream;
  * performed here is intentionally simplistic and relies on regular
  * expressions to extract a few pieces of information such as the program id,
  * embedded SQL statements and simple CICS commands.</p>
+ightweight regular-expression based parser.
  */
 @Service
 public class CobolParsingService {
@@ -89,7 +90,7 @@ public class CobolParsingService {
         return cobolFiles;
     }
 
-    /** Locate COBOL copybooks inside a workspace. */
+
     public List<Path> findCopybooks(Path workspacePath) throws IOException {
         List<Path> copybooks = new ArrayList<>();
         try (Stream<Path> walkStream = Files.walk(workspacePath)) {
@@ -168,9 +169,72 @@ public class CobolParsingService {
             if (meta != null) {
                 dialectStr = meta.toString();
             }
+    /**
+     * Attempts to parse a COBOL file using the ProLeap parser via reflection.
+     * If the library is not available or an error occurs, {@code null} is
+     * returned so that the caller can fall back to another strategy.
+     */
+    private CobolProgram parseWithProLeap(Path cobolFile) {
+        try {
+            // We invoke ProLeap via reflection to avoid a hard dependency.
+            Class<?> runnerClass = Class.forName("io.proleap.cobol.asg.runner.CobolParserRunnerImpl");
+            Object runner = runnerClass.getDeclaredConstructor().newInstance();
+
+            // ProLeap requires a source format enum; we attempt to resolve it
+            // but default to AUTO when unavailable.
+            Class<?> formatEnum = Class.forName("io.proleap.cobol.asg.params.CobolSourceFormatEnum");
+            Object format = Enum.valueOf((Class<Enum>) formatEnum, "AUTO");
+
+            // Call analyzeFile(File, CobolSourceFormatEnum)
+            runnerClass.getMethod("analyzeFile", File.class, formatEnum)
+                .invoke(runner, cobolFile.toFile(), format);
+
+            // We only need metadata for now; reuse regex parsing for structure
+            CobolProgram program = parseWithRegex(cobolFile);
+            if (program != null && program.getMetadata() != null) {
+                program.getMetadata().put("parser", "proleap");
+            }
+            return program;
+        } catch (Throwable t) {
+            // Any failure leads to a null result so the caller can fallback
+            return null;
         }
-        return Dialect.fromString(dialectStr == null ? defaultDialect.name() : dialectStr);
     }
+
+    /**
+     * Attempts to parse a COBOL file using the Koopa parser via reflection.
+     * Returns {@code null} if Koopa is not on the classpath or parsing fails.
+     */
+    private CobolProgram parseWithKoopa(Path cobolFile) {
+        try {
+            Class<?> parserClass = Class.forName("koopa.parsers.cobol.CobolParser");
+            Object parser = parserClass.getDeclaredConstructor().newInstance();
+
+            // Koopa exposes a parse(File) method which returns a parse tree.
+            parserClass.getMethod("parse", File.class).invoke(parser, cobolFile.toFile());
+
+            CobolProgram program = parseWithRegex(cobolFile);
+            if (program != null && program.getMetadata() != null) {
+                program.getMetadata().put("parser", "koopa");
+            }
+            return program;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * Checks whether a given class is available on the classpath.
+     */
+    private boolean isClassPresent(String className) {
+        try {
+            Class.forName(className);
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+    
 
     /** Parse a COBOL file using the service's default dialect. */
     public Map<String, Object> parseCobolFile(Path cobolFile) throws IOException {
