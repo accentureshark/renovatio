@@ -46,38 +46,13 @@ public class JavaGenerationService {
             Map<String, String> generatedFiles = new HashMap<>();
 
             for (org.shark.renovatio.provider.cobol.domain.CobolProgram program : programs) {
-                String programName = program.getProgramName();
                 Map<String, Object> metadata = program.getMetadata();
-                // Usar el nombre del archivo COBOL para los nombres de clases y archivos generados
                 String fileName = (String) metadata.get("filePath");
                 String baseName = Paths.get(fileName).getFileName().toString();
-                // El nombre de la clase debe ser SampleCobDTO, SampleCobService, etc.
-                String classBase = baseName.replace(".", "");
-                // Generate DTO class for data structures
-                String dtoClass = generateDataTransferObject(classBase, metadata);
-                generatedFiles.put(baseName + "DTO.java", dtoClass);
-                // Generate service interface
-                String serviceInterface = generateServiceInterface(classBase, metadata);
-                generatedFiles.put(baseName + "Service.java", serviceInterface);
-                // Generate implementation template
-                String serviceImpl = generateServiceImplementation(classBase, metadata);
-                generatedFiles.put(baseName + "ServiceImpl.java", serviceImpl);
-
-                @SuppressWarnings("unchecked")
-                Set<String> cics = (Set<String>) metadata.get("cicsCommands");
-                if (cics != null && !cics.isEmpty()) {
-                    Map<String, Object> tmplData = new HashMap<>();
-                    tmplData.put("className", classBase + "CicsController");
-                    tmplData.put("transactions", cics);
-                    String controller = templateService.generateCicsController(tmplData);
-                    generatedFiles.put(baseName + "CicsController.java", controller);
-
-
-                System.out.println("DEBUG: Processing file: " + fileName + ", baseName: " + baseName);
-
-                // Limpiar y sanitizar el nombre base correctamente desde el principio
+                // Clean and sanitize the class base name
                 String classBase = sanitizeClassName(toPascalCase(baseName));
 
+                System.out.println("DEBUG: Processing file: " + fileName + ", baseName: " + baseName);
                 System.out.println("DEBUG: Generated classBase: " + classBase);
 
                 try {
@@ -90,17 +65,26 @@ public class JavaGenerationService {
                     // Generate implementation template
                     String serviceImpl = generateServiceImplementation(classBase, metadata);
                     generatedFiles.put(classBase + "ServiceImpl.java", serviceImpl);
+
+                    @SuppressWarnings("unchecked")
+                    Set<String> cics = (Set<String>) metadata.get("cicsCommands");
+                    if (cics != null && !cics.isEmpty()) {
+                        Map<String, Object> tmplData = new HashMap<>();
+                        tmplData.put("className", classBase + "CicsController");
+                        tmplData.put("transactions", cics);
+                        String controller = templateService.generateCicsController(tmplData);
+                        generatedFiles.put(classBase + "CicsController.java", controller);
+                    }
                 } catch (Exception e) {
                     System.out.println("DEBUG: Error generating for classBase '" + classBase + "': " + e.getMessage());
                     throw e;
-
                 }
             }
 
-            // Escribir archivos al disco
+            // Write generated files to disk
             String outputPath = writeGeneratedFilesToDisk(generatedFiles, workspace);
 
-            // Depuración: imprimir las claves generadas
+            // Debug: print generated keys
             System.out.println("Claves generadas: " + generatedFiles.keySet());
             System.out.println("Archivos escritos en: " + outputPath);
 

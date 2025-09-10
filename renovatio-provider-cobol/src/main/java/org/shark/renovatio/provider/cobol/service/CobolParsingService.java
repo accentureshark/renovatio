@@ -169,6 +169,10 @@ public class CobolParsingService {
             if (meta != null) {
                 dialectStr = meta.toString();
             }
+        }
+
+        return Dialect.fromString(dialectStr);
+    }
     /**
      * Attempts to parse a COBOL file using the ProLeap parser via reflection.
      * If the library is not available or an error occurs, {@code null} is
@@ -294,4 +298,3 @@ public class CobolParsingService {
         return cmds;
     }
 }
-
