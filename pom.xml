@@ -34,8 +34,6 @@
         <antlr4.version>4.13.1</antlr4.version>
         <resilience4j.version>2.1.0</resilience4j.version>
         <micrometer.version>1.12.1</micrometer.version>
-        <cb2xml.version>1.0.1</cb2xml.version>
-        <jrecord.version>0.98.65</jrecord.version>
         <mustache.version>0.9.10</mustache.version>
     </properties>
     
@@ -131,18 +129,6 @@
                 <groupId>org.freemarker</groupId>
                 <artifactId>freemarker</artifactId>
                 <version>${freemarker.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>net.sf.cb2xml</groupId>
-                <artifactId>cb2xml</artifactId>
-                <version>${cb2xml.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>net.sf.jrecord</groupId>
-                <artifactId>jrecord</artifactId>
-                <version>${jrecord.version}</version>
             </dependency>
 
             <dependency>
