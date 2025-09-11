@@ -1,14 +1,88 @@
 @startuml
+' renovatio-shared Component Diagram
+
+title Renovatio Shared - Common Abstractions
+
 package "renovatio-shared" {
-  [NqlQuery]
-  [Workspace]
-  [Capabilities]
-  [LanguageProvider]
+  
+  ' Core Interfaces
+  package "Core Abstractions" {
+    interface Tool #LightBlue
+    interface Recipe #LightBlue
+    interface LanguageProvider #LightBlue
+    interface ToolExecutor #LightBlue
+  }
+  
+  ' Domain Models
+  package "Domain Models" {
+    [Workspace] #LightCyan
+    [NqlQuery] #LightCyan
+    [ExecutionContext] #LightCyan
+    [ExecutionResult] #LightCyan
+    [ToolMetadata] #LightCyan
+  }
+  
+  ' Common Capabilities
+  package "Capabilities" {
+    [Capabilities] #LightGreen
+    [ProviderCapabilities] #LightGreen
+    [ToolCapabilities] #LightGreen
+  }
+  
+  ' Utilities
+  package "Utilities" {
+    [ValidationUtils] #LightYellow
+    [SerializationUtils] #LightYellow
+    [PathUtils] #LightYellow
+    [FileUtils] #LightYellow
+  }
+  
+  ' Natural Query Language
+  package "NQL (Natural Query Language)" {
+    [NqlParser] #LightPink
+    [NqlAstNode] #LightPink
+    [NqlQueryBuilder] #LightPink
+    [NqlValidator] #LightPink
+  }
 }
 
-[renovatio-provider-cobol] --> [renovatio-shared] : Implementa interfaces
-[renovatio-provider-java] --> [renovatio-shared] : Implementa interfaces
-[renovatio-provider-jcl] --> [renovatio-shared] : Implementa interfaces
-[renovatio-core] --> [renovatio-shared] : Utiliza modelos/contratos
+' Internal connections
+Tool --> ToolMetadata : Describes
+Tool --> ExecutionContext : Uses
+Tool --> ExecutionResult : Produces
+Recipe --> Tool : Defines
+LanguageProvider --> Tool : Provides
+LanguageProvider --> ProviderCapabilities : Exposes
+NqlQuery --> NqlParser : Parsed by
+NqlParser --> NqlAstNode : Produces
+NqlQueryBuilder --> NqlQuery : Builds
+NqlValidator --> NqlQuery : Validates
+Workspace --> PathUtils : Uses
+Workspace --> FileUtils : Uses
+
+note top of Tool
+  **Core Tool Interface**
+  - Protocol-agnostic definition
+  - Input/output schemas
+  - Execution contracts
+  - Metadata support
+end note
+
+note bottom of NqlParser
+  **Natural Query Language**
+  - Code search DSL
+  - AST-based queries
+  - Language-agnostic syntax
+  - Semantic search support
+end note
+
+note right of LanguageProvider
+  **Provider Interface**
+  - Language-specific implementations
+  - Tool registration
+  - Capability declaration
+  - Recipe management
+end note
+
 @enduml
 

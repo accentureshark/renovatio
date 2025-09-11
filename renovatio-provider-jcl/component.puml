@@ -1,22 +1,132 @@
 @startuml
+' renovatio-provider-jcl Component Diagram
+
+title Renovatio JCL Provider - Job Control Language Conversion
+
 package "renovatio-provider-jcl" {
-  [JclLanguageProvider]
-  [JclAnalyzer]
+  
+  ' Provider Implementation
+  package "Provider Core" {
+    [JclLanguageProvider] #Orange
+    [JclProviderConfiguration] #LightGreen
+    [JclCapabilities] #LightBlue
+  }
+  
+  ' JCL Parsing & Analysis
+  package "JCL Analysis" {
+    [JclParser] #LightPink
+    [JclAnalyzer] #LightPink
+    [JclAstBuilder] #LightPink
+    [JclStepExtractor] #LightPink
+  }
+  
+  ' Conversion Engine
+  package "Conversion Engine" {
+    [JclConverter] #LightCyan
+    [JobStepConverter] #LightCyan
+    [DatasetConverter] #LightCyan
+    [ParameterConverter] #LightCyan
+  }
+  
+  ' Target Generators
+  package "Target Generators" {
+    [ShellScriptGenerator] #LightYellow
+    [GitHubActionsGenerator] #LightYellow
+    [SpringBatchGenerator] #LightYellow
+    [AirflowGenerator] #LightYellow
+  }
+  
+  ' JCL Tools
+  package "JCL Tools" {
+    [JclConvertTool] #LightGray
+    [JclAnalyzeTool] #LightGray
+    [JclValidateTool] #LightGray
+  }
+  
+  ' Template System
+  package "Template System" {
+    [JclTemplateManager] #LightBlue
+    [TemplateSelector] #LightBlue
+    [TemplateRenderer] #LightBlue
+  }
 }
 
-[renovatio-provider-jcl] --> [renovatio-shared] : Implementa interfaces
-[renovatio-core] --> [renovatio-provider-jcl] : Usa provider JCL
-@enduml
-@startuml
-package "renovatio-core" {
-  [MigrationReportService]
-  [ReportAccessService]
-  [LanguageProviderRegistry]
-}
+' External dependencies
+[renovatio-shared] #LightCyan
+[ANTLR4 Runtime] #Orange
+[Freemarker] #LightGreen
+[YAML Parser] #LightBlue
 
-[renovatio-core] --> [renovatio-shared] : Utiliza modelos/contratos
-[renovatio-core] --> [renovatio-provider-cobol] : Usa provider COBOL
-[renovatio-core] --> [renovatio-provider-java] : Usa provider Java
-[renovatio-core] --> [renovatio-provider-jcl] : Usa provider JCL
+' Provider implementation
+JclLanguageProvider --> JclProviderConfiguration : Configured by
+JclLanguageProvider --> JclCapabilities : Exposes
+
+' JCL parsing
+JclParser --> [ANTLR4 Runtime] : Uses Grammar
+JclAnalyzer --> JclParser : Uses
+JclAstBuilder --> JclParser : Uses
+JclStepExtractor --> JclAstBuilder : Uses
+
+' Conversion engine
+JclConverter --> JobStepConverter : Uses
+JclConverter --> DatasetConverter : Uses
+JclConverter --> ParameterConverter : Uses
+JobStepConverter --> JclStepExtractor : Uses
+
+' Target generators
+ShellScriptGenerator --> JclConverter : Uses
+GitHubActionsGenerator --> JclConverter : Uses
+GitHubActionsGenerator --> [YAML Parser] : Generates YAML
+SpringBatchGenerator --> JclConverter : Uses
+AirflowGenerator --> JclConverter : Uses
+
+' Template system
+JclTemplateManager --> TemplateSelector : Uses
+JclTemplateManager --> TemplateRenderer : Uses
+TemplateRenderer --> [Freemarker] : Template Engine
+ShellScriptGenerator --> JclTemplateManager : Uses
+GitHubActionsGenerator --> JclTemplateManager : Uses
+SpringBatchGenerator --> JclTemplateManager : Uses
+AirflowGenerator --> JclTemplateManager : Uses
+
+' Tool implementations
+JclConvertTool --> JclConverter : Uses
+JclConvertTool --> ShellScriptGenerator : Uses
+JclConvertTool --> GitHubActionsGenerator : Uses
+JclConvertTool --> SpringBatchGenerator : Uses
+JclConvertTool --> AirflowGenerator : Uses
+JclAnalyzeTool --> JclAnalyzer : Uses
+JclValidateTool --> JclParser : Uses
+
+' Shared interfaces
+JclLanguageProvider --> [renovatio-shared] : Implements LanguageProvider
+JclConvertTool --> [renovatio-shared] : Implements Tool
+JclAnalyzeTool --> [renovatio-shared] : Implements Tool
+JclValidateTool --> [renovatio-shared] : Implements Tool
+
+note top of JclLanguageProvider
+  **JCL Provider**
+  - JCL parsing & analysis
+  - Multi-target conversion
+  - Template-based generation
+  - Modern CI/CD integration
+end note
+
+note bottom of JclConverter
+  **JCL Conversion**
+  - Job step analysis
+  - Dataset mapping
+  - Parameter conversion
+  - Dependency tracking
+end note
+
+note right of GitHubActionsGenerator
+  **Target Platforms**
+  - Shell scripts
+  - GitHub Actions
+  - Spring Batch
+  - Apache Airflow
+end note
+
 @enduml
 

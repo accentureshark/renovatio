@@ -1,38 +1,86 @@
 @startuml
-' Diagrama de componentes Renovatio
+' Renovatio Architecture - MCP Server and Core Engine Separation
 
-package "Renovatio Providers" {
-  [renovatio-provider-cobol]
-  [renovatio-provider-java]
-  [renovatio-provider-jcl]
+title Renovatio Platform - Modular Architecture
+
+' External clients
+actor "MCP Clients\n(VS Code, etc.)" as mcp_clients
+actor "HTTP Clients\n(Web Apps)" as http_clients
+actor "Library Users\n(Direct Usage)" as lib_users
+
+' Main application modules
+package "Application Layer" {
+  [renovatio-mcp-server] as mcp_server #LightBlue
+  [renovatio-web] as web #LightGreen
+  [renovatio-agent] as agent #LightYellow
+  [renovatio-client] as client #LightGray
 }
 
-[renovatio-shared]
-[renovatio-core]
-[renovatio-agent]
-[renovatio-client]
-[renovatio-web]
+' Core engine (protocol-agnostic)
+package "Core Engine (Protocol-Agnostic)" {
+  [renovatio-core] as core #Orange
+  [renovatio-shared] as shared #LightCyan
+}
 
-' Dependencias principales
+' Language providers (pluggable modules)
+package "Language Providers" {
+  [renovatio-provider-java] as java_provider #LightPink
+  [renovatio-provider-cobol] as cobol_provider #LightPink
+  [renovatio-provider-jcl] as jcl_provider #LightPink
+}
 
-[renovatio-provider-cobol] --> [renovatio-shared] : Implementa interfaces
-[renovatio-provider-java] --> [renovatio-shared] : Implementa interfaces
-[renovatio-provider-jcl] --> [renovatio-shared] : Implementa interfaces
+' Client connections
+mcp_clients --> mcp_server : JSON-RPC 2.0\n(MCP Protocol)
+http_clients --> web : REST API
+lib_users --> core : Direct Calls
 
-[renovatio-core] --> [renovatio-shared] : Modelos/contratos
-[renovatio-core] --> [renovatio-provider-cobol] : Usa provider COBOL
-[renovatio-core] --> [renovatio-provider-java] : Usa provider Java
+' Application layer dependencies
+mcp_server --> core : Uses Pure Engine
+web --> core : Uses Pure Engine
+agent --> core : Orchestration
+client ..> core : Consumes API
 
-[renovatio-agent] --> [renovatio-core] : Orquestación/servicios
-[renovatio-agent] --> [renovatio-provider-cobol]
-[renovatio-agent] --> [renovatio-provider-java]
-[renovatio-agent] --> [renovatio-provider-jcl]
-[renovatio-agent] --> [renovatio-shared]
+' Core engine structure
+core --> shared : Uses Models/Contracts
+core --> java_provider : Language Support
+core --> cobol_provider : Language Support
+core --> jcl_provider : Language Support
 
-[renovatio-web] --> [renovatio-core] : Exposición web
-[renovatio-web] --> [renovatio-provider-cobol]
-[renovatio-web] --> [renovatio-provider-java]
+' Provider dependencies
+java_provider --> shared : Implements Interfaces
+cobol_provider --> shared : Implements Interfaces
+jcl_provider --> shared : Implements Interfaces
 
-[renovatio-client] ..> [renovatio-core] : Consume API
+' Cross-module usage
+agent --> java_provider : Direct Access
+agent --> cobol_provider : Direct Access
+agent --> jcl_provider : Direct Access
+web --> java_provider : Direct Access
+web --> cobol_provider : Direct Access
+
+note top of mcp_server
+  **MCP Server**
+  - Full MCP 2025-06-18 compliance
+  - Serves on root path "/"
+  - JSON-RPC 2.0 protocol
+  - Zero business logic
+end note
+
+note top of core
+  **Pure Engine**
+  - Protocol-agnostic
+  - Zero MCP dependencies
+  - Can be used as library
+  - Language provider registry
+end note
+
+note bottom of java_provider
+  **Language Providers**
+  - Pluggable modules
+  - Language-specific implementations
+  - Java: OpenRewrite
+  - COBOL: ANTLR4 + Migration
+  - JCL: Parser + Conversion
+end note
 
 @enduml
