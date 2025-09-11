@@ -28,10 +28,16 @@ public class CobolProviderConfiguration {
     }
     
     @Bean
-    public MigrationPlanService migrationPlanService(
+    public CobolRecipeRegistry cobolRecipeRegistry() {
+        return new CobolRecipeRegistry();
+    }
+
+    @Bean
+    public RecipeBasedMigrationPlanService migrationPlanService(
             CobolParsingService parsingService,
-            JavaGenerationService javaGenerationService) {
-        return new MigrationPlanService(parsingService, javaGenerationService);
+            JavaGenerationService javaGenerationService,
+            CobolRecipeRegistry cobolRecipeRegistry) {
+        return new RecipeBasedMigrationPlanService(parsingService, javaGenerationService, cobolRecipeRegistry);
     }
     
     @Bean
@@ -60,7 +66,7 @@ public class CobolProviderConfiguration {
     public CobolLanguageProvider cobolLanguageProvider(
             CobolParsingService parsingService,
             JavaGenerationService javaGenerationService,
-            MigrationPlanService migrationPlanService,
+            RecipeBasedMigrationPlanService migrationPlanService,
             IndexingService indexingService,
             MetricsService metricsService,
             TemplateCodeGenerationService templateCodeGenerationService,

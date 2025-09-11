@@ -111,7 +111,7 @@ renovatio-provider-cobol/
 │   ├── service/                            # Core services
 │   │   ├── CobolParsingService.java        # COBOL parsing and analysis
 │   │   ├── JavaGenerationService.java     # Java code generation
-│   │   ├── MigrationPlanService.java      # Migration planning
+│   │   ├── RecipeBasedMigrationPlanService.java      # Migration planning from recipes
 │   │   ├── IndexingService.java           # Lucene-based indexing
 │   │   ├── MetricsService.java            # Code metrics calculation
 │   │   ├── TemplateCodeGenerationService.java # Template-based generation

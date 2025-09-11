@@ -17,12 +17,12 @@ public class ResilientMigrationService {
     
     private final CobolParsingService parsingService;
     private final JavaGenerationService javaGenerationService;
-    private final MigrationPlanService migrationPlanService;
+    private final RecipeBasedMigrationPlanService migrationPlanService;
     
     public ResilientMigrationService(
             CobolParsingService parsingService,
             JavaGenerationService javaGenerationService,
-            MigrationPlanService migrationPlanService) {
+            RecipeBasedMigrationPlanService migrationPlanService) {
         this.parsingService = parsingService;
         this.javaGenerationService = javaGenerationService;
         this.migrationPlanService = migrationPlanService;

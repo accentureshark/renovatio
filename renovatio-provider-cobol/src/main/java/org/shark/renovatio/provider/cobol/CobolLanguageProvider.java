@@ -22,7 +22,7 @@ public class CobolLanguageProvider implements LanguageProvider {
     
     private final CobolParsingService parsingService;
     private final JavaGenerationService javaGenerationService;
-    private final MigrationPlanService migrationPlanService;
+    private final RecipeBasedMigrationPlanService migrationPlanService;
     private final IndexingService indexingService;
     private final MetricsService metricsService;
     private final TemplateCodeGenerationService templateCodeGenerationService;
@@ -31,7 +31,7 @@ public class CobolLanguageProvider implements LanguageProvider {
     public CobolLanguageProvider(
             CobolParsingService parsingService,
             JavaGenerationService javaGenerationService,
-            MigrationPlanService migrationPlanService,
+            RecipeBasedMigrationPlanService migrationPlanService,
             IndexingService indexingService,
             MetricsService metricsService,
             TemplateCodeGenerationService templateCodeGenerationService,
