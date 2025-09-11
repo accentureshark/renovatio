@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class McpService {
@@ -57,6 +58,8 @@ public class McpService {
                     return handleResourcesList(request);
                 case "resources/read":
                     return handleResourcesRead(request);
+                case "cli/manifest":
+                    return handleCliManifest(request);
                 default:
                     return new McpResponse(request.getId(),
                         new McpError(-32601, "Method not found: " + request.getMethod()));
@@ -152,6 +155,21 @@ public class McpService {
         }
         Map<String, Object> result = new HashMap<>();
         result.put("resource", resource);
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleCliManifest(McpRequest request) {
+        List<McpTool> tools = mcpToolingService.getMcpTools();
+        List<Map<String, Object>> commands = tools.stream().map(tool -> {
+            Map<String, Object> command = new HashMap<>();
+            command.put("name", tool.getName());
+            command.put("description", tool.getDescription());
+            command.put("inputSchema", tool.getInputSchema());
+            return command;
+        }).collect(Collectors.toList());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("commands", commands);
         return new McpResponse(request.getId(), result);
     }
 

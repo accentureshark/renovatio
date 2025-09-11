@@ -190,7 +190,7 @@ curl -X POST -H "Content-Type: application/json" \
   http://localhost:8181/
 ```
 
-La respuesta incluye un objeto `commands` con elementos que exponen los campos `name`, `description` e `inputSchema`:
+La respuesta genera un objeto `commands` a partir de cada `McpTool`, exponiendo los campos `name`, `description` e `inputSchema`:
 
 ```json
 {
