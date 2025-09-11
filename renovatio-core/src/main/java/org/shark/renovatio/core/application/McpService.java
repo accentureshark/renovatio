@@ -4,6 +4,7 @@ import org.shark.renovatio.core.mcp.*;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -103,9 +104,16 @@ public class McpService {
         String toolName = (String) params.get("name");
         @SuppressWarnings("unchecked")
         Map<String, Object> arguments = (Map<String, Object>) params.get("arguments");
-        var response = mcpToolingService.executeTool(toolName, arguments);
+
+        Map<String, Object> rawResponse = mcpToolingService.executeTool(toolName, arguments);
+        Map<String, Object> response = new HashMap<>();
+        Object type = rawResponse.get("type");
+        Object text = rawResponse.get("text");
+        response.put("type", type != null ? type : "text");
+        response.put("text", text != null ? text.toString() : rawResponse.toString());
+
         Map<String, Object> result = new HashMap<>();
-        result.put("content", response);
+        result.put("content", List.of(response));
         return new McpResponse(request.getId(), result);
     }
 
