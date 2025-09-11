@@ -19,18 +19,29 @@
             <groupId>org.shark.renovatio</groupId>
             <artifactId>renovatio-shared</artifactId>
         </dependency>
+        <!-- Spring Boot Starter -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter</artifactId>
         </dependency>
+        <!-- JSON processing -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
+        <!-- Optional Spring Web for REST API if needed -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Optional OpenAPI documentation -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <optional>true</optional>
         </dependency>
+        <!-- MapStruct for DTOs -->
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
@@ -40,15 +51,24 @@
             <artifactId>mapstruct-processor</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- Optional validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Utility dependencies -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
             <version>2.0.30</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>javax.servlet</groupId>
@@ -70,20 +90,6 @@
             <groupId>org.openapitools</groupId>
             <artifactId>jackson-databind-nullable</artifactId>
             <version>0.2.4</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.shark.renovatio</groupId>
-            <artifactId>renovatio-provider-java</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>org.shark.renovatio</groupId>
-            <artifactId>renovatio-provider-cobol</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
 

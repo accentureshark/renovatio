@@ -1,4 +1,4 @@
-package org.shark.renovatio.core.mcp;
+package org.shark.renovatio.mcp.server.model;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

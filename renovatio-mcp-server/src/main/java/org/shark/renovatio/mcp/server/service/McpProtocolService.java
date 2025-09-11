@@ -1,6 +1,7 @@
-package org.shark.renovatio.core.application;
+package org.shark.renovatio.mcp.server.service;
 
-import org.shark.renovatio.core.mcp.*;
+import org.shark.renovatio.mcp.server.model.*;
+import org.shark.renovatio.core.service.LanguageProviderRegistry;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -10,15 +11,28 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+/**
+ * MCP Protocol Service - implements the full Model Content Protocol specification.
+ * 
+ * This service handles all MCP JSON-RPC 2.0 methods according to the specification at:
+ * https://modelcontextprotocol.io/docs/develop/build-server
+ */
 @Service
-public class McpService {
+public class McpProtocolService {
+    
     private final McpToolingService mcpToolingService;
+    private final LanguageProviderRegistry languageProviderRegistry;
     private final Set<String> loggingSubscribers = ConcurrentHashMap.newKeySet();
 
-    public McpService(McpToolingService mcpToolingService) {
+    public McpProtocolService(McpToolingService mcpToolingService, 
+                            LanguageProviderRegistry languageProviderRegistry) {
         this.mcpToolingService = mcpToolingService;
+        this.languageProviderRegistry = languageProviderRegistry;
     }
 
+    /**
+     * Main entry point for handling MCP requests.
+     */
     public McpResponse handleMcpRequest(McpRequest request) {
         try {
             switch (request.getMethod()) {
@@ -70,37 +84,58 @@ public class McpService {
         }
     }
 
+    /**
+     * MCP initialize method - establishes protocol version and capabilities.
+     */
     private McpResponse handleInitialize(McpRequest request) {
         Map<String, Object> result = new HashMap<>();
         result.put("protocolVersion", "2025-06-18");
         result.put("capabilities", new McpCapabilities());
         result.put("serverInfo", Map.of(
-            "name", "Renovatio OpenRewrite MCP Server",
-            "version", "1.0.0"
+            "name", "Renovatio MCP Server",
+            "version", "1.0.0",
+            "description", "Multi-language refactoring and migration platform with full MCP compliance"
         ));
+        
+        // Include available tools in initialization
         var tools = mcpToolingService.getMcpTools();
-        System.out.println("DEBUG tools before put: " + tools);
         result.put("availableTools", tools);
-        System.out.println("DEBUG result after put: " + result);
+        
         return new McpResponse(request.getId(), result);
     }
 
+    /**
+     * MCP ping method - simple connectivity test.
+     */
     private McpResponse handlePing(McpRequest request) {
-        return new McpResponse(request.getId(), new HashMap<>());
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", "pong");
+        result.put("timestamp", System.currentTimeMillis());
+        return new McpResponse(request.getId(), result);
     }
 
+    /**
+     * MCP shutdown method - graceful server shutdown.
+     */
     private McpResponse handleShutdown(McpRequest request) {
         Map<String, Object> result = new HashMap<>();
         result.put("message", "Server shutdown requested");
+        result.put("gracefulShutdown", true);
         return new McpResponse(request.getId(), result);
     }
 
+    /**
+     * MCP tools/list method - returns all available tools.
+     */
     private McpResponse handleToolsList(McpRequest request) {
         Map<String, Object> result = new HashMap<>();
         result.put("tools", mcpToolingService.getMcpTools());
         return new McpResponse(request.getId(), result);
     }
 
+    /**
+     * MCP tools/call method - executes a specific tool with given arguments.
+     */
     private McpResponse handleToolsCall(McpRequest request) {
         @SuppressWarnings("unchecked")
         Map<String, Object> params = (Map<String, Object>) request.getParams();
@@ -120,6 +155,137 @@ public class McpService {
         return new McpResponse(request.getId(), result);
     }
 
+    /**
+     * MCP tools/describe method - provides detailed information about a specific tool.
+     */
+    private McpResponse handleToolsDescribe(McpRequest request) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String toolName = (String) params.get("name");
+        var tool = mcpToolingService.getTool(toolName);
+        if (tool == null) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Tool not found: " + toolName));
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("tool", tool);
+        return new McpResponse(request.getId(), result);
+    }
+
+    /**
+     * MCP capabilities method - returns server capabilities.
+     */
+    private McpResponse handleCapabilities(McpRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("capabilities", new McpCapabilities());
+        return new McpResponse(request.getId(), result);
+    }
+
+    /**
+     * MCP server/info method - returns server information.
+     */
+    private McpResponse handleServerInfo(McpRequest request) {
+        Map<String, Object> serverInfo = new HashMap<>();
+        serverInfo.put("name", "Renovatio MCP Server");
+        serverInfo.put("version", "1.0.0");
+        serverInfo.put("description", "Multi-language refactoring and migration platform");
+        serverInfo.put("protocolVersion", "2025-06-18");
+        serverInfo.put("supportedLanguages", languageProviderRegistry.getSupportedLanguages());
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("serverInfo", serverInfo);
+        return new McpResponse(request.getId(), result);
+    }
+
+    // Content handling methods
+    private McpResponse handleContentRead(McpRequest request) {
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String path = params != null ? (String) params.get("path") : null;
+        if (path == null || path.isEmpty()) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'path' parameter"));
+        }
+        try {
+            String content = mcpToolingService.readFileContent(path);
+            Map<String, Object> result = new HashMap<>();
+            result.put("content", content);
+            return new McpResponse(request.getId(), result);
+        } catch (Exception e) {
+            return new McpResponse(request.getId(), new McpError(-32603, "Error reading file: " + e.getMessage()));
+        }
+    }
+
+    private McpResponse handleContentWrite(McpRequest request) {
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String path = params != null ? (String) params.get("path") : null;
+        String content = params != null ? (String) params.get("content") : null;
+        if (path == null || path.isEmpty() || content == null) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Missing 'path' or 'content' parameter"));
+        }
+        try {
+            mcpToolingService.writeFileContent(path, content);
+            Map<String, Object> result = new HashMap<>();
+            result.put("message", "Content written successfully");
+            return new McpResponse(request.getId(), result);
+        } catch (Exception e) {
+            return new McpResponse(request.getId(), new McpError(-32603, "Error writing file: " + e.getMessage()));
+        }
+    }
+
+    // Workspace handling methods
+    private McpResponse handleWorkspaceList(McpRequest request) {
+        try {
+            var workspaces = mcpToolingService.listWorkspaces();
+            Map<String, Object> result = new HashMap<>();
+            result.put("workspaces", workspaces);
+            return new McpResponse(request.getId(), result);
+        } catch (Exception e) {
+            return new McpResponse(request.getId(), new McpError(-32603, "Error listing workspaces: " + e.getMessage()));
+        }
+    }
+
+    private McpResponse handleWorkspaceDescribe(McpRequest request) {
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String workspaceId = params != null ? (String) params.get("id") : null;
+        if (workspaceId == null || workspaceId.isEmpty()) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'id' parameter"));
+        }
+        try {
+            var workspace = mcpToolingService.describeWorkspace(workspaceId);
+            Map<String, Object> result = new HashMap<>();
+            result.put("workspace", workspace);
+            return new McpResponse(request.getId(), result);
+        } catch (Exception e) {
+            return new McpResponse(request.getId(), new McpError(-32603, "Error describing workspace: " + e.getMessage()));
+        }
+    }
+
+    // Logging subscription methods
+    private McpResponse handleLoggingSubscribe(McpRequest request) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String clientId = params != null ? (String) params.get("id") : null;
+        if (clientId == null || clientId.isEmpty()) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'id' parameter"));
+        }
+        loggingSubscribers.add(clientId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("subscribed", true);
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleLoggingUnsubscribe(McpRequest request) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String clientId = params != null ? (String) params.get("id") : null;
+        if (clientId == null || clientId.isEmpty()) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'id' parameter"));
+        }
+        boolean removed = loggingSubscribers.remove(clientId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("unsubscribed", removed);
+        return new McpResponse(request.getId(), result);
+    }
+
+    // Prompts and resources handling
     private McpResponse handlePromptsList(McpRequest request) {
         Map<String, Object> result = new HashMap<>();
         result.put("prompts", mcpToolingService.getPrompts());
@@ -158,6 +324,9 @@ public class McpService {
         return new McpResponse(request.getId(), result);
     }
 
+    /**
+     * CLI manifest method - provides tool information for CLI clients.
+     */
     private McpResponse handleCliManifest(McpRequest request) {
         List<McpTool> tools = mcpToolingService.getMcpTools();
         List<Map<String, Object>> commands = tools.stream().map(tool -> {
@@ -170,124 +339,10 @@ public class McpService {
 
         Map<String, Object> result = new HashMap<>();
         result.put("commands", commands);
-        return new McpResponse(request.getId(), result);
-    }
-
-    private McpResponse handleLoggingSubscribe(McpRequest request) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> params = (Map<String, Object>) request.getParams();
-        String clientId = params != null ? (String) params.get("id") : null;
-        if (clientId == null || clientId.isEmpty()) {
-            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'id' parameter"));
-        }
-        loggingSubscribers.add(clientId);
-        Map<String, Object> result = new HashMap<>();
-        result.put("subscribed", true);
-        return new McpResponse(request.getId(), result);
-    }
-
-    private McpResponse handleLoggingUnsubscribe(McpRequest request) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> params = (Map<String, Object>) request.getParams();
-        String clientId = params != null ? (String) params.get("id") : null;
-        if (clientId == null || clientId.isEmpty()) {
-            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'id' parameter"));
-        }
-        boolean removed = loggingSubscribers.remove(clientId);
-        Map<String, Object> result = new HashMap<>();
-        result.put("unsubscribed", removed);
-        return new McpResponse(request.getId(), result);
-    }
-
-    private McpResponse handleCapabilities(McpRequest request) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("capabilities", new McpCapabilities());
-        return new McpResponse(request.getId(), result);
-    }
-
-    private McpResponse handleServerInfo(McpRequest request) {
-        Map<String, Object> result = new HashMap<>();
         result.put("serverInfo", Map.of(
             "name", "Renovatio MCP Server",
             "version", "1.0.0"
         ));
-        return new McpResponse(request.getId(), result);
-    }
-
-    private McpResponse handleContentRead(McpRequest request) {
-        // Renovatio: Read file content from workspace
-        Map<String, Object> params = (Map<String, Object>) request.getParams();
-        String path = params != null ? (String) params.get("path") : null;
-        Map<String, Object> result = new HashMap<>();
-        if (path == null || path.isEmpty()) {
-            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'path' parameter"));
-        }
-        try {
-            String content = mcpToolingService.readFileContent(path);
-            result.put("content", content);
-            return new McpResponse(request.getId(), result);
-        } catch (Exception e) {
-            return new McpResponse(request.getId(), new McpError(-32603, "Error reading file: " + e.getMessage()));
-        }
-    }
-
-    private McpResponse handleContentWrite(McpRequest request) {
-        // Renovatio: Write file content to workspace
-        Map<String, Object> params = (Map<String, Object>) request.getParams();
-        String path = params != null ? (String) params.get("path") : null;
-        String content = params != null ? (String) params.get("content") : null;
-        Map<String, Object> result = new HashMap<>();
-        if (path == null || path.isEmpty() || content == null) {
-            return new McpResponse(request.getId(), new McpError(-32602, "Missing 'path' or 'content' parameter"));
-        }
-        try {
-            mcpToolingService.writeFileContent(path, content);
-            result.put("message", "Content written successfully");
-            return new McpResponse(request.getId(), result);
-        } catch (Exception e) {
-            return new McpResponse(request.getId(), new McpError(-32603, "Error writing file: " + e.getMessage()));
-        }
-    }
-
-    private McpResponse handleWorkspaceList(McpRequest request) {
-        // Renovatio: List workspace root directories/files
-        Map<String, Object> result = new HashMap<>();
-        try {
-            var workspaces = mcpToolingService.listWorkspaces();
-            result.put("workspaces", workspaces);
-            return new McpResponse(request.getId(), result);
-        } catch (Exception e) {
-            return new McpResponse(request.getId(), new McpError(-32603, "Error listing workspaces: " + e.getMessage()));
-        }
-    }
-
-    private McpResponse handleWorkspaceDescribe(McpRequest request) {
-        // Renovatio: Describe workspace (metadata, structure)
-        Map<String, Object> params = (Map<String, Object>) request.getParams();
-        String workspaceId = params != null ? (String) params.get("id") : null;
-        Map<String, Object> result = new HashMap<>();
-        if (workspaceId == null || workspaceId.isEmpty()) {
-            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'id' parameter"));
-        }
-        try {
-            var workspace = mcpToolingService.describeWorkspace(workspaceId);
-            result.put("workspace", workspace);
-            return new McpResponse(request.getId(), result);
-        } catch (Exception e) {
-            return new McpResponse(request.getId(), new McpError(-32603, "Error describing workspace: " + e.getMessage()));
-        }
-    }
-
-    private McpResponse handleToolsDescribe(McpRequest request) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> params = (Map<String, Object>) request.getParams();
-        String toolName = (String) params.get("name");
-        var tool = mcpToolingService.getTool(toolName);
-        if (tool == null) {
-            return new McpResponse(request.getId(), new McpError(-32602, "Tool not found: " + toolName));
-        }
-        Map<String, Object> result = new HashMap<>();
-        result.put("tool", tool);
         return new McpResponse(request.getId(), result);
     }
 }

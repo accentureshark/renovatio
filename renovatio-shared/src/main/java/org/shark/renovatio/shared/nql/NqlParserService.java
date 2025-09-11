@@ -3,15 +3,33 @@ package org.shark.renovatio.shared.nql;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.RecognitionException;
-import org.shark.renovatio.shared.nql.antlr.NqlLexer;
-import org.shark.renovatio.shared.nql.antlr.NqlParser;
+// TODO: Temporarily commented out until ANTLR generation is fixed
+// import org.shark.renovatio.shared.nql.antlr.NqlLexer;
+// import org.shark.renovatio.shared.nql.antlr.NqlParser;
 
 /**
  * Service that parses NQL queries using ANTLR generated parser.
+ * TODO: Currently disabled until ANTLR generation is properly configured
  */
 public class NqlParserService {
 
     public NqlQuery parse(String queryString) {
+        // TODO: Temporary implementation - replace with ANTLR parser once generated
+        NqlQuery query = new NqlQuery();
+        query.setOriginalQuery(queryString);
+        
+        // Simple parsing logic for basic queries
+        if (queryString.toUpperCase().startsWith("FIND")) {
+            query.setType(NqlQuery.QueryType.FIND);
+        } else if (queryString.toUpperCase().startsWith("PLAN")) {
+            query.setType(NqlQuery.QueryType.PLAN);
+        } else if (queryString.toUpperCase().startsWith("APPLY")) {
+            query.setType(NqlQuery.QueryType.APPLY);
+        }
+        
+        return query;
+        
+        /*
         try {
             NqlLexer lexer = new NqlLexer(CharStreams.fromString(queryString));
             NqlParser parser = new NqlParser(new CommonTokenStream(lexer));
@@ -43,6 +61,6 @@ public class NqlParserService {
         } catch (RecognitionException | NullPointerException e) {
             throw new IllegalArgumentException("Invalid NQL query: " + queryString, e);
         }
+        */
     }
 }
-

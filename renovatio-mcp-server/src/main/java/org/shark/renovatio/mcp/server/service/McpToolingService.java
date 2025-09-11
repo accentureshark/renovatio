@@ -1,12 +1,13 @@
-package org.shark.renovatio.core.application;
+package org.shark.renovatio.mcp.server.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import org.shark.renovatio.core.mcp.McpPrompt;
-import org.shark.renovatio.core.mcp.McpResource;
-import org.shark.renovatio.core.mcp.McpTool;
+import org.shark.renovatio.mcp.server.model.McpPrompt;
+import org.shark.renovatio.mcp.server.model.McpResource;
+import org.shark.renovatio.mcp.server.model.McpTool;
 import org.shark.renovatio.core.service.LanguageProviderRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.context.event.EventListener;
@@ -26,11 +27,14 @@ public class McpToolingService {
     private static final Logger logger = LoggerFactory.getLogger(McpToolingService.class);
     private final String spec;
     private final LanguageProviderRegistry providerRegistry;
+    private final McpToolAdapter toolAdapter;
     private final List<McpPrompt> prompts;
     private final List<McpResource> resources;
 
-    public McpToolingService(LanguageProviderRegistry providerRegistry) {
+    @Autowired
+    public McpToolingService(LanguageProviderRegistry providerRegistry, McpToolAdapter toolAdapter) {
         this.providerRegistry = providerRegistry;
+        this.toolAdapter = toolAdapter;
         ObjectMapper mapper = new ObjectMapper();
         try {
             var resource = new ClassPathResource("mcp-tooling.json", McpToolingService.class.getClassLoader());
@@ -48,9 +52,11 @@ public class McpToolingService {
      * Get available MCP tools based on registered providers
      */
     public List<McpTool> getMcpTools() {
-        List<McpTool> tools = providerRegistry.generateMcpTools();
-        logger.info("DEBUG getMcpTools: {}", tools);
-        return tools;
+        // Use the new protocol-agnostic API and convert to MCP tools
+        var tools = providerRegistry.generateTools();
+        var mcpTools = toolAdapter.toMcpTools(tools);
+        logger.info("DEBUG getMcpTools: {}", mcpTools);
+        return mcpTools;
     }
 
     /**
