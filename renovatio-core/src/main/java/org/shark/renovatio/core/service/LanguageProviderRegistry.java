@@ -2,6 +2,7 @@ package org.shark.renovatio.core.service;
 
 import org.shark.renovatio.shared.domain.Tool;
 import org.shark.renovatio.shared.domain.Recipe;
+import org.shark.renovatio.shared.domain.BasicTool;
 import org.shark.renovatio.shared.spi.LanguageProvider;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.shared.nql.NqlCompileResult;
@@ -46,18 +47,18 @@ public class LanguageProviderRegistry {
     }
     
     /**
-     * Get all supported languages
+     * Get supported languages
      */
-    public List<String> getSupportedLanguages() {
-        return new ArrayList<>(providers.keySet());
+    public Set<String> getSupportedLanguages() {
+        return providers.keySet();
     }
     
     /**
-     * Generate MCP tools dynamically based on registered providers
+     * Generate tool definitions dynamically based on registered providers
+     * Returns protocol-agnostic Tool objects
      */
-    public List<McpTool> generateMcpTools() {
-        logger.info("generateMcpTools called. Providers: {}", getSupportedLanguages());
-        List<McpTool> tools = new ArrayList<>();
+    public List<Tool> generateTools() {
+        List<Tool> tools = new ArrayList<>();
         
         // Add common tools
         tools.add(createNqlCompileTool());
@@ -89,7 +90,6 @@ public class LanguageProviderRegistry {
             }
         }
         
-        logger.info("Generated MCP tools: {}", tools);
         return tools;
     }
     
@@ -125,11 +125,7 @@ public class LanguageProviderRegistry {
         return handleProviderTool(provider, operation, arguments);
     }
     
-    private McpTool createNqlCompileTool() {
-        McpTool tool = new McpTool();
-        tool.setName("nql.compile");
-        tool.setDescription("Compile natural language to NQL");
-        
+    private Tool createNqlCompileTool() {
         Map<String, Object> schema = new HashMap<>();
         schema.put("type", "object");
         Map<String, Object> properties = new HashMap<>();
@@ -138,15 +134,14 @@ public class LanguageProviderRegistry {
         schema.put("properties", properties);
         schema.put("required", List.of("question"));
         
-        tool.setInputSchema(schema);
-        return tool;
+        return new BasicTool(
+            "nql.compile",
+            "Compile natural language to NQL",
+            schema
+        );
     }
     
-    private McpTool createCommonIndexTool() {
-        McpTool tool = new McpTool();
-        tool.setName("common.index");
-        tool.setDescription("Index repository for search");
-        
+    private Tool createCommonIndexTool() {
         Map<String, Object> schema = new HashMap<>();
         schema.put("type", "object");
         Map<String, Object> properties = new HashMap<>();
@@ -154,15 +149,14 @@ public class LanguageProviderRegistry {
         schema.put("properties", properties);
         schema.put("required", List.of("repoId"));
         
-        tool.setInputSchema(schema);
-        return tool;
+        return new BasicTool(
+            "common.index",
+            "Index repository for search",
+            schema
+        );
     }
     
-    private McpTool createCommonSearchTool() {
-        McpTool tool = new McpTool();
-        tool.setName("common.search");
-        tool.setDescription("Search indexed repository");
-        
+    private Tool createCommonSearchTool() {
         Map<String, Object> schema = new HashMap<>();
         schema.put("type", "object");
         Map<String, Object> properties = new HashMap<>();
@@ -172,15 +166,14 @@ public class LanguageProviderRegistry {
         schema.put("properties", properties);
         schema.put("required", List.of("repoId", "query"));
         
-        tool.setInputSchema(schema);
-        return tool;
+        return new BasicTool(
+            "common.search",
+            "Search indexed repository",
+            schema
+        );
     }
     
-    private McpTool createProviderTool(String language, String operation, String description) {
-        McpTool tool = new McpTool();
-        tool.setName(language + "." + operation);
-        tool.setDescription(description + " for " + language);
-        
+    private Tool createProviderTool(String language, String operation, String description) {
         Map<String, Object> schema = new HashMap<>();
         schema.put("type", "object");
         Map<String, Object> properties = new HashMap<>();
@@ -188,8 +181,11 @@ public class LanguageProviderRegistry {
         properties.put("scope", Map.of("type", "string", "description", "Operation scope"));
         schema.put("properties", properties);
         
-        tool.setInputSchema(schema);
-        return tool;
+        return new BasicTool(
+            language + "." + operation,
+            description + " for " + language,
+            schema
+        );
     }
     
     private Map<String, Object> handleCommonTool(String operation, Map<String, Object> arguments) {
