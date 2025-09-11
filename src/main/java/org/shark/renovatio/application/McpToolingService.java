@@ -33,7 +33,7 @@ public class McpToolingService {
         this.refactorService = refactorService;
         ObjectMapper mapper = new ObjectMapper();
         try {
-            var resource = new ClassPathResource("mcp-tooling.json");
+            var resource = new ClassPathResource("mcp-tooling.json", McpToolingService.class.getClassLoader());
             JsonNode root = mapper.readTree(resource.getInputStream());
             this.spec = root.path("spec").asText();
             
