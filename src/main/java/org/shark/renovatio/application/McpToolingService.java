@@ -15,6 +15,8 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -130,6 +132,11 @@ public class McpToolingService {
         projectPathProperty.put("type", "string");
         projectPathProperty.put("description", "Path to the project (optional)");
         properties.put("projectPath", projectPathProperty);
+
+        Map<String, Object> languageProperty = new HashMap<>();
+        languageProperty.put("type", "string");
+        languageProperty.put("description", "Source code language (e.g., java, cobol)");
+        properties.put("language", languageProperty);
         
         schema.put("properties", properties);
         schema.put("required", List.of("sourceCode"));
@@ -189,17 +196,30 @@ public class McpToolingService {
     public Map<String, Object> executeTool(String toolName, Map<String, Object> arguments) {
         String sourceCode = (String) arguments.get("sourceCode");
         String projectPath = (String) arguments.getOrDefault("projectPath", "");
-        
+        String language = (String) arguments.getOrDefault("language", "java");
+
+        String cobolConfig = null;
+        if ("cobol".equalsIgnoreCase(language)) {
+            try {
+                cobolConfig = Files.readString(Path.of("cobol-rewrite.yml"));
+            } catch (IOException e) {
+                throw new RuntimeException("No se pudo leer cobol-rewrite.yml", e);
+            }
+        }
+
         RefactorRequest request = new RefactorRequest();
         request.setSourceCode(sourceCode);
         request.setRecipe(toolName);
-        
+
         RefactorResponse response = refactorService.refactor(request);
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("type", "text");
         result.put("text", "Refactored Code:\n" + response.getRefactoredCode() + "\n\nMessage: " + response.getMessage());
-        
+        if (cobolConfig != null) {
+            result.put("cobolRecipes", cobolConfig);
+        }
+
         return result;
     }
 }

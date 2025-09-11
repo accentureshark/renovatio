@@ -146,6 +146,23 @@ Renovatio expone más de 23 herramientas de refactorización y migración organi
 #### 📑 Copybooks y Datasets
 - `cobol.copybook.migrate` - Generación de modelos y artefactos Java desde copybooks COBOL
 
+### Archivo de recetas COBOL
+
+Las recetas específicas para procesos de análisis y migración COBOL se declaran en el archivo
+`cobol-rewrite.yml`, ubicado en la raíz del proyecto. Este archivo sigue el formato estándar de
+OpenRewrite:
+
+```yaml
+type: specs.openrewrite.org/v1beta/recipe
+name: org.shark.renovatio.cobol.RewriteRecipes
+recipeList:
+  - org.openrewrite.cobol.ParseCobol
+  - org.openrewrite.cobol.GenerateJavaDtos
+  - org.openrewrite.cobol.GenerateMigrationPlan
+```
+
+El contenido se carga automáticamente cuando las herramientas reciben `language = "cobol"`.
+
 ### 📑 Herramientas JCL
 - `jcl.convert` - Conversión de pasos JCL a scripts shell, GitHub Actions, Spring Batch o Airflow
 
