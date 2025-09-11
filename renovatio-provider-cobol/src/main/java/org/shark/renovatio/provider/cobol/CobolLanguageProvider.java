@@ -1,6 +1,6 @@
 package org.shark.renovatio.provider.cobol;
 
-import org.shark.renovatio.shared.spi.LanguageProvider;
+import org.shark.renovatio.shared.spi.BaseLanguageProvider;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.provider.cobol.service.*;
@@ -15,7 +15,7 @@ import java.nio.file.Paths;
  * Implements parsing, analysis, code generation and migration capabilities
  */
 @Component
-public class CobolLanguageProvider implements LanguageProvider {
+public class CobolLanguageProvider extends BaseLanguageProvider {
     
     private final CobolParsingService parsingService;
     private final JavaGenerationService javaGenerationService;

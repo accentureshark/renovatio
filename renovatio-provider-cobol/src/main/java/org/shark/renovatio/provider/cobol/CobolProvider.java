@@ -1,6 +1,6 @@
 package org.shark.renovatio.provider.cobol;
 
-import org.shark.renovatio.shared.spi.LanguageProvider;
+import org.shark.renovatio.shared.spi.BaseLanguageProvider;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.provider.cobol.service.CobolParsingService;
@@ -15,7 +15,7 @@ import java.util.*;
  * COBOL language provider implementation using real COBOL file analysis
  */
 @Component
-public class CobolProvider implements LanguageProvider {
+public class CobolProvider extends BaseLanguageProvider {
     
     private final CobolParsingService parsingService;
 
@@ -89,7 +89,7 @@ public class CobolProvider implements LanguageProvider {
         result.setRunId(runId);
         
         // Would use GumTree for semantic diffs as mentioned in requirements
-        String unifiedDiff = createSampleCobolDiff();
+        String unifiedDiff = createSampleDiff();
         result.setUnifiedDiff(unifiedDiff);
         
         Map<String, Object> semanticDiff = new HashMap<>();
@@ -164,25 +164,6 @@ public class CobolProvider implements LanguageProvider {
         return Dialect.fromString(value);
     }
     
-    private String generateRunId() {
-        return "cobol-run-" + System.currentTimeMillis();
-    }
-    
-    private String createSampleCobolDiff() {
-        return """
-            --- a/CUSTOMER-PROG.cbl
-            +++ b/CUSTOMER-PROG.cbl
-            @@ -15,6 +15,8 @@
-                 01  WS-CUSTOMER-RECORD.
-                     05  WS-CUSTOMER-ID      PIC 9(6).
-                     05  WS-CUSTOMER-NAME    PIC X(30).
-            +        05  WS-CUSTOMER-EMAIL   PIC X(50).
-            +        05  WS-CUSTOMER-PHONE   PIC X(15).
-                 
-                 PROCEDURE DIVISION.
-                 MAIN-PARA.
-            """;
-    }
     
     private String generateCustomerRecordStub() {
         return """

@@ -1,13 +1,13 @@
 package org.shark.renovatio.provider.java;
 
-import org.shark.renovatio.shared.spi.LanguageProvider;
+import org.shark.renovatio.shared.spi.BaseLanguageProvider;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
 
-public class JavaLanguageProvider implements LanguageProvider {
+public class JavaLanguageProvider extends BaseLanguageProvider {
     public JavaLanguageProvider() {}
 
     @Override
