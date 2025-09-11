@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.shark.renovatio.application.McpToolingService;
 import org.shark.renovatio.domain.RefactorRequest;
 import org.shark.renovatio.domain.RefactorResponse;
-import org.shark.renovatio.domain.Tool;
+import org.shark.renovatio.domain.ToolDefinition;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,7 +28,7 @@ public class McpController {
 
     @GetMapping("/tools")
     @Operation(summary = "Lista las herramientas disponibles")
-    public List<Tool> listTools() {
+    public List<ToolDefinition> listTools() {
         return mcpToolingService.getTools();
     }
 
@@ -86,7 +86,7 @@ public class McpController {
     @GetMapping("/run/{toolName}")
     @Operation(summary = "Devuelve la definición de una herramienta específica")
     public Object getToolDefinition(@PathVariable String toolName) {
-        Tool found = mcpToolingService.getTools().stream()
+        ToolDefinition found = mcpToolingService.getTools().stream()
             .filter(t -> t.getName().equalsIgnoreCase(toolName))
             .findFirst().orElse(null);
         if (found == null) {

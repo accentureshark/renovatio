@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.shark.renovatio.application.McpToolingService;
-import org.shark.renovatio.domain.Tool;
+import org.shark.renovatio.domain.ToolDefinition;
 
 @SpringBootApplication
 @OpenAPIDefinition(info = @Info(title = "Renovatio API", version = "1.0", description = "API para refactorización con OpenRewrite"))
@@ -25,7 +25,7 @@ public class McpServerApplication {
         return args -> {
             System.out.println("\n================ MCP Server iniciado ================");
             System.out.println("Tools publicadas:");
-            for (Tool tool : mcpToolingService.getTools()) {
+            for (ToolDefinition tool : mcpToolingService.getTools()) {
                 System.out.printf("- %s: %s\n", tool.getName(), tool.getDescription());
             }
             System.out.println("\nURLs de conexión para configurar el cliente:");

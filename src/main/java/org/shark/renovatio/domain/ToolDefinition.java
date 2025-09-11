@@ -3,7 +3,7 @@ package org.shark.renovatio.domain;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "Definición de una herramienta MCP")
-public class Tool {
+public class ToolDefinition {
     @Schema(description = "Nombre único de la herramienta")
     private String name;
     @Schema(description = "Descripción de la herramienta")
