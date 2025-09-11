@@ -423,7 +423,7 @@ renovatio/
 │   ├── service/                      # Servicios de migración COBOL
 │   │   ├── CobolParsingService.java  # Parsing y análisis COBOL
 │   │   ├── JavaGenerationService.java # Generación de código Java
-│   │   ├── MigrationPlanService.java # Planificación de migración
+│   │   ├── RecipeBasedMigrationPlanService.java # Planificación de migración basada en recetas
 │   │   ├── IndexingService.java      # Indexación Lucene
 │   │   ├── MetricsService.java       # Cálculo de métricas
 │   │   ├── TemplateCodeGenerationService.java # Generación basada en plantillas

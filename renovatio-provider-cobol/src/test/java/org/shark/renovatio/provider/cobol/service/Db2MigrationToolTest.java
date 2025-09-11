@@ -32,7 +32,9 @@ public class Db2MigrationToolTest {
         JavaGenerationService javaGenerationService = new JavaGenerationService(parsingService);
         TemplateCodeGenerationService templateService = new TemplateCodeGenerationService();
         Db2MigrationService db2Service = new Db2MigrationService(parsingService);
-        MigrationPlanService migrationPlanService = new MigrationPlanService(parsingService, javaGenerationService);
+        CobolRecipeRegistry recipeRegistry = new CobolRecipeRegistry();
+        RecipeBasedMigrationPlanService migrationPlanService =
+                new RecipeBasedMigrationPlanService(parsingService, javaGenerationService, recipeRegistry);
         IndexingService indexingService = new IndexingService();
         MetricsService metricsService = new MetricsService();
         CobolLanguageProvider provider = new CobolLanguageProvider(
