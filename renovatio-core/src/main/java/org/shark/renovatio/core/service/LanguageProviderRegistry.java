@@ -54,6 +54,7 @@ public class LanguageProviderRegistry {
      * Generate MCP tools dynamically based on registered providers
      */
     public List<McpTool> generateMcpTools() {
+        logger.info("generateMcpTools called. Providers: {}", getSupportedLanguages());
         List<McpTool> tools = new ArrayList<>();
         
         // Add common tools
@@ -86,6 +87,7 @@ public class LanguageProviderRegistry {
             }
         }
         
+        logger.info("Generated MCP tools: {}", tools);
         return tools;
     }
     
@@ -324,5 +326,35 @@ public class LanguageProviderRegistry {
         result.put("type", "text");
         result.put("text", "Error: " + message);
         return result;
+    }
+
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LanguageProviderRegistry.class);
+
+    public LanguageProviderRegistry() {
+        logger.info("LanguageProviderRegistry constructor called");
+    }
+
+    @jakarta.annotation.PostConstruct
+    public void registerDefaultProviders() {
+        logger.info("registerDefaultProviders called");
+        // Register Java provider
+        try {
+            Class<?> javaProviderClass = Class.forName("org.shark.renovatio.provider.java.JavaLanguageProvider");
+            LanguageProvider javaProvider = (LanguageProvider) javaProviderClass.getDeclaredConstructor().newInstance();
+            registerProvider(javaProvider);
+            logger.info("JavaLanguageProvider registered successfully.");
+        } catch (Exception e) {
+            logger.error("Could not register JavaLanguageProvider: {}", e.getMessage());
+        }
+        // Register COBOL provider
+        try {
+            Class<?> cobolProviderClass = Class.forName("org.shark.renovatio.provider.cobol.CobolLanguageProvider");
+            LanguageProvider cobolProvider = (LanguageProvider) cobolProviderClass.getDeclaredConstructor().newInstance();
+            registerProvider(cobolProvider);
+            logger.info("CobolLanguageProvider registered successfully.");
+        } catch (Exception e) {
+            logger.error("Could not register CobolLanguageProvider: {}", e.getMessage());
+        }
+        logger.info("Providers after registration: {}", getSupportedLanguages());
     }
 }

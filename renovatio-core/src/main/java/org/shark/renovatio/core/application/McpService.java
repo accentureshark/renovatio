@@ -1,27 +1,20 @@
-package org.shark.renovatio.infrastructure;
+package org.shark.renovatio.core.application;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import org.shark.renovatio.application.McpToolingService;
-import org.shark.renovatio.domain.mcp.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.shark.renovatio.core.mcp.*;
+import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-@RestController
-@RequestMapping("/mcp-internal")
-@Tag(name = "MCP Protocol")
-public class McpProtocolController {
+@Service
+public class McpService {
+    private final McpToolingService mcpToolingService;
 
-    @Autowired
-    private McpToolingService mcpToolingService;
+    public McpService(McpToolingService mcpToolingService) {
+        this.mcpToolingService = mcpToolingService;
+    }
 
-    @PostMapping("/mcp-internal")
-    @Operation(summary = "MCP JSON-RPC 2.0 endpoint")
-    public McpResponse handleMcpRequest(@RequestBody McpRequest request) {
+    public McpResponse handleMcpRequest(McpRequest request) {
         try {
             switch (request.getMethod()) {
                 case "initialize":
@@ -58,8 +51,6 @@ public class McpProtocolController {
                     return handleResourcesList(request);
                 case "resources/read":
                     return handleResourcesRead(request);
-                case "cli/manifest":
-                    return handleCliManifest(request);
                 default:
                     return new McpResponse(request.getId(),
                         new McpError(-32601, "Method not found: " + request.getMethod()));
@@ -78,6 +69,10 @@ public class McpProtocolController {
             "name", "Renovatio OpenRewrite MCP Server",
             "version", "1.0.0"
         ));
+        var tools = mcpToolingService.getMcpTools();
+        System.out.println("DEBUG tools before put: " + tools);
+        result.put("availableTools", tools);
+        System.out.println("DEBUG result after put: " + result);
         return new McpResponse(request.getId(), result);
     }
 
@@ -103,23 +98,13 @@ public class McpProtocolController {
         return new McpResponse(request.getId(), result);
     }
 
-    private McpResponse handleCliManifest(McpRequest request) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("commands", mcpToolingService.getMcpTools());
-        return new McpResponse(request.getId(), result);
-    }
-
     private McpResponse handleToolsCall(McpRequest request) {
-        // Extract parameters from the request
         @SuppressWarnings("unchecked")
         Map<String, Object> params = (Map<String, Object>) request.getParams();
         String toolName = (String) params.get("name");
         @SuppressWarnings("unchecked")
         Map<String, Object> arguments = (Map<String, Object>) params.get("arguments");
-        
-        // Execute the tool
         var response = mcpToolingService.executeTool(toolName, arguments);
-        
         Map<String, Object> result = new HashMap<>();
         result.put("content", response);
         return new McpResponse(request.getId(), result);
@@ -158,18 +143,9 @@ public class McpProtocolController {
         if (resource == null) {
             return new McpResponse(request.getId(), new McpError(-32602, "Resource not found: " + uri));
         }
-        Map<String, Object> content = new HashMap<>();
-        content.put("uri", resource.getUri());
-        content.put("mimeType", resource.getMimeType());
-        content.put("text", resource.getText());
-
         Map<String, Object> result = new HashMap<>();
-        result.put("contents", List.of(content));
+        result.put("resource", resource);
         return new McpResponse(request.getId(), result);
-    }
-
-    private McpResponse handleToolsDescribe(McpRequest request) {
-        return new McpResponse(request.getId(), new McpError(-32601, "tools/describe not implemented"));
     }
 
     private McpResponse handleCapabilities(McpRequest request) {
@@ -180,25 +156,87 @@ public class McpProtocolController {
 
     private McpResponse handleServerInfo(McpRequest request) {
         Map<String, Object> result = new HashMap<>();
-        result.put("name", "Renovatio OpenRewrite MCP Server");
-        result.put("version", "1.0.0");
-        result.put("description", "Servidor MCP compatible con OpenRewrite y herramientas de refactorización.");
+        result.put("serverInfo", Map.of(
+            "name", "Renovatio MCP Server",
+            "version", "1.0.0"
+        ));
         return new McpResponse(request.getId(), result);
     }
 
     private McpResponse handleContentRead(McpRequest request) {
-        return new McpResponse(request.getId(), new McpError(-32601, "content/read not implemented"));
+        // Renovatio: Read file content from workspace
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String path = params != null ? (String) params.get("path") : null;
+        Map<String, Object> result = new HashMap<>();
+        if (path == null || path.isEmpty()) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'path' parameter"));
+        }
+        try {
+            String content = mcpToolingService.readFileContent(path);
+            result.put("content", content);
+            return new McpResponse(request.getId(), result);
+        } catch (Exception e) {
+            return new McpResponse(request.getId(), new McpError(-32603, "Error reading file: " + e.getMessage()));
+        }
     }
 
     private McpResponse handleContentWrite(McpRequest request) {
-        return new McpResponse(request.getId(), new McpError(-32601, "content/write not implemented"));
+        // Renovatio: Write file content to workspace
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String path = params != null ? (String) params.get("path") : null;
+        String content = params != null ? (String) params.get("content") : null;
+        Map<String, Object> result = new HashMap<>();
+        if (path == null || path.isEmpty() || content == null) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Missing 'path' or 'content' parameter"));
+        }
+        try {
+            mcpToolingService.writeFileContent(path, content);
+            result.put("message", "Content written successfully");
+            return new McpResponse(request.getId(), result);
+        } catch (Exception e) {
+            return new McpResponse(request.getId(), new McpError(-32603, "Error writing file: " + e.getMessage()));
+        }
     }
 
     private McpResponse handleWorkspaceList(McpRequest request) {
-        return new McpResponse(request.getId(), new McpError(-32601, "workspace/list not implemented"));
+        // Renovatio: List workspace root directories/files
+        Map<String, Object> result = new HashMap<>();
+        try {
+            var workspaces = mcpToolingService.listWorkspaces();
+            result.put("workspaces", workspaces);
+            return new McpResponse(request.getId(), result);
+        } catch (Exception e) {
+            return new McpResponse(request.getId(), new McpError(-32603, "Error listing workspaces: " + e.getMessage()));
+        }
     }
 
     private McpResponse handleWorkspaceDescribe(McpRequest request) {
-        return new McpResponse(request.getId(), new McpError(-32601, "workspace/describe not implemented"));
+        // Renovatio: Describe workspace (metadata, structure)
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String workspaceId = params != null ? (String) params.get("id") : null;
+        Map<String, Object> result = new HashMap<>();
+        if (workspaceId == null || workspaceId.isEmpty()) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'id' parameter"));
+        }
+        try {
+            var workspace = mcpToolingService.describeWorkspace(workspaceId);
+            result.put("workspace", workspace);
+            return new McpResponse(request.getId(), result);
+        } catch (Exception e) {
+            return new McpResponse(request.getId(), new McpError(-32603, "Error describing workspace: " + e.getMessage()));
+        }
+    }
+
+    private McpResponse handleToolsDescribe(McpRequest request) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String toolName = (String) params.get("name");
+        var tool = mcpToolingService.getTool(toolName);
+        if (tool == null) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Tool not found: " + toolName));
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("tool", tool);
+        return new McpResponse(request.getId(), result);
     }
 }

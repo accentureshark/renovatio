@@ -57,4 +57,14 @@ public class McpRequest {
     public void setParams(Object params) {
         this.params = params;
     }
+
+    @Override
+    public String toString() {
+        return "McpRequest{" +
+                "jsonrpc='" + jsonrpc + '\'' +
+                ", id='" + id + '\'' +
+                ", method='" + method + '\'' +
+                ", params=" + params +
+                '}';
+    }
 }

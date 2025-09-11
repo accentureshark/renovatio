@@ -2,12 +2,18 @@ package org.shark.renovatio.core.application;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import org.shark.renovatio.core.mcp.McpPrompt;
 import org.shark.renovatio.core.mcp.McpResource;
 import org.shark.renovatio.core.mcp.McpTool;
 import org.shark.renovatio.core.service.LanguageProviderRegistry;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import org.springframework.context.event.EventListener;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,6 +23,7 @@ import java.util.Map;
 
 @Service
 public class McpToolingService {
+    private static final Logger logger = LoggerFactory.getLogger(McpToolingService.class);
     private final String spec;
     private final LanguageProviderRegistry providerRegistry;
     private final List<McpPrompt> prompts;
@@ -42,7 +49,9 @@ public class McpToolingService {
      * Get available MCP tools based on registered providers
      */
     public List<McpTool> getMcpTools() {
-        return providerRegistry.generateMcpTools();
+        List<McpTool> tools = providerRegistry.generateMcpTools();
+        logger.info("DEBUG getMcpTools: {}", tools);
+        return tools;
     }
 
     /**
@@ -93,6 +102,67 @@ public class McpToolingService {
                 .orElse(null);
     }
 
+    /**
+     * Read file content from workspace
+     */
+    public String readFileContent(String path) throws IOException {
+        java.nio.file.Path filePath = java.nio.file.Paths.get(path);
+        return java.nio.file.Files.readString(filePath);
+    }
+
+    /**
+     * Write file content to workspace
+     */
+    public void writeFileContent(String path, String content) throws IOException {
+        java.nio.file.Path filePath = java.nio.file.Paths.get(path);
+        java.nio.file.Files.writeString(filePath, content);
+    }
+
+    /**
+     * List workspace root directories/files
+     */
+    public List<String> listWorkspaces() {
+        // Example: list directories in current working directory
+        List<String> workspaces = new ArrayList<>();
+        java.nio.file.Path root = java.nio.file.Paths.get("");
+        try (var stream = java.nio.file.Files.list(root)) {
+            stream.filter(java.nio.file.Files::isDirectory)
+                  .forEach(dir -> workspaces.add(dir.toString()));
+        } catch (IOException e) {
+            // Log and return empty list
+        }
+        return workspaces;
+    }
+
+    /**
+     * Describe workspace by id (directory name)
+     */
+    public Map<String, Object> describeWorkspace(String workspaceId) {
+        Map<String, Object> info = new HashMap<>();
+        java.nio.file.Path dir = java.nio.file.Paths.get(workspaceId);
+        info.put("id", workspaceId);
+        info.put("exists", java.nio.file.Files.exists(dir));
+        info.put("isDirectory", java.nio.file.Files.isDirectory(dir));
+        try {
+            info.put("files", java.nio.file.Files.list(dir)
+                .map(java.nio.file.Path::toString)
+                .toArray(String[]::new));
+        } catch (IOException e) {
+            info.put("files", new String[0]);
+        }
+        return info;
+    }
+
+    /**
+     * Get tool by name
+     */
+    public McpTool getTool(String toolName) {
+        return getMcpTools().stream()
+            .filter(tool -> toolName.equals(tool.getName()))
+            .findFirst()
+            .orElse(null);
+    }
+
     private List<McpPrompt> createPrompts() {
         List<McpPrompt> prompts = new ArrayList<>();
 
@@ -123,5 +193,45 @@ public class McpToolingService {
         resources.add(new McpResource("file://nql-syntax.txt", "NQL Syntax", "text/plain",
                 "Natural Query Language syntax reference"));
         return resources;
+    }
+
+    /**
+     * Log all registered language providers and generated MCP tools in a unified, descriptive format.
+     */
+    public void logProvidersAndTools() {
+        logger.info("================ Renovatio MCP Server Started ================");
+        logger.info("Registered Language Providers:");
+        var providers = providerRegistry.getAllProviders();
+        if (providers.isEmpty()) {
+            logger.warn("No language providers registered.");
+        } else {
+            for (var provider : providers) {
+                logger.info("- {}: {}", provider.language(), provider.capabilities());
+            }
+        }
+        logger.info("");
+        logger.info("Generated MCP Tools:");
+        var tools = getMcpTools();
+        if (tools.isEmpty()) {
+            logger.warn("No MCP tools generated.");
+        } else {
+            for (var tool : tools) {
+                logger.info("- {}: {}", tool.getName(), tool.getDescription());
+            }
+        }
+        logger.info("===============================================================");
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void logAvailableToolsOnApplicationReady() {
+        List<McpTool> tools = getMcpTools();
+        if (tools == null || tools.isEmpty()) {
+            logger.warn("No MCP Tools available on server startup. Check provider registration.");
+        } else {
+            logger.info("MCP Tools available on server startup:");
+            for (McpTool tool : tools) {
+                logger.info("- {}: {}", tool.getName(), tool.getDescription());
+            }
+        }
     }
 }
