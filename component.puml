@@ -14,17 +14,25 @@ package "Renovatio Providers" {
 [renovatio-web]
 
 ' Dependencias principales
-[renovatio-core] --> [renovatio-shared] : Utiliza modelos/contratos
-[renovatio-core] --> [renovatio-provider-cobol] : Usa provider COBOL
-[renovatio-core] --> [renovatio-provider-java] : Usa provider Java
-[renovatio-core] --> [renovatio-provider-jcl] : Usa provider JCL
 
 [renovatio-provider-cobol] --> [renovatio-shared] : Implementa interfaces
 [renovatio-provider-java] --> [renovatio-shared] : Implementa interfaces
 [renovatio-provider-jcl] --> [renovatio-shared] : Implementa interfaces
 
+[renovatio-core] --> [renovatio-shared] : Modelos/contratos
+[renovatio-core] --> [renovatio-provider-cobol] : Usa provider COBOL
+[renovatio-core] --> [renovatio-provider-java] : Usa provider Java
+
 [renovatio-agent] --> [renovatio-core] : Orquestación/servicios
-[renovatio-client] --> [renovatio-core] : API/servicios
+[renovatio-agent] --> [renovatio-provider-cobol]
+[renovatio-agent] --> [renovatio-provider-java]
+[renovatio-agent] --> [renovatio-provider-jcl]
+[renovatio-agent] --> [renovatio-shared]
+
 [renovatio-web] --> [renovatio-core] : Exposición web
+[renovatio-web] --> [renovatio-provider-cobol]
+[renovatio-web] --> [renovatio-provider-java]
+
+[renovatio-client] ..> [renovatio-core] : Consume API
 
 @enduml
