@@ -38,6 +38,11 @@
             <artifactId>renovatio-provider-cobol</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+        <dependency>
+            <groupId>org.shark.renovatio</groupId>
+            <artifactId>renovatio-shared</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
     <build>

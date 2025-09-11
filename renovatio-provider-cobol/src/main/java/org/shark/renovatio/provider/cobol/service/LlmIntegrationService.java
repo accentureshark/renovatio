@@ -62,10 +62,27 @@ public class LlmIntegrationService {
      */
     private NqlQuery parseNqlQuery(String nqlString) {
         NqlQuery query = parserService.parse(nqlString);
+        if (query == null) {
+            throw new IllegalArgumentException("Invalid NQL query: " + nqlString);
+        }
         query.setLanguage("cobol");
         return query;
     }
     
+    /**
+     * Parses the provided NQL string using {@link NqlParserService}.
+     * Throws IllegalArgumentException if the query is invalid.
+     * Returns the target if valid.
+     */
+    public String parseAndValidateNql(String nqlString) {
+        NqlQuery query = parserService.parse(nqlString);
+        if (query == null) {
+            throw new IllegalArgumentException("Invalid NQL query: " + nqlString);
+        }
+        query.setLanguage("cobol");
+        return query.getTarget();
+    }
+
     /**
      * AI assistant interface for COBOL migration
      */

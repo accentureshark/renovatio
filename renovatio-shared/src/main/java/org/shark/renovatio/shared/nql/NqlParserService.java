@@ -3,6 +3,7 @@ package org.shark.renovatio.shared.nql;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.RecognitionException;
+import org.springframework.stereotype.Service;
 // TODO: Temporarily commented out until ANTLR generation is fixed
 // import org.shark.renovatio.shared.nql.antlr.NqlLexer;
 // import org.shark.renovatio.shared.nql.antlr.NqlParser;
@@ -11,6 +12,7 @@ import org.antlr.v4.runtime.RecognitionException;
  * Service that parses NQL queries using ANTLR generated parser.
  * TODO: Currently disabled until ANTLR generation is properly configured
  */
+@Service
 public class NqlParserService {
 
     public NqlQuery parse(String queryString) {
@@ -19,14 +21,28 @@ public class NqlParserService {
         query.setOriginalQuery(queryString);
         
         // Simple parsing logic for basic queries
-        if (queryString.toUpperCase().startsWith("FIND")) {
+        String upper = queryString.toUpperCase();
+        if (upper.startsWith("FIND")) {
             query.setType(NqlQuery.QueryType.FIND);
-        } else if (queryString.toUpperCase().startsWith("PLAN")) {
+            // Extract target: e.g., FIND programs WHERE ...
+            String[] parts = queryString.split(" ", 3);
+            if (parts.length >= 2) {
+                String target = parts[1];
+                // Remove WHERE or other clause if present
+                if (target.equalsIgnoreCase("WHERE") && parts.length >= 3) {
+                    target = parts[2].split(" ", 2)[0];
+                }
+                query.setTarget(target);
+            }
+        } else if (upper.startsWith("PLAN")) {
             query.setType(NqlQuery.QueryType.PLAN);
-        } else if (queryString.toUpperCase().startsWith("APPLY")) {
+        } else if (upper.startsWith("APPLY")) {
             query.setType(NqlQuery.QueryType.APPLY);
         }
-        
+        // If no type or target, return null to indicate invalid
+        if (query.getType() == null || query.getTarget() == null) {
+            return null;
+        }
         return query;
         
         /*

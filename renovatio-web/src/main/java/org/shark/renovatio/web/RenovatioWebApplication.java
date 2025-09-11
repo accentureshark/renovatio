@@ -11,7 +11,8 @@ import org.springframework.context.annotation.ComponentScan;
     "org.shark.renovatio.web",
     "org.shark.renovatio.core",
     "org.shark.renovatio.provider.java",
-    "org.shark.renovatio.provider.cobol"
+    "org.shark.renovatio.provider.cobol",
+    "org.shark.renovatio.shared.nql"
 })
 public class RenovatioWebApplication {
     public static void main(String[] args) {
