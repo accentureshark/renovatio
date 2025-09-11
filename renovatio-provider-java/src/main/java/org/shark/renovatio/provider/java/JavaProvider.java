@@ -1,6 +1,6 @@
 package org.shark.renovatio.provider.java;
 
-import org.shark.renovatio.shared.spi.LanguageProvider;
+import org.shark.renovatio.shared.spi.BaseLanguageProvider;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.springframework.stereotype.Component;
@@ -11,7 +11,7 @@ import java.util.*;
  * Java language provider implementation using OpenRewrite
  */
 @Component
-public class JavaProvider implements LanguageProvider {
+public class JavaProvider extends BaseLanguageProvider {
     
     @Override
     public String language() {
@@ -139,29 +139,4 @@ public class JavaProvider implements LanguageProvider {
         return result;
     }
     
-    private String generateRunId() {
-        return "java-run-" + System.currentTimeMillis();
-    }
-    
-    private String generatePlanId() {
-        return "java-plan-" + System.currentTimeMillis();
-    }
-    
-    private String createSampleDiff() {
-        return """
-            --- a/src/main/java/Example.java
-            +++ b/src/main/java/Example.java
-            @@ -1,8 +1,10 @@
-             public class Example {
-            -    private String name = null;
-            +    private String name;
-                 
-                 public void process() {
-            +        // Added validation
-            +        if (name == null) return;
-                     System.out.println("Processing: " + name);
-                 }
-             }
-            """;
-    }
 }
