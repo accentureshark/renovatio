@@ -28,8 +28,6 @@ public class McpProtocolController {
                     return handleInitialize(request);
                 case "ping":
                     return handlePing(request);
-                case "restart":
-                    return handleRestart(request);
                 case "shutdown":
                     return handleShutdown(request);
                 case "tools/list":
@@ -87,12 +85,6 @@ public class McpProtocolController {
 
     private McpResponse handlePing(McpRequest request) {
         return new McpResponse(request.getId(), new HashMap<>());
-    }
-
-    private McpResponse handleRestart(McpRequest request) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("message", "Server restart requested");
-        return new McpResponse(request.getId(), result);
     }
 
     private McpResponse handleShutdown(McpRequest request) {
