@@ -5,13 +5,13 @@
   "description": "Full Model Content Protocol server exposing OpenRewrite recipes and functionality as MCP tooling",
   "capabilities": {
     "tools": {
-      "listChanged": true
+      "listChanged": false
     },
     "prompts": {
-      "listChanged": true
+      "listChanged": false
     },
     "resources": {
-      "listChanged": true
+      "listChanged": false
     }
   },
   "tools": [
