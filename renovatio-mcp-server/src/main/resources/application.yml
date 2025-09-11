@@ -1,0 +1,63 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: renovatio-mcp-server
+  main:
+    banner-mode: console
+
+# MCP Server Configuration
+mcp:
+  server:
+    name: "Renovatio MCP Server"
+    version: "1.0.0"
+    description: "Multi-language refactoring and migration platform with full MCP compliance"
+    protocol-version: "2025-06-18"
+  
+  # MCP Capabilities Configuration
+  capabilities:
+    tools: true
+    prompts: true
+    resources: true
+    content:
+      read: true
+      write: true
+    workspace:
+      list: true
+      describe: true
+    logging:
+      subscribe: true
+
+# Language Provider Configuration
+renovatio:
+  providers:
+    java:
+      enabled: true
+      recipes-path: "classpath:recipes/java"
+    cobol:
+      enabled: true
+      recipes-path: "classpath:recipes/cobol"
+    
+  # Recipe Configuration
+  recipes:
+    format: "unified"  # Use unified recipe format across all languages
+    base-path: "classpath:recipes"
+
+# Actuator endpoints for monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Logging Configuration
+logging:
+  level:
+    org.shark.renovatio: INFO
+    org.shark.renovatio.mcp.server: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

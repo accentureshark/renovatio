@@ -1,6 +1,7 @@
 package org.shark.renovatio.core.service;
 
-import org.shark.renovatio.core.mcp.McpTool;
+import org.shark.renovatio.shared.domain.Tool;
+import org.shark.renovatio.shared.domain.Recipe;
 import org.shark.renovatio.shared.spi.LanguageProvider;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.shared.nql.NqlCompileResult;
@@ -13,6 +14,7 @@ import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
 
 /**
  * Core service that manages language providers and tool routing

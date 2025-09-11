@@ -43,6 +43,7 @@
           <module>renovatio-provider-java</module>
           <module>renovatio-provider-cobol</module>
           <module>renovatio-provider-jcl</module>
+          <module>renovatio-mcp-server</module>
           <module>renovatio-agent</module>
           <module>renovatio-web</module>
           <module>renovatio-client</module>
@@ -71,11 +72,16 @@
                   <artifactId>renovatio-provider-cobol</artifactId>
                   <version>${project.version}</version>
               </dependency>
-              <dependency>
-                  <groupId>org.shark.renovatio</groupId>
-                  <artifactId>renovatio-provider-jcl</artifactId>
-                  <version>${project.version}</version>
-              </dependency>
+            <dependency>
+                <groupId>org.shark.renovatio</groupId>
+                <artifactId>renovatio-provider-jcl</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.shark.renovatio</groupId>
+                <artifactId>renovatio-mcp-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             
             <!-- External dependencies -->
             <dependency>
