@@ -2,11 +2,9 @@ package org.shark.renovatio.application;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.openrewrite.Recipe;
-import org.openrewrite.java.format.AutoFormat;
 import org.shark.renovatio.domain.RefactorRequest;
 import org.shark.renovatio.domain.RefactorResponse;
-import org.shark.renovatio.domain.Tool;
+import org.shark.renovatio.domain.ToolDefinition;
 
 import org.shark.renovatio.domain.mcp.McpPrompt;
 import org.shark.renovatio.domain.mcp.McpResource;
@@ -23,7 +21,7 @@ import java.util.Map;
 @Service
 public class McpToolingService {
     private final String spec;
-    private final List<Tool> tools;
+    private final List<ToolDefinition> tools;
     private final List<McpTool> mcpTools;
     private final RefactorService refactorService;
     private final List<McpPrompt> prompts;
@@ -37,8 +35,10 @@ public class McpToolingService {
             JsonNode root = mapper.readTree(resource.getInputStream());
             this.spec = root.path("spec").asText();
             
-            // Create comprehensive set of OpenRewrite tools
-            this.tools = createBasicTools();
+            var toolsResource = new ClassPathResource("tools.json");
+            ToolDefinition[] definitions = mapper.readValue(toolsResource.getInputStream(), ToolDefinition[].class);
+            this.tools = java.util.Arrays.asList(definitions);
+
             this.mcpTools = createMcpTools();
             this.prompts = createPrompts();
             this.resources = createResources();
@@ -47,49 +47,17 @@ public class McpToolingService {
         }
     }
 
-    private List<Tool> createBasicTools() {
-        List<Tool> basicTools = new ArrayList<>();
-        
-        // Java formatting and cleanup recipes
-        addTool(basicTools, "org.openrewrite.java.format.AutoFormat", "Automatically format Java code");
-        addTool(basicTools, "org.openrewrite.java.cleanup.UnnecessaryParentheses", "Remove unnecessary parentheses");
-        addTool(basicTools, "org.openrewrite.java.cleanup.EmptyBlock", "Remove empty blocks");
-        addTool(basicTools, "org.openrewrite.java.cleanup.ExplicitInitialization", "Remove explicit initialization of variables to default values");
-        addTool(basicTools, "org.openrewrite.java.cleanup.FinalizePrivateFields", "Finalize private fields that are not reassigned");
-        
-        // Code improvement recipes
-        addTool(basicTools, "org.openrewrite.java.cleanup.BigDecimalRoundingConstantsToEnums", "Replace BigDecimal rounding constants with enums");
-        addTool(basicTools, "org.openrewrite.java.cleanup.BooleanChecksNotInverted", "Replace inverted boolean checks");
-        addTool(basicTools, "org.openrewrite.java.cleanup.CaseInsensitiveComparisonsDoNotChangeCase", "Use case-insensitive comparison methods");
-        addTool(basicTools, "org.openrewrite.java.cleanup.ChainStringBuilderAppendCalls", "Chain StringBuilder append calls");
-        addTool(basicTools, "org.openrewrite.java.cleanup.CovariantEquals", "Use covariant equals");
-        
-        // Migration recipes
-        addTool(basicTools, "org.openrewrite.java.migrate.Java8toJava11", "Migrate from Java 8 to Java 11");
-        addTool(basicTools, "org.openrewrite.java.migrate.JavaVersion11", "Upgrade to Java 11");
-        addTool(basicTools, "org.openrewrite.java.migrate.JavaVersion17", "Upgrade to Java 17");
-        addTool(basicTools, "org.openrewrite.java.migrate.JavaVersion21", "Upgrade to Java 21");
-        
-        // Security recipes
-        addTool(basicTools, "org.openrewrite.java.security.FindJdbcUrl", "Find JDBC URLs");
-        addTool(basicTools, "org.openrewrite.java.security.FindSqlInjection", "Find potential SQL injection vulnerabilities");
-        addTool(basicTools, "org.openrewrite.java.security.SecureRandomPrefersDefaultSeed", "Use SecureRandom with default seed");
-        
-        return basicTools;
-    }
-    
     private List<McpTool> createMcpTools() {
         List<McpTool> mcpTools = new ArrayList<>();
-        
-        for (Tool tool : tools) {
+
+        for (ToolDefinition tool : tools) {
             Map<String, Object> inputSchema = createInputSchema();
             McpTool mcpTool = new McpTool(tool.getName(), tool.getDescription(), inputSchema);
             mcpTools.add(mcpTool);
         }
-        
+
         return mcpTools;
     }
-
     private List<McpPrompt> createPrompts() {
         List<McpPrompt> prompts = new ArrayList<>();
 
@@ -137,20 +105,12 @@ public class McpToolingService {
         return schema;
     }
     
-    private void addTool(List<Tool> tools, String name, String description) {
-        Tool tool = new Tool();
-        tool.setName(name);
-        tool.setDescription(description);
-        tool.setCommand("openrewrite");
-        tools.add(tool);
-    }
-
     public String getSpec() {
         return spec;
 
     }
 
-    public List<Tool> getTools() {
+    public List<ToolDefinition> getTools() {
         return tools;
     }
     
