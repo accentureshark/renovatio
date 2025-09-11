@@ -434,7 +434,6 @@ renovatio/
 │   │   ├── RefactorResponse.java
 │   │   └── Tool.java
 │   └── infrastructure/               # Controladores
-│       ├── McpProtocolController.java # Controlador principal MCP
 │       ├── McpController.java        # Controlador REST MCP
 │       └── RefactorController.java   # Controlador de refactorización
 └── src/main/resources/
