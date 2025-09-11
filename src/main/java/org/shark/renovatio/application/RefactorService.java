@@ -2,7 +2,6 @@ package org.shark.renovatio.application;
 
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.shark.renovatio.application.recipes.RecipeHandler;
 import org.shark.renovatio.domain.RefactorRequest;
@@ -11,27 +10,28 @@ import org.shark.renovatio.domain.RefactorResponse;
 @Service
 public class RefactorService {
 
-    @Autowired
-    private Map<String, RecipeHandler> recipeHandlers;
+    private final Map<String, RecipeHandler> recipeHandlers;
+
+    public RefactorService(Map<String, RecipeHandler> recipeHandlers) {
+        this.recipeHandlers = recipeHandlers;
+    }
 
     public RefactorResponse refactor(RefactorRequest request) {
         try {
-            // For now, implement basic transformations to demonstrate functionality
-            // This will be enhanced with proper OpenRewrite integration later
-            String refactoredCode = applyBasicRefactoring(request.getSourceCode(), request.getRecipe());
+            String refactoredCode = applyRecipe(request.getSourceCode(), request.getRecipe());
             String message = "Receta '" + request.getRecipe() + "' aplicada exitosamente";
-            
+
             return new RefactorResponse(refactoredCode, message);
         } catch (Exception e) {
             return new RefactorResponse(request.getSourceCode(), "Error: " + e.getMessage());
         }
     }
-    
-    private String applyBasicRefactoring(String sourceCode, String recipe) {
+
+    private String applyRecipe(String sourceCode, String recipe) {
         RecipeHandler handler = recipeHandlers.get(recipe);
-        if (handler != null) {
-            return handler.apply(sourceCode);
+        if (handler == null) {
+            return sourceCode + "\n// Applied recipe: " + recipe;
         }
-        return sourceCode + "\n// Applied recipe: " + recipe;
+        return handler.apply(sourceCode);
     }
 }
