@@ -2,6 +2,7 @@ package org.shark.renovatio.provider.cobol.service;
 
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.service.AiServices;
+import org.shark.renovatio.shared.nql.NqlParserService;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.springframework.stereotype.Service;
 
@@ -14,10 +15,12 @@ import org.springframework.stereotype.Service;
 public class LlmIntegrationService {
     
     private final CobolMigrationAssistant migrationAssistant;
-    
-    public LlmIntegrationService() {
+    private final NqlParserService parserService;
+
+    public LlmIntegrationService(NqlParserService parserService) {
         // Initialize with placeholder - in production would inject ChatLanguageModel
         this.migrationAssistant = null;
+        this.parserService = parserService;
     }
     
     /**
@@ -55,33 +58,10 @@ public class LlmIntegrationService {
     }
     
     /**
-     * Simple NQL parser - in production would use ANTLR4 grammar
+     * Parses the provided NQL string using {@link NqlParserService}.
      */
     private NqlQuery parseNqlQuery(String nqlString) {
-        NqlQuery query = new NqlQuery();
-        query.setOriginalQuery(nqlString);
-        
-        // Basic parsing logic - would be replaced with proper ANTLR4 grammar
-        String upperNql = nqlString.toUpperCase();
-        
-        if (upperNql.startsWith("FIND")) {
-            query.setType(NqlQuery.QueryType.FIND);
-        } else if (upperNql.startsWith("PLAN")) {
-            query.setType(NqlQuery.QueryType.PLAN);
-        } else if (upperNql.startsWith("APPLY")) {
-            query.setType(NqlQuery.QueryType.APPLY);
-        }
-        
-        // Extract target, predicate, etc. from the query
-        // This is simplified - real implementation would use grammar
-        if (upperNql.contains("PROGRAMS")) {
-            query.setTarget("programs");
-        } else if (upperNql.contains("DATA ITEMS")) {
-            query.setTarget("dataItems");
-        } else if (upperNql.contains("PARAGRAPHS")) {
-            query.setTarget("paragraphs");
-        }
-        
+        NqlQuery query = parserService.parse(nqlString);
         query.setLanguage("cobol");
         return query;
     }
