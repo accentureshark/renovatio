@@ -1,0 +1,99 @@
+@startuml
+' renovatio-core Component Diagram
+
+title Renovatio Core - Pure Engine (Protocol-Agnostic)
+
+package "renovatio-core" {
+  
+  ' Core Engine Services
+  package "Engine Services" {
+    [LanguageProviderRegistry] #Orange
+    [ToolExecutionService] #Orange
+    [RecipeManager] #Orange
+    [WorkspaceService] #Orange
+    [FileOperationService] #Orange
+  }
+  
+  ' Domain Models
+  package "Core Domain Models" {
+    [Tool] #LightCyan
+    [Recipe] #LightCyan
+    [Workspace] #LightCyan
+    [ExecutionContext] #LightCyan
+    [ExecutionResult] #LightCyan
+  }
+  
+  ' Tool Abstractions
+  package "Tool Framework" {
+    [ToolRegistry] #LightBlue
+    [ToolExecutor] #LightBlue
+    [BasicTool] #LightBlue
+    [ToolValidator] #LightBlue
+  }
+  
+  ' Configuration & Infrastructure
+  package "Infrastructure" {
+    [CoreConfiguration] #LightGreen
+    [ErrorHandler] #LightGreen
+    [MetricsCollector] #LightGreen
+    [CacheManager] #LightGreen
+  }
+}
+
+' External dependencies
+[renovatio-shared] #LightCyan
+[renovatio-provider-java] #LightPink
+[renovatio-provider-cobol] #LightPink
+[renovatio-provider-jcl] #LightPink
+
+' Core engine internal connections
+LanguageProviderRegistry --> ToolRegistry : Manages
+LanguageProviderRegistry --> RecipeManager : Uses
+ToolExecutionService --> ToolExecutor : Uses
+ToolExecutionService --> ToolValidator : Validates
+ToolExecutor --> Tool : Executes
+ToolExecutor --> ExecutionContext : Uses
+ToolExecutor --> ExecutionResult : Produces
+WorkspaceService --> Workspace : Manages
+WorkspaceService --> FileOperationService : Uses
+RecipeManager --> Recipe : Manages
+
+' Infrastructure connections
+ToolExecutionService --> ErrorHandler : Error Handling
+ToolExecutionService --> MetricsCollector : Metrics
+ToolExecutionService --> CacheManager : Caching
+CoreConfiguration --> LanguageProviderRegistry : Configures
+
+' External connections
+LanguageProviderRegistry --> [renovatio-shared] : Uses Interfaces
+LanguageProviderRegistry --> [renovatio-provider-java] : Loads Java Provider
+LanguageProviderRegistry --> [renovatio-provider-cobol] : Loads COBOL Provider
+LanguageProviderRegistry --> [renovatio-provider-jcl] : Loads JCL Provider
+Tool --> [renovatio-shared] : Implements Interface
+Recipe --> [renovatio-shared] : Implements Interface
+
+note top of LanguageProviderRegistry
+  **Provider Registry**
+  - Dynamic tool generation
+  - Language provider management
+  - Protocol-agnostic routing
+  - Zero MCP dependencies
+end note
+
+note bottom of ToolExecutionService
+  **Tool Execution**
+  - Language-agnostic execution
+  - Error handling & recovery
+  - Metrics collection
+  - Result validation
+end note
+
+note right of [renovatio-provider-java]
+  **Language Providers**
+  - Pluggable modules
+  - Language-specific logic
+  - Tool implementations
+  - Recipe definitions
+end note
+
+@enduml
