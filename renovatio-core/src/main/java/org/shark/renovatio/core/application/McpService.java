@@ -5,10 +5,13 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class McpService {
     private final McpToolingService mcpToolingService;
+    private final Set<String> loggingSubscribers = ConcurrentHashMap.newKeySet();
 
     public McpService(McpToolingService mcpToolingService) {
         this.mcpToolingService = mcpToolingService;
@@ -43,6 +46,10 @@ public class McpService {
                     return handleWorkspaceList(request);
                 case "workspace/describe":
                     return handleWorkspaceDescribe(request);
+                case "logging/subscribe":
+                    return handleLoggingSubscribe(request);
+                case "logging/unsubscribe":
+                    return handleLoggingUnsubscribe(request);
                 case "prompts/list":
                     return handlePromptsList(request);
                 case "prompts/get":
@@ -145,6 +152,32 @@ public class McpService {
         }
         Map<String, Object> result = new HashMap<>();
         result.put("resource", resource);
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleLoggingSubscribe(McpRequest request) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String clientId = params != null ? (String) params.get("id") : null;
+        if (clientId == null || clientId.isEmpty()) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'id' parameter"));
+        }
+        loggingSubscribers.add(clientId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("subscribed", true);
+        return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleLoggingUnsubscribe(McpRequest request) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) request.getParams();
+        String clientId = params != null ? (String) params.get("id") : null;
+        if (clientId == null || clientId.isEmpty()) {
+            return new McpResponse(request.getId(), new McpError(-32602, "Missing or empty 'id' parameter"));
+        }
+        boolean removed = loggingSubscribers.remove(clientId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("unsubscribed", removed);
         return new McpResponse(request.getId(), result);
     }
 

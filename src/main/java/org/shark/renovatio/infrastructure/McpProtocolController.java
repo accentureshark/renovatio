@@ -50,6 +50,10 @@ public class McpProtocolController {
                     return handleWorkspaceList(request);
                 case "workspace/describe":
                     return handleWorkspaceDescribe(request);
+                case "logging/subscribe":
+                    return handleLoggingSubscribe(request);
+                case "logging/unsubscribe":
+                    return handleLoggingUnsubscribe(request);
                 case "prompts/list":
                     return handlePromptsList(request);
                 case "prompts/get":
@@ -166,6 +170,14 @@ public class McpProtocolController {
         Map<String, Object> result = new HashMap<>();
         result.put("contents", List.of(content));
         return new McpResponse(request.getId(), result);
+    }
+
+    private McpResponse handleLoggingSubscribe(McpRequest request) {
+        return new McpResponse(request.getId(), new McpError(-32601, "logging/subscribe not implemented"));
+    }
+
+    private McpResponse handleLoggingUnsubscribe(McpRequest request) {
+        return new McpResponse(request.getId(), new McpError(-32601, "logging/unsubscribe not implemented"));
     }
 
     private McpResponse handleToolsDescribe(McpRequest request) {
