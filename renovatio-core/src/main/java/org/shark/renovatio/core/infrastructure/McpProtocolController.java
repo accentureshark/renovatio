@@ -8,14 +8,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/")
+@RequestMapping("/mcp")
 @Tag(name = "MCP Protocol")
 public class McpProtocolController {
 
     @Autowired
     private McpService mcpService;
 
-    @PostMapping("/")
+    @PostMapping
     @Operation(summary = "MCP JSON-RPC 2.0 endpoint")
     public McpResponse handleMcpRequest(@RequestBody McpRequest request) {
         return mcpService.handleMcpRequest(request);
