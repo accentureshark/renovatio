@@ -161,7 +161,7 @@ recipeList:
   - org.openrewrite.cobol.GenerateMigrationPlan
 ```
 
-El contenido se carga automáticamente cuando las herramientas reciben `language = "cobol"`.
+El servicio `McpToolingService` carga automáticamente este archivo cuando las herramientas reciben `language = "cobol"`.
 
 ### 📑 Herramientas JCL
 - `jcl.convert` - Conversión de pasos JCL a scripts shell, GitHub Actions, Spring Batch o Airflow

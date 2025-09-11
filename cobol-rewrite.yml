@@ -1,3 +1,4 @@
+# OpenRewrite configuration for COBOL processing
 type: specs.openrewrite.org/v1beta/recipe
 name: org.shark.renovatio.cobol.RewriteRecipes
 recipeList:

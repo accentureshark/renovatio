@@ -200,11 +200,7 @@ public class McpToolingService {
 
         String cobolConfig = null;
         if ("cobol".equalsIgnoreCase(language)) {
-            try {
-                cobolConfig = Files.readString(Path.of("cobol-rewrite.yml"));
-            } catch (IOException e) {
-                throw new RuntimeException("No se pudo leer cobol-rewrite.yml", e);
-            }
+            cobolConfig = loadCobolRecipes();
         }
 
         RefactorRequest request = new RefactorRequest();
@@ -221,5 +217,13 @@ public class McpToolingService {
         }
 
         return result;
+    }
+
+    private String loadCobolRecipes() {
+        try {
+            return Files.readString(Path.of("cobol-rewrite.yml"));
+        } catch (IOException e) {
+            throw new RuntimeException("No se pudo leer cobol-rewrite.yml", e);
+        }
     }
 }
