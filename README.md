@@ -36,7 +36,7 @@
 
 Renovatio implementa el estándar **Model Content Protocol (MCP)**, permitiendo interoperabilidad con clientes modernos como VS Code, Copilot Workspace, y cualquier cliente MCP. Soporta los métodos MCP principales:
 
-- `initialize`, `shutdown`, `ping`, `restart`
+- `initialize`, `shutdown`, `ping`
 - `tools/list`, `tools/call`, `tools/describe`
 - `capabilities`, `server/info`
 - `content/read`, `content/write`
