@@ -163,7 +163,41 @@ El servidor estará disponible en `http://localhost:8181`
 
 Visita `http://localhost:8181/swagger-ui/index.html` para explorar la API interactivamente.
 
-## Uso de la API
+## Uso de la API con VS Code
+
+### Cliente MCP en VS Code
+
+Renovatio funciona perfectamente como servidor MCP con VS Code como cliente. Para usar las herramientas MCP:
+
+1. **Iniciar el servidor**:
+```bash
+cd renovatio-mcp-server
+SERVER_PORT=8181 mvn spring-boot:run
+```
+
+2. **Configurar VS Code**: Instala la extensión "REST Client" y usa los archivos de ejemplo en `.vscode/mcp-renovatio.http`
+
+3. **Ejecutar herramientas**: Usa los comandos JSON-RPC para ejecutar las 8 herramientas disponibles
+
+**📚 Documentación completa disponible en:**
+- [`docs/mcp-tools-usage-guide.md`](docs/mcp-tools-usage-guide.md) - Guía completa de uso
+- [`docs/vscode-mcp-examples.md`](docs/vscode-mcp-examples.md) - Ejemplos prácticos para VS Code  
+- [`docs/mcp-tools-quick-reference.md`](docs/mcp-tools-quick-reference.md) - Referencia rápida
+
+**🛠️ Herramientas MCP disponibles:**
+- `nql_compile` - Compilar lenguaje natural a NQL
+- `common_index` - Indexar repositorio para búsqueda
+- `common_search` - Buscar en repositorio indexado
+- `java_analyze` - Analizar estructura de código Java
+- `java_plan` - Crear plan de ejecución para transformaciones
+- `java_apply` - Aplicar plan de transformación
+- `java_diff` - Generar diferencias semánticas
+- `java_metrics` - Calcular métricas de código
+
+**🎯 Demo rápido:**
+```bash
+./demo-mcp-tools.sh
+```
 
 ### 1. Protocolo MCP (Recomendado)
 

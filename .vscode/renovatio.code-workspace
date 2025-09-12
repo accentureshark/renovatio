@@ -1,0 +1,26 @@
+{
+  "folders": [
+    {
+      "name": "Renovatio",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "rest-client.environments": {
+      "local": {
+        "baseUrl": "http://localhost:8181",
+        "contentType": "application/json"
+      }
+    },
+    "rest-client.defaultHeaders": {
+      "Content-Type": "application/json"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "humao.rest-client",
+      "rangav.vscode-thunder-client",
+      "ms-vscode.vscode-json"
+    ]
+  }
+}
