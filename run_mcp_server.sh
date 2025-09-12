@@ -1,11 +1,11 @@
 #!/bin/bash
 # Script para levantar el servidor MCP-compliant de Renovatio
-# Ejecuta renovatio-web, que expone el endpoint /mcp
+# Ejecuta renovatio-mcp-server, que expone el endpoint /mcp
 
 set -e
 
-MODULE="renovatio-web"
-PORT=${PORT:-8181}
+MODULE="renovatio-mcp-server"
+PORT=${PORT:-8080}
 PROFILE=${PROFILE:-default}
 LOG_FILE=${LOG_FILE:-server.log}
 

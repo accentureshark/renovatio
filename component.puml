@@ -5,13 +5,11 @@ title Renovatio Platform - Modular Architecture
 
 ' External clients
 actor "MCP Clients\n(VS Code, etc.)" as mcp_clients
-actor "HTTP Clients\n(Web Apps)" as http_clients
 actor "Library Users\n(Direct Usage)" as lib_users
 
 ' Main application modules
 package "Application Layer" {
   [renovatio-mcp-server] as mcp_server #LightBlue
-  [renovatio-web] as web #LightGreen
   [renovatio-agent] as agent #LightYellow
   [renovatio-client] as client #LightGray
 }
@@ -31,12 +29,10 @@ package "Language Providers" {
 
 ' Client connections
 mcp_clients --> mcp_server : JSON-RPC 2.0\n(MCP Protocol)
-http_clients --> web : REST API
 lib_users --> core : Direct Calls
 
 ' Application layer dependencies
 mcp_server --> core : Uses Pure Engine
-web --> core : Uses Pure Engine
 agent --> core : Orchestration
 client ..> core : Consumes API
 
@@ -55,8 +51,6 @@ jcl_provider --> shared : Implements Interfaces
 agent --> java_provider : Direct Access
 agent --> cobol_provider : Direct Access
 agent --> jcl_provider : Direct Access
-web --> java_provider : Direct Access
-web --> cobol_provider : Direct Access
 
 note top of mcp_server
   **MCP Server**
