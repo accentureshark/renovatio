@@ -5,3 +5,5 @@ target/
 .project
 .settings/
 .vscode/
+!.vscode/renovatio.code-workspace
+!.vscode/mcp-renovatio.http

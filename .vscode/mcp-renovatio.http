@@ -1,0 +1,161 @@
+### Variables de entorno
+@baseUrl = http://localhost:8181
+@contentType = application/json
+
+### 1. Inicializar conexión MCP
+POST {{baseUrl}}/
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "method": "initialize",
+  "params": {}
+}
+
+### 2. Listar herramientas disponibles
+POST {{baseUrl}}/
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": "2",
+  "method": "tools/list",
+  "params": {}
+}
+
+### 3. Analizar código Java
+POST {{baseUrl}}/
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": "3",
+  "method": "tools/call",
+  "params": {
+    "name": "java_analyze",
+    "arguments": {
+      "scope": "/path/to/your/java/project",
+      "nql": "FIND ALL CLASSES"
+    }
+  }
+}
+
+### 4. Calcular métricas de código
+POST {{baseUrl}}/
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": "4",
+  "method": "tools/call",
+  "params": {
+    "name": "java_metrics",
+    "arguments": {
+      "scope": "/path/to/your/java/project",
+      "nql": "CALCULATE METRICS FOR ALL CLASSES"
+    }
+  }
+}
+
+### 5. Indexar repositorio
+POST {{baseUrl}}/
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": "5",
+  "method": "tools/call",
+  "params": {
+    "name": "common_index",
+    "arguments": {
+      "repoId": "/path/to/your/project"
+    }
+  }
+}
+
+### 6. Buscar en repositorio
+POST {{baseUrl}}/
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": "6",
+  "method": "tools/call",
+  "params": {
+    "name": "common_search",
+    "arguments": {
+      "repoId": "/path/to/your/project",
+      "query": "Calculator",
+      "path": "src/main/java"
+    }
+  }
+}
+
+### 7. Compilar lenguaje natural a NQL
+POST {{baseUrl}}/
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": "7",
+  "method": "tools/call",
+  "params": {
+    "name": "nql_compile",
+    "arguments": {
+      "question": "Find all Java classes with more than 10 methods",
+      "context": "Code quality analysis"
+    }
+  }
+}
+
+### 8. Crear plan de transformación
+POST {{baseUrl}}/
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": "8",
+  "method": "tools/call",
+  "params": {
+    "name": "java_plan",
+    "arguments": {
+      "scope": "/path/to/your/java/project",
+      "nql": "MIGRATE FROM JAVA 8 TO JAVA 17"
+    }
+  }
+}
+
+### 9. Ver diferencias
+POST {{baseUrl}}/
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": "9",
+  "method": "tools/call",
+  "params": {
+    "name": "java_diff",
+    "arguments": {
+      "scope": "/path/to/your/java/project",
+      "nql": "SHOW CHANGES FOR MIGRATION"
+    }
+  }
+}
+
+### 10. Aplicar transformaciones
+POST {{baseUrl}}/
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": "10",
+  "method": "tools/call",
+  "params": {
+    "name": "java_apply",
+    "arguments": {
+      "scope": "/path/to/your/java/project",
+      "nql": "APPLY MIGRATION PLAN"
+    }
+  }
+}
