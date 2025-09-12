@@ -41,17 +41,30 @@ public class McpController {
     @GetMapping("/initialize")
     @Operation(summary = "Inicializa el cliente MCP")
     public Object initialize() {
-        return new java.util.HashMap<String, Object>() {{
-            put("name", "Renovatio MCP Server");
-            put("version", "1.0");
-            put("tools", mcpToolingService.getTools());
-            put("resources", mcpToolingService.getTools());
-            put("capabilities", new java.util.HashMap<String, Object>() {{
-                put("tools", true);
-                put("resources", true);
-            }});
-            put("specUrl", "/mcp/spec");
-        }};
+        // MCP-compliant response structure
+        java.util.Map<String, Object> capabilities = new java.util.HashMap<>();
+        capabilities.put("tools", java.util.Map.of("listChanged", true));
+        capabilities.put("resources", java.util.Map.of("listChanged", true));
+        capabilities.put("prompts", java.util.Map.of());
+        capabilities.put("logging", java.util.Map.of());
+        capabilities.put("progress", true);
+
+        java.util.Map<String, Object> serverInfo = java.util.Map.of(
+                "name", "Renovatio MCP Server",
+                "version", "1.0.0"
+        );
+
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("protocolVersion", "2024-11-05");
+        result.put("serverInfo", serverInfo);
+        result.put("capabilities", capabilities);
+
+        // JSON-RPC 2.0 compliant response
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("jsonrpc", "2.0");
+        response.put("id", null); // Puede ser null si no se recibe del cliente
+        response.put("result", result);
+        return response;
     }
 
     @GetMapping("/resources")
@@ -78,7 +91,7 @@ public class McpController {
     @Operation(summary = "Devuelve la lista de herramientas disponibles o ayuda para /run")
     public Object getRunHelp() {
         return new java.util.HashMap<String, Object>() {{
-            put("message", "Usa POST /mcp/run/{toolName} para ejecutar una herramienta. Usa GET /mcp/run/{toolName} para ver la definición de la herramienta.");
+            put("message", "Usa POST /mcp/run/{toolName} para ejecutar una herramienta. Usa GET /mcp/run/{toolName} para ver la definici��n de la herramienta.");
             put("tools", mcpToolingService.getTools());
         }};
     }
@@ -155,7 +168,7 @@ public class McpController {
         }};
     }
 
-    @PostMapping("/")
+    @PostMapping({"/", ""})
     public Object handleJsonRpc(@RequestBody java.util.Map<String, Object> body) {
         String jsonrpc = (String) body.getOrDefault("jsonrpc", "2.0");
         Object id = body.get("id");
@@ -166,6 +179,25 @@ public class McpController {
         if ("tools/list".equals(method)) {
             java.util.Map<String, Object> result = new java.util.HashMap<>();
             result.put("tools", mcpToolingService.getTools());
+            response.put("result", result);
+        } else if ("initialize".equalsIgnoreCase(method)) {
+            // MCP-compliant response structure
+            java.util.Map<String, Object> capabilities = new java.util.HashMap<>();
+            capabilities.put("tools", java.util.Map.of("listChanged", true));
+            capabilities.put("resources", java.util.Map.of("listChanged", true));
+            capabilities.put("prompts", java.util.Map.of());
+            capabilities.put("logging", java.util.Map.of());
+            capabilities.put("progress", true);
+
+            java.util.Map<String, Object> serverInfo = java.util.Map.of(
+                    "name", "Renovatio MCP Server",
+                    "version", "1.0.0"
+            );
+
+            java.util.Map<String, Object> result = new java.util.HashMap<>();
+            result.put("protocolVersion", "2024-11-05");
+            result.put("serverInfo", serverInfo);
+            result.put("capabilities", capabilities);
             response.put("result", result);
         } else {
             java.util.Map<String, Object> error = new java.util.HashMap<>();

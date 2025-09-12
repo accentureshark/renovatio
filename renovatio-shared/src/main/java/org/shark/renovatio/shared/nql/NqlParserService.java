@@ -38,11 +38,11 @@ public class NqlParserService {
             query.setType(NqlQuery.QueryType.PLAN);
         } else if (upper.startsWith("APPLY")) {
             query.setType(NqlQuery.QueryType.APPLY);
+        } else {
+            // Unknown query type, set type to null (or UNKNOWN if available)
+            query.setType(null); // Si se agrega UNKNOWN, usar: NqlQuery.QueryType.UNKNOWN
         }
-        // If no type or target, return null to indicate invalid
-        if (query.getType() == null || query.getTarget() == null) {
-            return null;
-        }
+        // Nunca retornar null, siempre retornar el objeto query
         return query;
         
         /*
