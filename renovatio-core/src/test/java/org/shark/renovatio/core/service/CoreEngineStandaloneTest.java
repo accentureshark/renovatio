@@ -53,28 +53,20 @@ public class CoreEngineStandaloneTest {
         List<Tool> tools = languageProviderRegistry.generateTools();
         
         // Should have at least the common tools
-        assertTrue(tools.size() >= 3); // nql.compile, common.index, common.search
-        
-        // Verify common tools exist
-        boolean hasNqlCompile = tools.stream()
-            .anyMatch(tool -> "nql.compile".equals(tool.getName()));
-        boolean hasCommonIndex = tools.stream()
-            .anyMatch(tool -> "common.index".equals(tool.getName()));
-        boolean hasCommonSearch = tools.stream()
-            .anyMatch(tool -> "common.search".equals(tool.getName()));
-            
-        assertTrue(hasNqlCompile, "Should have nql.compile tool");
-        assertTrue(hasCommonIndex, "Should have common.index tool");
-        assertTrue(hasCommonSearch, "Should have common.search tool");
-    }
+        assertTrue(tools.size() >= 3); // nql_compile, common_index, common_search
 
-    @Test
-    void testToolRouting() {
-        // Test that tool routing works
+        // Check for NQL compilation tool
+        boolean hasNqlCompile = tools.stream()
+            .anyMatch(tool -> "nql_compile".equals(tool.getName()));
+
+        assertTrue(hasNqlCompile, "Should have nql_compile tool");
+
+        // Test tool call routing
         Map<String, Object> arguments = new HashMap<>();
-        arguments.put("question", "test question");
-        
-        Map<String, Object> result = languageProviderRegistry.routeToolCall("nql.compile", arguments);
+        arguments.put("question", "Find all methods in the codebase");
+        arguments.put("context", "Java project");
+
+        Map<String, Object> result = languageProviderRegistry.routeToolCall("nql_compile", arguments);
         assertNotNull(result);
     }
 

@@ -97,10 +97,10 @@ public class LanguageProviderRegistry {
      * Route tool call to appropriate provider
      */
     public Map<String, Object> routeToolCall(String toolName, Map<String, Object> arguments) {
-        String[] parts = toolName.split("\\.", 2);
-        
+        String[] parts = toolName.split("_", 2);
+
         if (parts.length < 2) {
-            return createErrorResult("Invalid tool name format. Expected: language.operation");
+            return createErrorResult("Invalid tool name format. Expected: language_operation");
         }
         
         String namespace = parts[0];
@@ -135,7 +135,7 @@ public class LanguageProviderRegistry {
         schema.put("required", List.of("question"));
         
         return new BasicTool(
-            "nql.compile",
+            "nql_compile",
             "Compile natural language to NQL",
             schema
         );
@@ -150,7 +150,7 @@ public class LanguageProviderRegistry {
         schema.put("required", List.of("repoId"));
         
         return new BasicTool(
-            "common.index",
+            "common_index",
             "Index repository for search",
             schema
         );
@@ -167,7 +167,7 @@ public class LanguageProviderRegistry {
         schema.put("required", List.of("repoId", "query"));
         
         return new BasicTool(
-            "common.search",
+            "common_search",
             "Search indexed repository",
             schema
         );
@@ -182,7 +182,7 @@ public class LanguageProviderRegistry {
         schema.put("properties", properties);
         
         return new BasicTool(
-            language + "." + operation,
+            language + "_" + operation,
             description + " for " + language,
             schema
         );

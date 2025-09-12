@@ -345,4 +345,21 @@ public class McpProtocolService {
         ));
         return new McpResponse(request.getId(), result);
     }
+
+    /**
+     * Get available tools for MCP stdio server
+     */
+    public List<Object> getAvailableTools() {
+        return mcpToolingService.getMcpTools().stream()
+            .map(tool -> {
+                Map<String, Object> toolMap = new HashMap<>();
+                toolMap.put("name", tool.getName());
+                toolMap.put("description", tool.getDescription());
+                if (tool.getInputSchema() != null) {
+                    toolMap.put("inputSchema", tool.getInputSchema());
+                }
+                return toolMap;
+            })
+            .collect(Collectors.toList());
+    }
 }
