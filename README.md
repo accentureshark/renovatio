@@ -417,28 +417,7 @@ renovatio/
 ├── renovatio-provider-jcl/            # Proveedor JCL (traducción a shell/CI)
 │   ├── service/                      # Parser y traductor JCL
 │   └── infrastructure/               # Herramientas MCP para conversión
-├── renovatio-agent/                   # Agente de ejecución
-├── renovatio-web/                     # Aplicación web principal
-│   ├── McpServerApplication.java      # Aplicación principal Spring Boot
-│   ├── application/                   # Servicios de aplicación
-│   │   ├── McpToolingService.java    # Servicio principal MCP
-│   │   └── RefactorService.java      # Servicio de refactorización
-│   ├── domain/                       # Modelos de dominio web
-│   │   ├── mcp/                      # Modelos del protocolo MCP
-│   │   │   ├── McpRequest.java
-│   │   │   ├── McpResponse.java
-│   │   │   ├── McpError.java
-│   │   │   ├── McpTool.java
-│   │   │   └── McpCapabilities.java
-│   │   ├── RefactorRequest.java
-│   │   ├── RefactorResponse.java
-│   │   └── Tool.java
-│   └── infrastructure/               # Controladores
-│       ├── McpController.java        # Controlador REST MCP
-│       └── RefactorController.java   # Controlador de refactorización
-└── src/main/resources/
-    ├── templates/                    # Plantillas Freemarker para COBOL
-    └── application.yml              # Configuración principal
+└── renovatio-agent/                   # Agente de ejecución
 ```
 
 ## Especificación MCP

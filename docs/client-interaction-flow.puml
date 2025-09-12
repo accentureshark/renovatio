@@ -5,14 +5,12 @@ title Renovatio Platform - Client Interaction Patterns
 
 ' Actors
 actor "VS Code\nExtension" as vscode
-actor "Web Developer\n(Browser)" as web_dev
 actor "CLI User\n(Terminal)" as cli_user
 actor "Java Developer\n(IDE)" as java_dev
 
 ' Services
 package "Renovatio Platform" {
   [renovatio-mcp-server\n(Port 8080)] as mcp_server #LightBlue
-  [renovatio-web\n(Port 8181)] as web_server #LightGreen
   [renovatio-core\n(Library)] as core_lib #Orange
 }
 
@@ -25,12 +23,9 @@ vscode --> mcp_server : JSON-RPC 2.0\n(MCP Protocol)
 mcp_server --> core_lib : Tool Execution
 
 ' Web Client Flow
-web_dev --> web_server : HTTP REST\n(OpenAPI)
-web_server --> core_lib : Service Calls
 
 ' CLI Client Flow
 cli_user --> mcp_server : JSON-RPC 2.0\n(MCP Client)
-cli_user --> web_server : HTTP REST\n(CLI Commands)
 
 ' Library Usage Flow
 java_dev --> maven : Download Dependency
@@ -38,7 +33,6 @@ java_dev --> core_lib : Direct Integration
 
 ' External Integration
 mcp_server --> github : Git Operations
-web_server --> github : Repository Access
 core_lib --> github : Version Control
 
 note top of mcp_server
@@ -49,13 +43,6 @@ note top of mcp_server
   - JSON-RPC 2.0 protocol
 end note
 
-note top of web_server
-  **Web API Usage**
-  - Web applications
-  - HTTP clients
-  - REST endpoints
-  - OpenAPI documentation
-end note
 
 note bottom of core_lib
   **Library Usage**
@@ -75,7 +62,6 @@ package "Usage Patterns" {
 }
 
 vscode --> uc1
-web_dev --> uc1
 cli_user --> uc2
 java_dev --> uc3
 cli_user --> uc4

@@ -45,7 +45,6 @@
           <module>renovatio-provider-jcl</module>
           <module>renovatio-mcp-server</module>
           <module>renovatio-agent</module>
-          <module>renovatio-web</module>
           <module>renovatio-client</module>
       </modules>
     

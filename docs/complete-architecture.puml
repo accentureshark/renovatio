@@ -6,7 +6,6 @@ title Renovatio Platform - Complete Architecture Overview
 ' Top level - Client Layer
 package "Client Layer" {
   [MCP Clients] #LightBlue
-  [Web Browsers] #LightGreen
   [CLI Tools] #LightYellow
   [IDEs & Libraries] #LightGray
 }
@@ -14,7 +13,6 @@ package "Client Layer" {
 ' Application Layer
 package "Application Layer" {
   [renovatio-mcp-server] as mcp #LightBlue
-  [renovatio-web] as web #LightGreen
   [renovatio-agent] as agent #LightYellow
   [renovatio-client] as client #LightGray
 }
@@ -43,13 +41,11 @@ package "External Dependencies" {
 
 ' Client connections
 [MCP Clients] --> mcp : JSON-RPC 2.0\n(Root Path /)
-[Web Browsers] --> web : HTTP REST\n(OpenAPI)
 [CLI Tools] --> client : Command Line
 [IDEs & Libraries] --> core : Direct Library\nUsage
 
 ' Application layer connections
 mcp --> core : Pure Engine\nAccess
-web --> core : Pure Engine\nAccess
 agent --> core : Orchestration\n& Batch
 client --> core : Library Mode
 
@@ -69,7 +65,6 @@ java --> openrewrite : Java\nRefactoring
 cobol --> antlr : COBOL\nParsing
 jcl --> antlr : JCL\nParsing
 mcp --> spring : Spring Boot\nApplication
-web --> spring : Spring Boot\nApplication
 agent --> spring : Spring Boot\nApplication
 cobol --> lucene : Code\nIndexing
 cobol --> freemarker : Template\nGeneration
@@ -111,13 +106,11 @@ end note
 ' Deployment information
 package "Deployment Options" {
   cloud "Standalone\nMCP Server" as deploy1
-  cloud "Web Application\nDeployment" as deploy2
   cloud "Library\nIntegration" as deploy3
   cloud "Agent\nOrchestration" as deploy4
 }
 
 mcp --> deploy1 : Port 8080
-web --> deploy2 : Port 8181
 core --> deploy3 : Maven Dependency
 agent --> deploy4 : Batch Processing
 
