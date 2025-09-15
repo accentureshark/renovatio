@@ -94,6 +94,7 @@
 
     <build>
         <plugins>
+            <!-- Temporarily disabled to avoid Spring Boot 3.x compatibility issues
             <plugin>
                 <groupId>org.openapitools</groupId>
                 <artifactId>openapi-generator-maven-plugin</artifactId>
@@ -113,6 +114,7 @@
                     </execution>
                 </executions>
             </plugin>
+            -->
         </plugins>
     </build>
 </project>

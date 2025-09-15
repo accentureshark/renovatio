@@ -63,7 +63,58 @@ public class McpToolingService {
      * Execute a tool using the provider registry
      */
     public Map<String, Object> executeTool(String toolName, Map<String, Object> arguments) {
-        return providerRegistry.routeToolCall(toolName, arguments);
+        logger.debug("Executing MCP tool: '{}' with arguments: {}", toolName, arguments);
+
+        try {
+            // Normalize MCP tool names to internal format (java_analyze -> java.analyze)
+            String internalToolName = toolName.replace("_", ".");
+
+            // Ensure required arguments are present
+            Map<String, Object> normalizedArguments = new HashMap<>(arguments);
+
+            // Validate workspacePath for Java tools
+            if (internalToolName.startsWith("java.") && !normalizedArguments.containsKey("workspacePath")) {
+                logger.warn("Missing workspacePath for Java tool: {}", internalToolName);
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("type", "text");
+                errorResult.put("text", "Missing required parameter: workspacePath");
+                errorResult.put("success", false);
+                return errorResult;
+            }
+
+            // Execute the tool through the provider registry
+            logger.debug("Routing tool call to provider: {} with args: {}", internalToolName, normalizedArguments);
+            var result = providerRegistry.routeToolCall(internalToolName, normalizedArguments);
+
+            // Ensure result has proper structure
+            if (result == null) {
+                logger.warn("Provider returned null result for tool: {}", internalToolName);
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("type", "text");
+                errorResult.put("text", "Tool execution returned no results");
+                errorResult.put("success", false);
+                return errorResult;
+            }
+
+            // Check if result indicates success
+            Object successObj = result.get("success");
+            if (successObj != null && Boolean.FALSE.equals(successObj)) {
+                logger.warn("Tool execution failed for: {} - Result: {}", internalToolName, result);
+            } else {
+                logger.debug("Tool execution successful for: {}", internalToolName);
+            }
+
+            return result;
+
+        } catch (Exception e) {
+            logger.error("Error executing tool '{}': {}", toolName, e.getMessage(), e);
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("type", "text");
+            errorResult.put("text", "Error executing tool '" + toolName + "': " + e.getMessage());
+            errorResult.put("success", false);
+            errorResult.put("error", e.getClass().getSimpleName());
+            return errorResult;
+        }
     }
 
     /**
@@ -163,9 +214,16 @@ public class McpToolingService {
      */
     public McpTool getTool(String toolName) {
         return getMcpTools().stream()
-            .filter(tool -> toolName.equals(tool.getName()))
-            .findFirst()
-            .orElse(null);
+                .filter(tool -> tool.getName().equals(toolName))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Get supported languages from registered providers
+     */
+    public java.util.Set<String> getSupportedLanguages() {
+        return providerRegistry.getSupportedLanguages();
     }
 
     private List<McpPrompt> createPrompts() {

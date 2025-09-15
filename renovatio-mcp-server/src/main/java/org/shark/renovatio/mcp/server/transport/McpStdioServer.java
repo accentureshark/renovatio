@@ -2,7 +2,7 @@ package org.shark.renovatio.mcp.server.transport;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.shark.renovatio.mcp.server.service.McpProtocolService;
+import org.shark.renovatio.mcp.server.service.McpToolingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -24,8 +24,8 @@ public class McpStdioServer {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     
     @Autowired
-    private McpProtocolService mcpProtocolService;
-    
+    private McpToolingService mcpToolingService;
+
     private volatile boolean running = false;
     private BufferedReader stdin;
     private PrintWriter stdout;
@@ -73,6 +73,8 @@ public class McpStdioServer {
     
     private void handleRequest(String jsonRequest) {
         try {
+            System.err.println("[MCP Server] Received request: " + jsonRequest);
+
             JsonNode requestNode = objectMapper.readTree(jsonRequest);
             
             String jsonrpc = requestNode.has("jsonrpc") ? requestNode.get("jsonrpc").asText() : "2.0";
@@ -86,6 +88,8 @@ public class McpStdioServer {
                 return;
             }
             
+            System.err.println("[MCP Server] Processing method: " + method);
+
             // Handle initialize method specifically
             if ("initialize".equals(method)) {
                 handleInitialize(id);
@@ -98,11 +102,18 @@ public class McpStdioServer {
                 return;
             }
             
+            // Handle tools/call method
+            if ("tools/call".equals(method)) {
+                handleToolsCall(id, params);
+                return;
+            }
+
             // Handle other methods
             sendErrorResponse(id, -32601, "Method not found: " + method);
             
         } catch (Exception e) {
             System.err.println("[MCP Server] JSON parsing error: " + e.getMessage());
+            e.printStackTrace();
             sendErrorResponse(null, -32700, "Parse error");
         }
     }
@@ -114,8 +125,7 @@ public class McpStdioServer {
             capabilities.put("resources", Map.of("listChanged", true));
             capabilities.put("prompts", Map.of());
             capabilities.put("logging", Map.of());
-            capabilities.put("progress", true);
-            
+
             Map<String, Object> serverInfo = Map.of(
                 "name", "Renovatio MCP Server",
                 "version", "1.0.0"
@@ -137,8 +147,8 @@ public class McpStdioServer {
     private void handleToolsList(Object id) {
         try {
             // Get tools from the service
-            var tools = mcpProtocolService.getAvailableTools();
-            
+            var tools = mcpToolingService.getMcpTools();
+
             Map<String, Object> result = new HashMap<>();
             result.put("tools", tools);
             
@@ -146,10 +156,61 @@ public class McpStdioServer {
             
         } catch (Exception e) {
             System.err.println("[MCP Server] Error in tools/list: " + e.getMessage());
+            e.printStackTrace();
             sendErrorResponse(id, -32603, "Internal error getting tools");
         }
     }
     
+    private void handleToolsCall(Object id, JsonNode params) {
+        try {
+            if (params == null || !params.has("name")) {
+                sendErrorResponse(id, -32602, "Invalid params - missing tool name");
+                return;
+            }
+
+            String toolName = params.get("name").asText();
+            JsonNode arguments = params.has("arguments") ? params.get("arguments") : null;
+
+            System.err.println("[MCP Server] Calling tool: " + toolName + " with arguments: " + arguments);
+
+            // Convert JsonNode arguments to Map
+            Map<String, Object> argumentsMap = new HashMap<>();
+            if (arguments != null && arguments.isObject()) {
+                arguments.fields().forEachRemaining(entry -> {
+                    JsonNode value = entry.getValue();
+                    if (value.isTextual()) {
+                        argumentsMap.put(entry.getKey(), value.asText());
+                    } else if (value.isNumber()) {
+                        argumentsMap.put(entry.getKey(), value.asDouble());
+                    } else if (value.isBoolean()) {
+                        argumentsMap.put(entry.getKey(), value.asBoolean());
+                    } else {
+                        argumentsMap.put(entry.getKey(), value.toString());
+                    }
+                });
+            }
+
+            // Call the MCP tooling service with the corrected parameters
+            var result = mcpToolingService.executeTool(toolName, argumentsMap);
+
+            // Wrap the result in MCP-compliant format
+            Map<String, Object> mcpResult = new HashMap<>();
+            mcpResult.put("content", java.util.List.of(
+                Map.of(
+                    "type", "text",
+                    "text", result.toString()
+                )
+            ));
+
+            sendSuccessResponse(id, mcpResult);
+
+        } catch (Exception e) {
+            System.err.println("[MCP Server] Error in tools/call: " + e.getMessage());
+            e.printStackTrace();
+            sendErrorResponse(id, -32603, "Internal error calling tool: " + e.getMessage());
+        }
+    }
+
     private void sendSuccessResponse(Object id, Object result) {
         Map<String, Object> response = new HashMap<>();
         response.put("jsonrpc", "2.0");

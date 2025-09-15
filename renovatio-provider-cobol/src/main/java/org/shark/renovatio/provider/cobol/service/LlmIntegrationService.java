@@ -1,99 +1,55 @@
 package org.shark.renovatio.provider.cobol.service;
 
-import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.service.AiServices;
 import org.shark.renovatio.shared.nql.NqlParserService;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * LLM integration service using LangChain4j
- * Provides natural language to NQL translation and migration assistance
- * (Optional - only enabled when LLM dependencies are available)
+ * Service for integrating with LLM systems and parsing NQL queries
  */
 @Service
 public class LlmIntegrationService {
-    
-    private final CobolMigrationAssistant migrationAssistant;
-    private final NqlParserService parserService;
 
-    public LlmIntegrationService(NqlParserService parserService) {
-        // Initialize with placeholder - in production would inject ChatLanguageModel
-        this.migrationAssistant = null;
-        this.parserService = parserService;
+    private static final Logger logger = LoggerFactory.getLogger(LlmIntegrationService.class);
+
+    private final NqlParserService nqlParserService;
+
+    public LlmIntegrationService(NqlParserService nqlParserService) {
+        this.nqlParserService = nqlParserService;
     }
-    
+
     /**
-     * Translates natural language query to NQL
-     */
-    public NqlQuery translateToNql(String naturalLanguageQuery) {
-        try {
-            // Placeholder implementation - would use LLM when available
-            String nqlQuery = "FIND programs WHERE name LIKE '" + naturalLanguageQuery + "'";
-            return parseNqlQuery(nqlQuery);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to translate query: " + e.getMessage(), e);
-        }
-    }
-    
-    /**
-     * Provides migration advice for COBOL constructs
-     */
-    public String getMigrationAdvice(String cobolConstruct) {
-        return "Migration advice for: " + cobolConstruct + " (LLM integration disabled)";
-    }
-    
-    /**
-     * Explains COBOL business logic for Java migration
-     */
-    public String explainBusinessLogic(String cobolCode) {
-        return "Business logic explanation for COBOL code (LLM integration disabled)";
-    }
-    
-    /**
-     * Suggests Java equivalent for COBOL patterns
-     */
-    public String suggestJavaEquivalent(String cobolPattern) {
-        return "Java equivalent suggestion for: " + cobolPattern + " (LLM integration disabled)";
-    }
-    
-    /**
-     * Parses the provided NQL string using {@link NqlParserService}.
+     * Parse an NQL query string into a structured NqlQuery object
+     *
+     * @param nqlString the NQL query string to parse
+     * @return parsed NqlQuery object
      */
     private NqlQuery parseNqlQuery(String nqlString) {
-        NqlQuery query = parserService.parse(nqlString);
-        if (query == null) {
-            throw new IllegalArgumentException("Invalid NQL query: " + nqlString);
-        }
-        query.setLanguage("cobol");
-        return query;
-    }
-    
-    /**
-     * Parses the provided NQL string using {@link NqlParserService}.
-     * Throws IllegalArgumentException if the query is invalid.
-     * Returns the target if valid.
-     */
-    public String parseAndValidateNql(String nqlString) {
-        NqlQuery query = parserService.parse(nqlString);
-        if (query == null) {
-            throw new IllegalArgumentException("Invalid NQL query: " + nqlString);
-        }
-        query.setLanguage("cobol");
-        return query.getTarget();
-    }
+        logger.debug("Parsing NQL query: {}", nqlString);
 
-    /**
-     * AI assistant interface for COBOL migration
-     */
-    interface CobolMigrationAssistant {
-        
-        String translateToNql(String naturalLanguageQuery);
-        
-        String provideMigrationAdvice(String cobolConstruct);
-        
-        String explainBusinessLogic(String cobolCode);
-        
-        String suggestJavaEquivalent(String cobolPattern);
+        try {
+            NqlQuery query = nqlParserService.parse(nqlString);
+            if (query != null && query.getType() != null) {
+                logger.debug("Successfully parsed NQL query: type={}, target={}",
+                           query.getType(), query.getTarget());
+                return query;
+            } else {
+                logger.warn("Failed to parse NQL query, creating fallback query");
+                // Create a fallback query for invalid input
+                NqlQuery fallbackQuery = new NqlQuery();
+                fallbackQuery.setOriginalQuery(nqlString);
+                fallbackQuery.setType(null); // Indicates parsing failure
+                return fallbackQuery;
+            }
+        } catch (Exception e) {
+            logger.error("Exception while parsing NQL query: {}", e.getMessage(), e);
+            // Create a fallback query for exceptions
+            NqlQuery fallbackQuery = new NqlQuery();
+            fallbackQuery.setOriginalQuery(nqlString);
+            fallbackQuery.setType(null); // Indicates parsing failure
+            return fallbackQuery;
+        }
     }
 }

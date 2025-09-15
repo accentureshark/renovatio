@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -34,7 +35,7 @@ public class MigrationReportService {
         MigrationReport report = new MigrationReport();
         Scope scope = new Scope();
         Workspace workspace = new Workspace("report", ".", "main");
-        List<LanguageProvider> providers = registry.getAllProviders();
+        List<LanguageProvider> providers = new ArrayList<>(registry.getAllProviders());
         for (LanguageProvider provider : providers) {
             MetricsResult metrics = provider.metrics(scope, workspace);
             report.addStatus(provider.language(), metrics.isSuccess());

@@ -2,13 +2,18 @@ package org.shark.renovatio.mcp.server.service;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.shark.renovatio.mcp.server.model.*;
 import org.shark.renovatio.core.service.LanguageProviderRegistry;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Test for MCP Protocol Service to verify MCP compliance
@@ -17,15 +22,22 @@ import static org.junit.jupiter.api.Assertions.*;
 public class McpProtocolServiceTest {
 
     private McpProtocolService mcpProtocolService;
+    @Mock
     private McpToolingService mcpToolingService;
+    @Mock
     private LanguageProviderRegistry languageProviderRegistry;
+    @Mock
+    private McpToolAdapter toolAdapter;
 
     @BeforeEach
     void setUp() {
-        languageProviderRegistry = new LanguageProviderRegistry();
-        McpToolAdapter toolAdapter = new McpToolAdapter();
-        mcpToolingService = new McpToolingService(languageProviderRegistry, toolAdapter);
-        mcpProtocolService = new McpProtocolService(mcpToolingService, languageProviderRegistry);
+        MockitoAnnotations.openMocks(this);
+
+        // Mock the basic dependencies
+        when(mcpToolingService.getMcpTools()).thenReturn(new ArrayList<>());
+        when(mcpToolingService.getSupportedLanguages()).thenReturn(java.util.Set.of("java"));
+
+        mcpProtocolService = new McpProtocolService(mcpToolingService);
     }
 
     @Test

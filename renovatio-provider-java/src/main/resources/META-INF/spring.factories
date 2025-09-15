@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+org.shark.renovatio.provider.java.config.JavaProviderAutoConfiguration

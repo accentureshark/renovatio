@@ -1,7 +1,6 @@
 package org.shark.renovatio.mcp.server.service;
 
 import org.shark.renovatio.mcp.server.model.*;
-import org.shark.renovatio.core.service.LanguageProviderRegistry;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -21,13 +20,10 @@ import java.util.stream.Collectors;
 public class McpProtocolService {
     
     private final McpToolingService mcpToolingService;
-    private final LanguageProviderRegistry languageProviderRegistry;
     private final Set<String> loggingSubscribers = ConcurrentHashMap.newKeySet();
 
-    public McpProtocolService(McpToolingService mcpToolingService, 
-                            LanguageProviderRegistry languageProviderRegistry) {
+    public McpProtocolService(McpToolingService mcpToolingService) {
         this.mcpToolingService = mcpToolingService;
-        this.languageProviderRegistry = languageProviderRegistry;
     }
 
     /**
@@ -134,25 +130,70 @@ public class McpProtocolService {
     }
 
     /**
-     * MCP tools/call method - executes a specific tool with given arguments.
+     * MCP tools/call method - executes a specific tool with parameters.
      */
     private McpResponse handleToolsCall(McpRequest request) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> params = (Map<String, Object>) request.getParams();
-        String toolName = (String) params.get("name");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> arguments = (Map<String, Object>) params.get("arguments");
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> params = (Map<String, Object>) request.getParams();
+            if (params == null || !params.containsKey("name")) {
+                return new McpResponse(request.getId(),
+                    new McpError(-32602, "Invalid params - missing tool name"));
+            }
 
-        Map<String, Object> rawResponse = mcpToolingService.executeTool(toolName, arguments);
-        Map<String, Object> response = new HashMap<>();
-        Object type = rawResponse.get("type");
-        Object text = rawResponse.get("text");
-        response.put("type", type != null ? type : "text");
-        response.put("text", text != null ? text.toString() : rawResponse.toString());
+            String toolName = (String) params.get("name");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> arguments = (Map<String, Object>) params.getOrDefault("arguments", new HashMap<>());
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("content", List.of(response));
-        return new McpResponse(request.getId(), result);
+            // Execute the tool using McpToolingService
+            Map<String, Object> rawResult = mcpToolingService.executeTool(toolName, arguments);
+
+            Map<String, Object> result = new HashMap<>();
+            // --- MCP metrics content flattening ---
+            if (rawResult.containsKey("metrics")) {
+                Map<String, Object> metrics = (Map<String, Object>) rawResult.get("metrics");
+                Map<String, Object> content = new HashMap<>();
+                content.put("type", "metrics");
+                content.putAll(metrics); // flatten metrics at top level
+                result.put("content", List.of(content));
+            } else {
+                // Default: text or other types
+                Map<String, Object> content = new HashMap<>();
+                content.put("type", rawResult.getOrDefault("type", "text"));
+                content.put("text", rawResult.getOrDefault("text", rawResult.toString()));
+                result.put("content", List.of(content));
+            }
+
+            return new McpResponse(request.getId(), result);
+        } catch (Exception e) {
+            return new McpResponse(request.getId(),
+                new McpError(-32603, "Tool execution error: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Helper method for stdio server to call tools.
+     */
+    public Map<String, Object> callToolAction(String toolName, String action, com.fasterxml.jackson.databind.JsonNode params) {
+        try {
+            Map<String, Object> arguments = new HashMap<>();
+            if (params != null && params.isObject()) {
+                arguments = new com.fasterxml.jackson.databind.ObjectMapper().convertValue(params, Map.class);
+            }
+
+            // For MCP compatibility, combine tool name and action
+            String fullToolName = toolName;
+            if (action != null && !action.isEmpty()) {
+                fullToolName = toolName + "_" + action;
+            }
+
+            return mcpToolingService.executeTool(fullToolName, arguments);
+        } catch (Exception e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("error", e.getMessage());
+            return errorResult;
+        }
     }
 
     /**
@@ -189,8 +230,8 @@ public class McpProtocolService {
         serverInfo.put("version", "1.0.0");
         serverInfo.put("description", "Multi-language refactoring and migration platform");
         serverInfo.put("protocolVersion", "2025-06-18");
-        serverInfo.put("supportedLanguages", languageProviderRegistry.getSupportedLanguages());
-        
+        serverInfo.put("supportedLanguages", mcpToolingService.getSupportedLanguages());
+
         Map<String, Object> result = new HashMap<>();
         result.put("serverInfo", serverInfo);
         return new McpResponse(request.getId(), result);
@@ -344,22 +385,5 @@ public class McpProtocolService {
             "version", "1.0.0"
         ));
         return new McpResponse(request.getId(), result);
-    }
-
-    /**
-     * Get available tools for MCP stdio server
-     */
-    public List<Object> getAvailableTools() {
-        return mcpToolingService.getMcpTools().stream()
-            .map(tool -> {
-                Map<String, Object> toolMap = new HashMap<>();
-                toolMap.put("name", tool.getName());
-                toolMap.put("description", tool.getDescription());
-                if (tool.getInputSchema() != null) {
-                    toolMap.put("inputSchema", tool.getInputSchema());
-                }
-                return toolMap;
-            })
-            .collect(Collectors.toList());
     }
 }

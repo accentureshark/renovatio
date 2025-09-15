@@ -16,7 +16,8 @@ import org.springframework.context.annotation.ComponentScan;
 @ComponentScan(basePackages = {
     "org.shark.renovatio.mcp.server",
     "org.shark.renovatio.core.service",
-    "org.shark.renovatio.shared"
+    "org.shark.renovatio.shared",
+    "org.shark.renovatio.provider.java"
 })
 public class McpServerApplication {
 

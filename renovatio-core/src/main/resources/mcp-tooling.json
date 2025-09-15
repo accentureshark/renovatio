@@ -37,7 +37,7 @@
       }
     },
     {
-      "name": "cobol.analyze",
+      "name": "cobol_analyze",
       "description": "Analyze code structure and extract information for COBOL",
       "parameters": [
         {
@@ -57,7 +57,7 @@
       }
     },
     {
-      "name": "cobol.generate_stubs",
+      "name": "cobol_generate_stubs",
       "description": "Generate interface stubs for COBOL programs",
       "parameters": [
         {
@@ -77,7 +77,7 @@
       }
     },
     {
-      "name": "java.analyze",
+      "name": "java_analyze",
       "description": "Analyze code structure and extract information for Java",
       "parameters": [
         {

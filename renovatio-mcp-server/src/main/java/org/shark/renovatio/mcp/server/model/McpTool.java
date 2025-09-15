@@ -1,17 +1,13 @@
 package org.shark.renovatio.mcp.server.model;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.Map;
 
-@Schema(description = "MCP Tool definition")
+/**
+ * MCP Tool model representing a tool available through the MCP protocol
+ */
 public class McpTool {
-    @Schema(description = "Tool name")
     private String name;
-    
-    @Schema(description = "Tool description")
     private String description;
-    
-    @Schema(description = "Input schema definition")
     private Map<String, Object> inputSchema;
 
     public McpTool() {}
@@ -44,5 +40,13 @@ public class McpTool {
 
     public void setInputSchema(Map<String, Object> inputSchema) {
         this.inputSchema = inputSchema;
+    }
+
+    @Override
+    public String toString() {
+        return "McpTool{" +
+                "name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                '}';
     }
 }

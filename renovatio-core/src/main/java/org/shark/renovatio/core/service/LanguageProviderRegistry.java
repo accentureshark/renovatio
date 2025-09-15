@@ -1,358 +1,318 @@
 package org.shark.renovatio.core.service;
 
-import org.shark.renovatio.shared.domain.Tool;
-import org.shark.renovatio.shared.domain.Recipe;
-import org.shark.renovatio.shared.domain.BasicTool;
 import org.shark.renovatio.shared.spi.LanguageProvider;
-import org.shark.renovatio.shared.nql.NqlQuery;
-import org.shark.renovatio.shared.nql.NqlCompileResult;
 import org.shark.renovatio.shared.domain.*;
+import org.shark.renovatio.shared.nql.NqlQuery;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Set;
+import jakarta.annotation.PostConstruct;
+import java.util.*;
 
 /**
- * Core service that manages language providers and tool routing
+ * Registry for language providers that handles routing tool calls to appropriate providers.
+ * This component connects MCP tools to language providers using Spring's auto-configuration.
  */
 @Service
 public class LanguageProviderRegistry {
-    
-    private final Map<String, LanguageProvider> providers = new ConcurrentHashMap<>();
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(LanguageProviderRegistry.class);
+
+    @Autowired
+    private ApplicationContext applicationContext;
+
+    private final Map<String, LanguageProvider> providers = new HashMap<>();
+
     /**
-     * Register a language provider
+     * Auto-register all LanguageProvider beans after Spring context initialization
+     */
+    @PostConstruct
+    public void registerDefaultProviders() {
+        logger.info("LanguageProviderRegistry initializing...");
+
+        try {
+            // Find all LanguageProvider beans in the Spring context
+            Map<String, LanguageProvider> providerBeans = applicationContext.getBeansOfType(LanguageProvider.class);
+
+            logger.info("Found {} LanguageProvider beans in Spring context", providerBeans.size());
+
+            for (Map.Entry<String, LanguageProvider> entry : providerBeans.entrySet()) {
+                String beanName = entry.getKey();
+                LanguageProvider provider = entry.getValue();
+
+                providers.put(provider.language(), provider);
+                logger.info("Auto-registered LanguageProvider: {} (bean: {}) with capabilities: {}",
+                        provider.language(), beanName, provider.capabilities());
+            }
+
+            logger.info("LanguageProviderRegistry initialized with {} providers: {}",
+                    providers.size(), providers.keySet());
+
+        } catch (Exception e) {
+            logger.error("Error during LanguageProvider auto-registration: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Manual registration method (kept for compatibility)
      */
     public void registerProvider(LanguageProvider provider) {
         providers.put(provider.language(), provider);
+        logger.info("Manually registered language provider: {} with capabilities: {}",
+                provider.language(), provider.capabilities());
     }
-    
-    /**
-     * Get provider for a specific language
-     */
-    public LanguageProvider getProvider(String language) {
-        return providers.get(language);
-    }
-    
+
     /**
      * Get all registered providers
      */
-    public List<LanguageProvider> getAllProviders() {
-        return new ArrayList<>(providers.values());
+    public Collection<LanguageProvider> getAllProviders() {
+        return providers.values();
     }
-    
+
     /**
      * Get supported languages
      */
     public Set<String> getSupportedLanguages() {
         return providers.keySet();
     }
-    
+
     /**
-     * Generate tool definitions dynamically based on registered providers
-     * Returns protocol-agnostic Tool objects
+     * Get a specific provider by language
      */
-    public List<Tool> generateTools() {
-        List<Tool> tools = new ArrayList<>();
-        
-        // Add common tools
-        tools.add(createNqlCompileTool());
-        tools.add(createCommonIndexTool());
-        tools.add(createCommonSearchTool());
-        
-        // Add provider-specific tools
+    public LanguageProvider getProvider(String language) {
+        return providers.get(language);
+    }
+
+    /**
+     * Generate tools from all registered providers
+     */
+    public List<org.shark.renovatio.shared.domain.Tool> generateTools() {
+        List<org.shark.renovatio.shared.domain.Tool> tools = new ArrayList<>();
+
         for (LanguageProvider provider : providers.values()) {
-            String lang = provider.language();
-            var capabilities = provider.capabilities();
-            
-            if (capabilities.contains(LanguageProvider.Capabilities.ANALYZE)) {
-                tools.add(createProviderTool(lang, "analyze", "Analyze code structure and extract information"));
-            }
-            if (capabilities.contains(LanguageProvider.Capabilities.PLAN)) {
-                tools.add(createProviderTool(lang, "plan", "Create execution plan for transformations"));
-            }
-            if (capabilities.contains(LanguageProvider.Capabilities.APPLY)) {
-                tools.add(createProviderTool(lang, "apply", "Apply transformation plan"));
-            }
-            if (capabilities.contains(LanguageProvider.Capabilities.DIFF)) {
-                tools.add(createProviderTool(lang, "diff", "Generate semantic diff"));
-            }
-            if (capabilities.contains(LanguageProvider.Capabilities.STUBS)) {
-                tools.add(createProviderTool(lang, "generate_stubs", "Generate interface stubs"));
-            }
-            if (capabilities.contains(LanguageProvider.Capabilities.METRICS)) {
-                tools.add(createProviderTool(lang, "metrics", "Calculate code metrics"));
+            String language = provider.language();
+
+            // Generate standard tools for each provider without using Capabilities enum
+            String[] capabilities = {"analyze", "metrics", "plan", "apply", "diff"};
+
+            for (String capability : capabilities) {
+                String toolName = language + "." + capability;
+                String description = generateDescription(language, capability);
+
+                org.shark.renovatio.shared.domain.BasicTool tool = new org.shark.renovatio.shared.domain.BasicTool();
+                tool.setName(toolName);
+                tool.setDescription(description);
+
+                tools.add(tool);
             }
         }
-        
+
+        logger.info("Generated {} tools from {} providers", tools.size(), providers.size());
         return tools;
     }
-    
+
     /**
-     * Route tool call to appropriate provider
+     * Route tool call to appropriate language provider
      */
     public Map<String, Object> routeToolCall(String toolName, Map<String, Object> arguments) {
-        String[] parts = toolName.split("_", 2);
+        logger.info("=== ROUTING TOOL CALL ===");
+        logger.info("Tool name: {}", toolName);
+        logger.info("Arguments: {}", arguments);
 
-        if (parts.length < 2) {
-            return createErrorResult("Invalid tool name format. Expected: language_operation");
-        }
-        
-        String namespace = parts[0];
-        String operation = parts[1];
-        
-        // Handle common tools
-        if ("common".equals(namespace)) {
-            return handleCommonTool(operation, arguments);
-        }
-        
-        // Handle NQL tools
-        if ("nql".equals(namespace)) {
-            return handleNqlTool(operation, arguments);
-        }
-        
-        // Handle provider-specific tools
-        LanguageProvider provider = providers.get(namespace);
-        if (provider == null) {
-            return createErrorResult("No provider found for language: " + namespace);
-        }
-        
-        return handleProviderTool(provider, operation, arguments);
-    }
-    
-    private Tool createNqlCompileTool() {
-        Map<String, Object> schema = new HashMap<>();
-        schema.put("type", "object");
-        Map<String, Object> properties = new HashMap<>();
-        properties.put("question", Map.of("type", "string", "description", "Natural language question"));
-        properties.put("context", Map.of("type", "string", "description", "Additional context"));
-        schema.put("properties", properties);
-        schema.put("required", List.of("question"));
-        
-        return new BasicTool(
-            "nql_compile",
-            "Compile natural language to NQL",
-            schema
-        );
-    }
-    
-    private Tool createCommonIndexTool() {
-        Map<String, Object> schema = new HashMap<>();
-        schema.put("type", "object");
-        Map<String, Object> properties = new HashMap<>();
-        properties.put("repoId", Map.of("type", "string", "description", "Repository ID"));
-        schema.put("properties", properties);
-        schema.put("required", List.of("repoId"));
-        
-        return new BasicTool(
-            "common_index",
-            "Index repository for search",
-            schema
-        );
-    }
-    
-    private Tool createCommonSearchTool() {
-        Map<String, Object> schema = new HashMap<>();
-        schema.put("type", "object");
-        Map<String, Object> properties = new HashMap<>();
-        properties.put("repoId", Map.of("type", "string", "description", "Repository ID"));
-        properties.put("query", Map.of("type", "string", "description", "Search query"));
-        properties.put("path", Map.of("type", "string", "description", "Path filter"));
-        schema.put("properties", properties);
-        schema.put("required", List.of("repoId", "query"));
-        
-        return new BasicTool(
-            "common_search",
-            "Search indexed repository",
-            schema
-        );
-    }
-    
-    private Tool createProviderTool(String language, String operation, String description) {
-        Map<String, Object> schema = new HashMap<>();
-        schema.put("type", "object");
-        Map<String, Object> properties = new HashMap<>();
-        properties.put("nql", Map.of("type", "string", "description", "NQL query"));
-        properties.put("scope", Map.of("type", "string", "description", "Operation scope"));
-        schema.put("properties", properties);
-        
-        return new BasicTool(
-            language + "_" + operation,
-            description + " for " + language,
-            schema
-        );
-    }
-    
-    private Map<String, Object> handleCommonTool(String operation, Map<String, Object> arguments) {
-        // Placeholder for common operations like indexing and search
-        Map<String, Object> result = new HashMap<>();
-        result.put("type", "text");
-        result.put("text", "Common operation '" + operation + "' not yet implemented");
-        return result;
-    }
-    
-    private Map<String, Object> handleNqlTool(String operation, Map<String, Object> arguments) {
-        // Placeholder for NQL compilation
-        Map<String, Object> result = new HashMap<>();
-        result.put("type", "text");
-        result.put("text", "NQL operation '" + operation + "' not yet implemented");
-        return result;
-    }
-    
-    private Map<String, Object> handleProviderTool(LanguageProvider provider, String operation, Map<String, Object> arguments) {
         try {
-            // Extract common parameters
-            String nqlString = (String) arguments.get("nql");
-            String scopeString = (String) arguments.get("scope");
-            String workspacePath = (String) arguments.get("workspacePath");
-
-            // Create basic NQL query object
-            NqlQuery query = new NqlQuery();
-            query.setOriginalQuery(nqlString);
-            query.setLanguage(provider.language());
-            
-            // Create basic scope
-            Scope scope = new Scope();
-            if (scopeString != null) {
-                scope.setPaths(List.of(scopeString.split(",")));
+            // Parse tool name to extract language and capability
+            String[] parts = toolName.split("\\.");
+            if (parts.length != 2) {
+                return createErrorResult("Invalid tool name format: " + toolName);
             }
-            
-            // Create workspace with the correct path from arguments
-            Workspace workspace = new Workspace();
-            workspace.setId("mcp-" + System.currentTimeMillis());
-            workspace.setPath(workspacePath != null ? workspacePath : ".");
-            workspace.setBranch("main");
-            
-            Map<String, Object> result = new HashMap<>();
-            
-            switch (operation) {
+
+            String language = parts[0];
+            String capability = parts[1].toLowerCase();
+
+            LanguageProvider provider = providers.get(language);
+            if (provider == null) {
+                return createErrorResult("No provider found for language: " + language);
+            }
+
+            logger.info("Found provider for language: {}", language);
+            logger.info("Provider class: {}", provider.getClass().getName());
+            logger.info("Provider capabilities: {}", provider.capabilities());
+
+            // Create workspace and query objects
+            Workspace workspace = createWorkspace(arguments);
+            NqlQuery query = createNqlQuery(arguments);
+            Scope scope = createScope(arguments);
+
+            logger.info("Created workspace: path={}, id={}", workspace.getPath(), workspace.getId());
+            logger.info("Created query: query={}, language={}", query.getOriginalQuery(), query.getLanguage());
+            logger.info("Created scope: includePatterns={}", scope.getIncludePatterns());
+
+            // Route to appropriate method based on capability
+            logger.info("Routing to capability: {}", capability);
+            switch (capability) {
                 case "analyze":
-                    var analyzeResult = provider.analyze(query, workspace);
-                    result.put("type", "object");
-                    result.put("success", analyzeResult.isSuccess());
-                    result.put("message", analyzeResult.getMessage());
-                    result.put("runId", analyzeResult.getRunId());
-                    result.put("ast", analyzeResult.getAst());
-                    result.put("dependencies", analyzeResult.getDependencies());
-                    result.put("symbols", analyzeResult.getSymbols());
-                    // Include data if available
-                    if (analyzeResult.getData() != null) {
-                        result.put("data", analyzeResult.getData());
-                    }
-                    break;
-                    
-                case "plan":
-                    var planResult = provider.plan(query, scope, workspace);
-                    result.put("type", "object");
-                    result.put("success", planResult.isSuccess());
-                    result.put("message", planResult.getMessage());
-                    result.put("planId", planResult.getPlanId());
-                    result.put("planContent", planResult.getPlanContent());
-                    result.put("steps", planResult.getSteps());
-                    break;
-                    
-                case "apply":
-                    String planId = (String) arguments.getOrDefault("planId", "default-plan");
-                    boolean dryRun = Boolean.parseBoolean((String) arguments.getOrDefault("dryRun", "true"));
-                    var applyResult = provider.apply(planId, dryRun, workspace);
-                    result.put("type", "object");
-                    result.put("success", applyResult.isSuccess());
-                    result.put("message", applyResult.getMessage());
-                    result.put("diff", applyResult.getDiff());
-                    result.put("changes", applyResult.getChanges());
-                    result.put("dryRun", applyResult.isDryRun());
-                    break;
-                    
-                case "diff":
-                    String runId = (String) arguments.getOrDefault("runId", "default-run");
-                    var diffResult = provider.diff(runId, workspace);
-                    result.put("type", "object");
-                    result.put("success", diffResult.isSuccess());
-                    result.put("message", diffResult.getMessage());
-                    result.put("unifiedDiff", diffResult.getUnifiedDiff());
-                    result.put("semanticDiff", diffResult.getSemanticDiff());
-                    result.put("hunks", diffResult.getHunks());
-                    break;
-                    
-                case "generate_stubs":
-                    var stubResultOpt = provider.generateStubs(query, workspace);
-                    if (stubResultOpt.isPresent()) {
-                        var stubResult = stubResultOpt.get();
-                        result.put("type", "object");
-                        result.put("success", stubResult.isSuccess());
-                        result.put("message", stubResult.getMessage());
-                        result.put("targetLanguage", stubResult.getTargetLanguage());
-                        result.put("generatedFiles", stubResult.getGeneratedFiles());
-                        result.put("stubTemplate", stubResult.getStubTemplate());
-                    } else {
-                        result.put("type", "text");
-                        result.put("text", "Stub generation not supported for " + provider.language());
-                    }
-                    break;
-                    
+                    logger.info("Calling provider.analyze()...");
+                    AnalyzeResult analyzeResult = provider.analyze(query, workspace);
+                    logger.info("Provider.analyze() returned: success={}, message={}, runId={}",
+                            analyzeResult.isSuccess(), analyzeResult.getMessage(), analyzeResult.getRunId());
+                    Map<String, Object> analyzeMap = convertToMap(analyzeResult);
+                    logger.info("Converted result: {}", analyzeMap);
+                    return analyzeMap;
+
                 case "metrics":
-                    var metricsResult = provider.metrics(scope, workspace);
-                    result.put("type", "object");
-                    result.put("success", metricsResult.isSuccess());
-                    result.put("message", metricsResult.getMessage());
-                    result.put("metrics", metricsResult.getMetrics());
-                    result.put("details", metricsResult.getDetails());
-                    break;
-                    
+                    logger.info("Calling provider.metrics()...");
+                    MetricsResult metricsResult = provider.metrics(scope, workspace);
+                    logger.info("Provider.metrics() returned: success={}, message={}",
+                            metricsResult.isSuccess(), metricsResult.getMessage());
+                    Map<String, Object> metricsMap = convertToMap(metricsResult);
+                    logger.info("Converted result: {}", metricsMap);
+                    return metricsMap;
+
+                case "plan":
+                    logger.info("Calling provider.plan()...");
+                    PlanResult planResult = provider.plan(query, scope, workspace);
+                    logger.info("Provider.plan() returned: success={}, message={}",
+                            planResult.isSuccess(), planResult.getMessage());
+                    return convertToMap(planResult);
+
+                case "apply":
+                    String planId = (String) arguments.get("planId");
+                    boolean dryRun = Boolean.parseBoolean(arguments.getOrDefault("dryRun", "true").toString());
+                    logger.info("Calling provider.apply() with planId={}, dryRun={}", planId, dryRun);
+                    ApplyResult applyResult = provider.apply(planId, dryRun, workspace);
+                    logger.info("Provider.apply() returned: success={}, message={}",
+                            applyResult.isSuccess(), applyResult.getMessage());
+                    return convertToMap(applyResult);
+
+                case "diff":
+                    String runId = (String) arguments.get("runId");
+                    logger.info("Calling provider.diff() with runId={}", runId);
+                    DiffResult diffResult = provider.diff(runId, workspace);
+                    logger.info("Provider.diff() returned: success={}, message={}",
+                            diffResult.isSuccess(), diffResult.getMessage());
+                    return convertToMap(diffResult);
+
                 default:
-                    result.put("type", "text");
-                    result.put("text", "Unknown operation: " + operation);
+                    return createErrorResult("Unsupported capability: " + capability);
             }
-            
-            return result;
-            
+
         } catch (Exception e) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("type", "text");
-            result.put("text", "Error executing " + operation + " for " + provider.language() + ": " + e.getMessage());
-            return result;
+            logger.error("Error routing tool call: {}", e.getMessage(), e);
+            logger.error("Stack trace:", e);
+            return createErrorResult("Error executing tool: " + e.getMessage());
         }
     }
-    
-    private Map<String, Object> createErrorResult(String message) {
+
+    private Workspace createWorkspace(Map<String, Object> arguments) {
+        Workspace workspace = new Workspace();
+        workspace.setId("default");
+        workspace.setPath((String) arguments.get("workspacePath"));
+        workspace.setBranch("main");
+        return workspace;
+    }
+
+    private NqlQuery createNqlQuery(Map<String, Object> arguments) {
+        NqlQuery query = new NqlQuery();
+        query.setOriginalQuery((String) arguments.getOrDefault("nql", "default query"));
+        query.setLanguage((String) arguments.getOrDefault("language", "java"));
+        return query;
+    }
+
+    private Scope createScope(Map<String, Object> arguments) {
+        Scope scope = new Scope();
+        String scopePattern = (String) arguments.getOrDefault("scope", "**/*");
+        scope.setIncludePatterns(java.util.Arrays.asList(scopePattern));
+        return scope;
+    }
+
+    private Map<String, Object> convertToMap(Object result) {
+        Map<String, Object> map = new HashMap<>();
+
+        logger.info("=== CONVERT TO MAP DEBUG ===");
+        logger.info("Input result type: {}", result != null ? result.getClass().getName() : "null");
+        logger.info("Input result: {}", result);
+
+        if (result instanceof AnalyzeResult) {
+            AnalyzeResult ar = (AnalyzeResult) result;
+            logger.info("Converting AnalyzeResult: success={}, message={}", ar.isSuccess(), ar.getMessage());
+            map.put("success", ar.isSuccess());
+            map.put("message", ar.getMessage());
+            map.put("runId", ar.getRunId());
+            map.put("data", ar.getData());
+            map.put("ast", ar.getAst());
+            map.put("symbols", ar.getSymbols());
+            map.put("dependencies", ar.getDependencies());
+            map.put("type", "analyze");
+
+        } else if (result instanceof MetricsResult) {
+            MetricsResult mr = (MetricsResult) result;
+            logger.info("Converting MetricsResult: success={}, message={}", mr.isSuccess(), mr.getMessage());
+            logger.info("MetricsResult metrics: {}", mr.getMetrics());
+            logger.info("MetricsResult details: {}", mr.getDetails());
+
+            map.put("success", mr.isSuccess());
+            map.put("message", mr.getMessage());
+            map.put("metrics", mr.getMetrics());
+            map.put("details", mr.getDetails());
+            map.put("type", "metrics");
+
+            logger.info("Final converted map: {}", map);
+
+        } else if (result instanceof PlanResult) {
+            PlanResult pr = (PlanResult) result;
+            logger.info("Converting PlanResult: success={}, message={}", pr.isSuccess(), pr.getMessage());
+            map.put("success", pr.isSuccess());
+            map.put("message", pr.getMessage());
+            map.put("planId", pr.getPlanId());
+            map.put("planContent", pr.getPlanContent());
+            map.put("steps", pr.getSteps());
+            map.put("type", "plan");
+
+        } else if (result instanceof ApplyResult) {
+            ApplyResult ar = (ApplyResult) result;
+            logger.info("Converting ApplyResult: success={}, message={}", ar.isSuccess(), ar.getMessage());
+            map.put("success", ar.isSuccess());
+            map.put("message", ar.getMessage());
+            map.put("dryRun", ar.isDryRun());
+            map.put("diff", ar.getDiff());
+            map.put("changes", ar.getChanges());
+            map.put("type", "apply");
+
+        } else if (result instanceof DiffResult) {
+            DiffResult dr = (DiffResult) result;
+            logger.info("Converting DiffResult: success={}, message={}", dr.isSuccess(), dr.getMessage());
+            map.put("success", dr.isSuccess());
+            map.put("message", dr.getMessage());
+            map.put("unifiedDiff", dr.getUnifiedDiff());
+            map.put("semanticDiff", dr.getSemanticDiff());
+            map.put("hunks", dr.getHunks());
+            map.put("type", "diff");
+        } else {
+            logger.warn("Unknown result type: {}", result != null ? result.getClass().getName() : "null");
+            map.put("success", false);
+            map.put("message", "Unknown result type");
+            map.put("type", "error");
+        }
+
+        logger.info("convertToMap returning: {}", map);
+        return map;
+    }
+
+    private Map<String, Object> createErrorResult(String errorMessage) {
         Map<String, Object> result = new HashMap<>();
-        result.put("type", "text");
-        result.put("text", "Error: " + message);
+        result.put("success", false);
+        result.put("message", errorMessage);
+        result.put("type", "error");
         return result;
     }
 
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LanguageProviderRegistry.class);
-
-    public LanguageProviderRegistry() {
-        logger.info("LanguageProviderRegistry constructor called");
-    }
-
-    @jakarta.annotation.PostConstruct
-    public void registerDefaultProviders() {
-        logger.info("registerDefaultProviders called");
-        // Register Java provider
-        try {
-            Class<?> javaProviderClass = Class.forName("org.shark.renovatio.provider.java.JavaLanguageProvider");
-            LanguageProvider javaProvider = (LanguageProvider) javaProviderClass.getDeclaredConstructor().newInstance();
-            registerProvider(javaProvider);
-            logger.info("JavaLanguageProvider registered successfully.");
-        } catch (Exception e) {
-            logger.error("Could not register JavaLanguageProvider: {}", e.getMessage());
-        }
-        // Register COBOL provider
-        try {
-            Class<?> cobolProviderClass = Class.forName("org.shark.renovatio.provider.cobol.CobolLanguageProvider");
-            LanguageProvider cobolProvider = (LanguageProvider) cobolProviderClass.getDeclaredConstructor().newInstance();
-            registerProvider(cobolProvider);
-            logger.info("CobolLanguageProvider registered successfully.");
-        } catch (Exception e) {
-            logger.error("Could not register CobolLanguageProvider: {}", e.getMessage());
-        }
-        logger.info("Providers after registration: {}", getSupportedLanguages());
+    private String generateDescription(String language, String capability) {
+        return String.format("%s for %s",
+                capability.substring(0, 1).toUpperCase() +
+                        capability.substring(1).toLowerCase(),
+                language);
     }
 }
