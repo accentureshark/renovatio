@@ -191,4 +191,9 @@ public class CobolLanguageProvider extends BaseLanguageProvider {
             return new StubResult(false, "DB2 migration failed: " + e.getMessage());
         }
     }
+
+    @Override
+    public java.util.List<Tool> getTools() {
+        return java.util.Collections.emptyList();
+    }
 }

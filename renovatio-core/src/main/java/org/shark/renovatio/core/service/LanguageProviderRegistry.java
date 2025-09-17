@@ -87,31 +87,17 @@ public class LanguageProviderRegistry {
     }
 
     /**
-     * Generate tools from all registered providers
+     * Generate a list of all MCP-compliant tools from all registered language providers.
      */
-    public List<org.shark.renovatio.shared.domain.Tool> generateTools() {
-        List<org.shark.renovatio.shared.domain.Tool> tools = new ArrayList<>();
-
+    public List<Tool> generateTools() {
+        List<Tool> allTools = new ArrayList<>();
         for (LanguageProvider provider : providers.values()) {
-            String language = provider.language();
-
-            // Generate standard tools for each provider without using Capabilities enum
-            String[] capabilities = {"analyze", "metrics", "plan", "apply", "diff"};
-
-            for (String capability : capabilities) {
-                String toolName = language + "." + capability;
-                String description = generateDescription(language, capability);
-
-                org.shark.renovatio.shared.domain.BasicTool tool = new org.shark.renovatio.shared.domain.BasicTool();
-                tool.setName(toolName);
-                tool.setDescription(description);
-
-                tools.add(tool);
+            List<Tool> tools = provider.getTools();
+            if (tools != null) {
+                allTools.addAll(tools);
             }
         }
-
-        logger.info("Generated {} tools from {} providers", tools.size(), providers.size());
-        return tools;
+        return allTools;
     }
 
     /**

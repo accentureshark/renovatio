@@ -34,7 +34,22 @@ public class McpProtocolServiceTest {
         MockitoAnnotations.openMocks(this);
 
         // Mock the basic dependencies
-        when(mcpToolingService.getMcpTools()).thenReturn(new ArrayList<>());
+        // Simulate a real MCP tool with parameters for testing
+        List<McpTool> mockTools = new ArrayList<>();
+        McpTool tool = new McpTool();
+        tool.setName("java_analyze");
+        tool.setDescription("Analyze for java");
+        List<Map<String, Object>> params = new ArrayList<>();
+        Map<String, Object> param = new HashMap<>();
+        param.put("name", "workspacePath");
+        param.put("type", "string");
+        param.put("description", "Path to the workspace directory to analyze");
+        param.put("required", true);
+        params.add(param);
+        tool.setParameters(params);
+        tool.setExample(Map.of("workspacePath", "/tmp/project"));
+        mockTools.add(tool);
+        when(mcpToolingService.getMcpTools()).thenReturn(mockTools);
         when(mcpToolingService.getSupportedLanguages()).thenReturn(java.util.Set.of("java"));
 
         mcpProtocolService = new McpProtocolService(mcpToolingService);
@@ -96,6 +111,22 @@ public class McpProtocolServiceTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> result = (Map<String, Object>) response.getResult();
         assertNotNull(result.get("tools"));
+
+        @SuppressWarnings("unchecked")
+        List<McpTool> tools = (List<McpTool>) result.get("tools");
+        assertFalse(tools.isEmpty(), "Tools list should not be empty");
+        for (McpTool tool : tools) {
+            assertNotNull(tool.getName());
+            assertNotNull(tool.getParameters());
+            assertTrue(tool.getParameters() instanceof List);
+            List<Map<String, Object>> params = tool.getParameters();
+            for (Map<String, Object> param : params) {
+                assertNotNull(param.get("name"));
+                assertNotNull(param.get("type"));
+                assertNotNull(param.get("description"));
+                assertTrue(param.containsKey("required"));
+            }
+        }
     }
 
     @Test

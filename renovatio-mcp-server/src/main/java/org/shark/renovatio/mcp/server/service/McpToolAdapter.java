@@ -33,11 +33,11 @@ public class McpToolAdapter {
         mcpTool.setName(mcpToolName);
         mcpTool.setDescription(tool.getDescription());
 
-        // Ensure the schema includes workspacePath for provider tools
         Map<String, Object> schema = tool.getInputSchema();
+        Map<String, Object> mcpSchema = null;
         if (isProviderTool(mcpToolName) && schema != null) {
             // Make a copy of the schema to avoid modifying the original
-            Map<String, Object> mcpSchema = new HashMap<>(schema);
+            mcpSchema = new HashMap<>(schema);
             Map<String, Object> properties = (Map<String, Object>) mcpSchema.get("properties");
 
             if (properties != null && !properties.containsKey("workspacePath")) {
@@ -57,11 +57,39 @@ public class McpToolAdapter {
                     required.add("workspacePath");
                 }
             }
-
             mcpTool.setInputSchema(mcpSchema);
         } else {
             mcpTool.setInputSchema(schema);
+            mcpSchema = schema;
         }
+
+        // MCP-compliant: extract parameters from inputSchema if present
+        List<Map<String, Object>> parameters = new ArrayList<>();
+        if (mcpSchema != null && mcpSchema.containsKey("properties")) {
+            Map<String, Object> properties = (Map<String, Object>) mcpSchema.get("properties");
+            List<String> required = (List<String>) mcpSchema.getOrDefault("required", new ArrayList<>());
+            for (Map.Entry<String, Object> entry : properties.entrySet()) {
+                String paramName = entry.getKey();
+                Map<String, Object> prop = (Map<String, Object>) entry.getValue();
+                Map<String, Object> param = new HashMap<>();
+                param.put("name", paramName);
+                param.put("type", prop.getOrDefault("type", "string"));
+                param.put("description", prop.getOrDefault("description", ""));
+                param.put("required", required.contains(paramName));
+                parameters.add(param);
+            }
+        }
+        mcpTool.setParameters(parameters);
+
+        // MCP-compliant: set example if present in schema
+        Map<String, Object> example = null;
+        if (mcpSchema != null && mcpSchema.containsKey("example")) {
+            Object ex = mcpSchema.get("example");
+            if (ex instanceof Map) {
+                example = (Map<String, Object>) ex;
+            }
+        }
+        mcpTool.setExample(example);
 
         return mcpTool;
     }

@@ -53,6 +53,19 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
+        <!-- OpenRewrite for Java refactoring and recipe discovery -->
+        <dependency>
+            <groupId>org.openrewrite</groupId>
+            <artifactId>rewrite-java</artifactId>
+        </dependency>
+
+        <!-- OpenRewrite Java standard recipes (correct artifact) -->
+        <dependency>
+            <groupId>org.openrewrite.recipe</groupId>
+            <artifactId>rewrite-java-recipes</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

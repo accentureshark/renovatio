@@ -53,6 +53,11 @@ public interface LanguageProvider {
     MetricsResult metrics(Scope scope, Workspace workspace);
     
     /**
+     * Returns the list of MCP-compliant tools exposed by this provider.
+     */
+    java.util.List<org.shark.renovatio.shared.domain.Tool> getTools();
+
+    /**
      * Capabilities supported by a language provider
      */
     enum Capabilities {

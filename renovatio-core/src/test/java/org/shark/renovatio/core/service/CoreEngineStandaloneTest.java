@@ -193,5 +193,20 @@ public class CoreEngineStandaloneTest {
             result.setMessage("Mock stubs generated");
             return Optional.of(result);
         }
+
+        @Override
+        public List<org.shark.renovatio.shared.domain.Tool> getTools() {
+            Map<String, Object> inputSchema = new HashMap<>();
+            inputSchema.put("type", "object");
+            inputSchema.put("properties", Map.of("workspacePath", Map.of("type", "string")));
+            inputSchema.put("required", List.of("workspacePath"));
+            return List.of(
+                new org.shark.renovatio.shared.domain.BasicTool("mock.analyze", "Mock analyze tool", inputSchema),
+                new org.shark.renovatio.shared.domain.BasicTool("mock.metrics", "Mock metrics tool", inputSchema),
+                new org.shark.renovatio.shared.domain.BasicTool("mock.plan", "Mock plan tool", inputSchema),
+                new org.shark.renovatio.shared.domain.BasicTool("mock.apply", "Mock apply tool", inputSchema),
+                new org.shark.renovatio.shared.domain.BasicTool("mock.diff", "Mock diff tool", inputSchema)
+            );
+        }
     }
 }

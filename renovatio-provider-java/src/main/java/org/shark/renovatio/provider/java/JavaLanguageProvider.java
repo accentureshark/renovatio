@@ -557,4 +557,27 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
         // Normalize to 0-100 scale, with diminishing returns for very high ratios
         return Math.min(100.0, 20.0 + (methodToClassRatio * 10.0) / (1.0 + methodToClassRatio * 0.1));
     }
+
+    @Override
+    public List<org.shark.renovatio.shared.domain.Tool> getTools() {
+        List<org.shark.renovatio.shared.domain.Tool> tools = new ArrayList<>();
+        // Define input schema for java_analyze
+        Map<String, Object> properties = new HashMap<>();
+        Map<String, Object> workspacePath = new HashMap<>();
+        workspacePath.put("type", "string");
+        workspacePath.put("description", "Path to the workspace directory to analyze");
+        properties.put("workspacePath", workspacePath);
+        Map<String, Object> inputSchema = new HashMap<>();
+        inputSchema.put("type", "object");
+        inputSchema.put("properties", properties);
+        inputSchema.put("required", List.of("workspacePath"));
+        inputSchema.put("example", Map.of("workspacePath", "/path/to/workspace"));
+        tools.add(new org.shark.renovatio.shared.domain.BasicTool(
+            "java_analyze",
+            "Analyze for java",
+            inputSchema
+        ));
+        // Puedes agregar más herramientas MCP aquí (java_metrics, java_plan, etc.)
+        return tools;
+    }
 }

@@ -144,6 +144,141 @@ public class CobolProvider extends BaseLanguageProvider {
         return result;
     }
 
+    @Override
+    public java.util.List<Tool> getTools() {
+        List<Tool> tools = new ArrayList<>();
+
+        // Analyze tool
+        BasicTool analyzeTool = new BasicTool(
+            "cobol_analyze",
+            "Analyze COBOL source code",
+            Map.of(
+                "type", "object",
+                "properties", Map.of(
+                    "workspacePath", Map.of(
+                        "description", "Path to the workspace directory to analyze",
+                        "type", "string"
+                    )
+                ),
+                "required", List.of("workspacePath"),
+                "example", Map.of("workspacePath", "/path/to/cobol/workspace")
+            )
+        );
+        analyzeTool.getMetadata().put("parameters", List.of(
+            Map.of(
+                "name", "workspacePath",
+                "description", "Path to the workspace directory to analyze",
+                "type", "string",
+                "required", true
+            )
+        ));
+        analyzeTool.getMetadata().put("example", Map.of("workspacePath", "/path/to/cobol/workspace"));
+        tools.add(analyzeTool);
+
+        // Metrics tool
+        BasicTool metricsTool = new BasicTool(
+            "cobol_metrics",
+            "Calculate COBOL code metrics",
+            Map.of(
+                "type", "object",
+                "properties", Map.of(
+                    "workspacePath", Map.of(
+                        "description", "Path to the workspace directory to analyze",
+                        "type", "string"
+                    )
+                ),
+                "required", List.of("workspacePath"),
+                "example", Map.of("workspacePath", "/path/to/cobol/workspace")
+            )
+        );
+        metricsTool.getMetadata().put("parameters", List.of(
+            Map.of(
+                "name", "workspacePath",
+                "description", "Path to the workspace directory to analyze",
+                "type", "string",
+                "required", true
+            )
+        ));
+        metricsTool.getMetadata().put("example", Map.of("workspacePath", "/path/to/cobol/workspace"));
+        tools.add(metricsTool);
+
+        // Diff tool
+        BasicTool diffTool = new BasicTool(
+            "cobol_diff",
+            "Generate semantic diff for COBOL code",
+            Map.of(
+                "type", "object",
+                "properties", Map.of(
+                    "runId", Map.of(
+                        "description", "Run ID to generate diff for",
+                        "type", "string"
+                    ),
+                    "workspacePath", Map.of(
+                        "description", "Path to the workspace directory",
+                        "type", "string"
+                    )
+                ),
+                "required", List.of("runId", "workspacePath"),
+                "example", Map.of("runId", "run-123", "workspacePath", "/path/to/cobol/workspace")
+            )
+        );
+        diffTool.getMetadata().put("parameters", List.of(
+            Map.of(
+                "name", "runId",
+                "description", "Run ID to generate diff for",
+                "type", "string",
+                "required", true
+            ),
+            Map.of(
+                "name", "workspacePath",
+                "description", "Path to the workspace directory",
+                "type", "string",
+                "required", true
+            )
+        ));
+        diffTool.getMetadata().put("example", Map.of("runId", "run-123", "workspacePath", "/path/to/cobol/workspace"));
+        tools.add(diffTool);
+
+        // Generate stubs tool
+        BasicTool stubsTool = new BasicTool(
+            "cobol_generateStubs",
+            "Generate Java stubs/adapters for COBOL interfaces",
+            Map.of(
+                "type", "object",
+                "properties", Map.of(
+                    "workspacePath", Map.of(
+                        "description", "Path to the workspace directory",
+                        "type", "string"
+                    ),
+                    "targetLanguage", Map.of(
+                        "description", "Target language for stubs (e.g., java)",
+                        "type", "string"
+                    )
+                ),
+                "required", List.of("workspacePath", "targetLanguage"),
+                "example", Map.of("workspacePath", "/path/to/cobol/workspace", "targetLanguage", "java")
+            )
+        );
+        stubsTool.getMetadata().put("parameters", List.of(
+            Map.of(
+                "name", "workspacePath",
+                "description", "Path to the workspace directory",
+                "type", "string",
+                "required", true
+            ),
+            Map.of(
+                "name", "targetLanguage",
+                "description", "Target language for stubs (e.g., java)",
+                "type", "string",
+                "required", true
+            )
+        ));
+        stubsTool.getMetadata().put("example", Map.of("workspacePath", "/path/to/cobol/workspace", "targetLanguage", "java"));
+        tools.add(stubsTool);
+
+        return tools;
+    }
+
     private Dialect resolveDialect(NqlQuery query, Workspace workspace) {
         String value = null;
         if (query != null && query.getParameters() != null) {

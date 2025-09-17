@@ -63,5 +63,17 @@ class MigrationReportServiceTest {
             r.setMetrics(Map.of("linesOfCode", 10));
             return r;
         }
+
+        @Override
+        public java.util.List<org.shark.renovatio.shared.domain.Tool> getTools() {
+            // Return a mock MCP-compliant tool for metrics
+            Map<String, Object> inputSchema = new java.util.HashMap<>();
+            inputSchema.put("type", "object");
+            inputSchema.put("properties", java.util.Map.of("workspacePath", java.util.Map.of("type", "string")));
+            inputSchema.put("required", java.util.List.of("workspacePath"));
+            return java.util.List.of(
+                new org.shark.renovatio.shared.domain.BasicTool("stub.metrics", "Stub metrics tool", inputSchema)
+            );
+        }
     }
 }
