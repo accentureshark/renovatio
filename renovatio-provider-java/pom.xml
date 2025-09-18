@@ -59,12 +59,14 @@
             <artifactId>rewrite-java</artifactId>
         </dependency>
 
-        <!-- OpenRewrite Java standard recipes (correct artifact) -->
+        <!-- OpenRewrite Java recipes - commented out until dependency is resolved -->
+        <!-- 
         <dependency>
             <groupId>org.openrewrite.recipe</groupId>
-            <artifactId>rewrite-java-recipes</artifactId>
-            <version>2.6.0</version>
+            <artifactId>rewrite-java</artifactId>
+            <version>1.13.0</version>
         </dependency>
+        -->
 
         <!-- Test dependencies -->
         <dependency>
