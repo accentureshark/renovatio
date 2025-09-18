@@ -149,21 +149,94 @@ public class McpProtocolService {
             Map<String, Object> rawResult = mcpToolingService.executeTool(toolName, arguments);
 
             Map<String, Object> result = new HashMap<>();
+
+            // --- MCP-compliant transformation for analysis tools ---
+            if (rawResult.containsKey("ast") || rawResult.containsKey("data") || rawResult.containsKey("symbols")) {
+                // Copy standard fields
+                if (rawResult.containsKey("ast")) result.put("ast", rawResult.get("ast"));
+                if (rawResult.containsKey("symbols")) result.put("symbols", rawResult.get("symbols"));
+                if (rawResult.containsKey("dependencies")) result.put("dependencies", rawResult.get("dependencies"));
+                if (rawResult.containsKey("success")) result.put("success", rawResult.get("success"));
+                if (rawResult.containsKey("type")) result.put("type", rawResult.get("type"));
+                if (rawResult.containsKey("message")) result.put("message", rawResult.get("message"));
+                // Transform data map to files array
+                if (rawResult.containsKey("data")) {
+                    Object dataObj = rawResult.get("data");
+                    List<Map<String, Object>> files = new java.util.ArrayList<>();
+                    if (dataObj instanceof Map) {
+                        Map<String, Object> dataMap = (Map<String, Object>) dataObj;
+                        for (Map.Entry<String, Object> entry : dataMap.entrySet()) {
+                            if (entry.getValue() instanceof Map) {
+                                Map<String, Object> fileObj = new java.util.HashMap<>((Map<String, Object>) entry.getValue());
+                                // MCP: type debe estar presente y value debe contener el análisis
+                                fileObj.put("type", "file");
+                                fileObj.put("uri", entry.getKey());
+                                fileObj.put("value", new java.util.HashMap<>((Map<String, Object>) entry.getValue()));
+                                files.add(fileObj);
+                            }
+                        }
+                        result.put("files", files);
+                        result.put("content", files); // MCP: content siempre es lista de objetos
+                    } else if (dataObj != null) {
+                        // Si data no es un Map, pero no es null, wrap en objeto content
+                        Map<String, Object> contentObj = new HashMap<>();
+                        contentObj.put("type", rawResult.getOrDefault("type", "text"));
+                        contentObj.put("value", dataObj);
+                        result.put("content", List.of(contentObj));
+                    } else {
+                        // Si data es null, content es lista vacía
+                        result.put("content", List.of());
+                    }
+                } else {
+                    // Si no hay data, content es lista vacía
+                    result.put("content", List.of());
+                }
+                System.out.println("[DEBUG] MCP tools/call response: " + result);
+                return new McpResponse(request.getId(), result);
+            }
             // --- MCP metrics content flattening ---
             if (rawResult.containsKey("metrics")) {
                 Map<String, Object> metrics = (Map<String, Object>) rawResult.get("metrics");
                 Map<String, Object> content = new HashMap<>();
                 content.put("type", "metrics");
                 content.putAll(metrics); // flatten metrics at top level
-                result.put("content", List.of(content));
+                List<Map<String, Object>> contentList = List.of(content);
+                result.put("content", contentList); // Always return as list
+                System.out.println("[DEBUG] MCP tools/call response: " + result);
             } else {
-                // Default: text or other types
+                // Improved: handle simple values and objects in a MCP-compliant way
                 Map<String, Object> content = new HashMap<>();
-                content.put("type", rawResult.getOrDefault("type", "text"));
-                content.put("text", rawResult.getOrDefault("text", rawResult.toString()));
-                result.put("content", List.of(content));
+                if (rawResult.size() == 1 && rawResult.containsKey("result")) {
+                    Object value = rawResult.get("result");
+                    if (value instanceof String) {
+                        content.put("type", "text");
+                        content.put("value", value);
+                    } else if (value instanceof Number) {
+                        content.put("type", "number");
+                        content.put("value", value);
+                    } else if (value instanceof Boolean) {
+                        content.put("type", "boolean");
+                        content.put("value", value);
+                    } else if (value instanceof Map) {
+                        content.put("type", "object");
+                        content.put("value", value);
+                    } else if (value != null) {
+                        content.put("type", value.getClass().getSimpleName().toLowerCase());
+                        content.put("value", value);
+                    }
+                } else if (rawResult.isEmpty()) {
+                    result.put("content", List.of());
+                    System.out.println("[DEBUG] MCP tools/call response: " + result);
+                    return new McpResponse(request.getId(), result);
+                } else {
+                    // Si rawResult es un map con múltiples campos, devolver como objeto
+                    content.put("type", "object");
+                    content.put("value", rawResult);
+                }
+                List<Map<String, Object>> contentList = List.of(content);
+                result.put("content", contentList); // Always return as list
+                System.out.println("[DEBUG] MCP tools/call response: " + result);
             }
-
             return new McpResponse(request.getId(), result);
         } catch (Exception e) {
             return new McpResponse(request.getId(),
