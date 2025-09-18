@@ -3,10 +3,6 @@ package org.shark.renovatio.provider.java;
 import org.shark.renovatio.shared.spi.BaseLanguageProvider;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
-import org.openrewrite.config.Environment;
-import org.openrewrite.Recipe;
-import org.openrewrite.config.OptionDescriptor;
-import org.openrewrite.config.YamlResourceLoader;
 
 import java.io.File;
 import java.util.*;
@@ -37,15 +33,39 @@ public class JavaProvider extends BaseLanguageProvider {
         AnalyzeResult result = new AnalyzeResult(true, "Java analysis completed");
         result.setRunId(generateRunId());
         
-        // Placeholder implementation - in real implementation would use OpenRewrite
-        Map<String, Object> ast = new HashMap<>();
-        ast.put("language", "java");
-        ast.put("classes", Arrays.asList("ExampleClass", "AnotherClass"));
-        result.setAst(ast);
-        
-        Map<String, Object> dependencies = new HashMap<>();
-        dependencies.put("imports", Arrays.asList("java.util.List", "org.springframework.stereotype.Service"));
-        result.setDependencies(dependencies);
+        try {
+            // Real implementation - analyze actual Java files in workspace
+            JavaFileAnalyzer analyzer = new JavaFileAnalyzer(workspace.getPath());
+            JavaAnalysisResults analysisResults = analyzer.analyzeJavaFiles();
+            
+            // Set AST information
+            Map<String, Object> ast = new HashMap<>();
+            ast.put("language", "java");
+            ast.put("fileCount", analysisResults.getFileCount());
+            ast.put("classes", analysisResults.getClasses());
+            ast.put("methods", analysisResults.getMethods());
+            ast.put("packages", analysisResults.getPackages());
+            result.setAst(ast);
+            
+            // Set dependencies information
+            Map<String, Object> dependencies = new HashMap<>();
+            dependencies.put("imports", analysisResults.getImports());
+            dependencies.put("externalDependencies", analysisResults.getExternalDependencies());
+            result.setDependencies(dependencies);
+            
+            // Set additional analysis data
+            Map<String, Object> data = new HashMap<>();
+            data.put("fileCount", analysisResults.getFileCount());
+            data.put("programCount", analysisResults.getClasses().size());
+            data.put("logs", analysisResults.getLogs());
+            result.setData(data);
+            
+            result.setMessage("Java analysis completed - found " + analysisResults.getFileCount() + " files");
+            
+        } catch (Exception e) {
+            result = new AnalyzeResult(false, "Analysis failed: " + e.getMessage());
+            result.setRunId(generateRunId());
+        }
         
         return result;
     }
@@ -145,115 +165,48 @@ public class JavaProvider extends BaseLanguageProvider {
     @Override
     public java.util.List<Tool> getTools() {
         List<Tool> tools = new ArrayList<>();
-        try {
-            // Use the current thread's classloader for deep recipe discovery
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            Environment.Builder builder = Environment.builder(cl)
-                .scanClasspath("org.openrewrite")
-                .scanClasspath("org.openrewrite.recipe");
-            File rewriteYml = new File("rewrite.yml");
-            if (rewriteYml.exists()) {
-                try (java.io.InputStream is = java.nio.file.Files.newInputStream(rewriteYml.toPath())) {
-                    builder.load(new YamlResourceLoader(is, rewriteYml.toURI(), new Properties()));
-                }
-            }
-            Environment env = builder.build();
-            Collection<Recipe> recipes = env.listRecipes();
-            System.out.println("[DEBUG] OpenRewrite discovered " + recipes.size() + " recipes:");
-            for (Recipe recipe : recipes) {
-                System.out.println("[DEBUG] - " + recipe.getName() + ": " + recipe.getDisplayName());
-            }
-            for (Recipe recipe : recipes) {
-                String name = recipe.getName();
-                String displayName = recipe.getDisplayName() != null ? recipe.getDisplayName() : name;
-                String description = recipe.getDescription() != null ? recipe.getDescription() : displayName;
-                // Try to get options/parameters if available
-                List<Map<String, Object>> parameters = new ArrayList<>();
-                Map<String, Object> properties = new LinkedHashMap<>();
-                List<String> required = new ArrayList<>();
-                Map<String, Object> example = new LinkedHashMap<>();
-                try {
-                    var optionDescriptorsMethod = recipe.getClass().getMethod("getOptionDescriptors");
-                    @SuppressWarnings("unchecked")
-                    List<Object> optionDescriptors = (List<Object>) optionDescriptorsMethod.invoke(recipe);
-                    for (Object opt : optionDescriptors) {
-                        var getName = opt.getClass().getMethod("getName");
-                        var getDescription = opt.getClass().getMethod("getDescription");
-                        var getType = opt.getClass().getMethod("getType");
-                        var isRequired = opt.getClass().getMethod("isRequired");
-                        var getExample = opt.getClass().getMethod("getExample");
-                        String optName = (String) getName.invoke(opt);
-                        String optDesc = (String) getDescription.invoke(opt);
-                        String optType = (String) getType.invoke(opt);
-                        boolean optReq = (boolean) isRequired.invoke(opt);
-                        Object optExample = getExample.invoke(opt);
-                        Map<String, Object> param = new LinkedHashMap<>();
-                        param.put("name", optName);
-                        param.put("description", optDesc != null ? optDesc : "");
-                        param.put("type", optType);
-                        param.put("required", optReq);
-                        if (optExample != null) {
-                            param.put("example", optExample);
-                            example.put(optName, optExample);
-                        }
-                        parameters.add(param);
-                        Map<String, Object> prop = new LinkedHashMap<>();
-                        prop.put("description", optDesc != null ? optDesc : "");
-                        prop.put("type", optType);
-                        if (optExample != null) {
-                            prop.put("example", optExample);
-                        }
-                        properties.put(optName, prop);
-                        if (optReq) {
-                            required.add(optName);
-                        }
-                    }
-                } catch (Exception ignore) {
-                    // No options available for this recipe
-                }
-                Map<String, Object> inputSchema = Map.of(
-                    "type", "object",
-                    "properties", properties,
-                    "required", required,
-                    "example", example
-                );
-                BasicTool tool = new BasicTool(
-                    "java_" + name,
-                    description,
-                    inputSchema
-                );
-                tool.getMetadata().put("parameters", parameters);
-                tool.getMetadata().put("example", example);
-                tools.add(tool);
-            }
-        } catch (Exception e) {
-            // Fallback: expose only a default tool if OpenRewrite is not available
-            BasicTool fallback = new BasicTool(
-                "java_analyze",
-                "Analyze for java",
-                Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "workspacePath", Map.of(
-                            "description", "Path to the workspace directory to analyze",
-                            "type", "string"
-                        )
-                    ),
-                    "required", List.of("workspacePath"),
-                    "example", Map.of("workspacePath", "/path/to/workspace")
-                )
-            );
-            fallback.getMetadata().put("parameters", List.of(
-                Map.of(
-                    "name", "workspacePath",
+        
+        // Add Java analysis tool
+        Map<String, Object> analyzeInputSchema = Map.of(
+            "type", "object",
+            "properties", Map.of(
+                "workspacePath", Map.of(
                     "description", "Path to the workspace directory to analyze",
-                    "type", "string",
-                    "required", true
+                    "type", "string"
+                ),
+                "query", Map.of(
+                    "description", "NQL query for analysis",
+                    "type", "string"
                 )
-            ));
-            fallback.getMetadata().put("example", Map.of("workspacePath", "/path/to/workspace"));
-            tools.add(fallback);
-        }
+            ),
+            "required", List.of("workspacePath"),
+            "example", Map.of(
+                "workspacePath", "/path/to/java/project",
+                "query", "SELECT * FROM java.classes"
+            )
+        );
+        
+        BasicTool analyzeTool = new BasicTool(
+            "java_analyze",
+            "Analyze Java source files in a workspace directory",
+            analyzeInputSchema
+        );
+        analyzeTool.getMetadata().put("parameters", List.of(
+            Map.of(
+                "name", "workspacePath",
+                "description", "Path to the workspace directory to analyze",
+                "type", "string",
+                "required", true
+            ),
+            Map.of(
+                "name", "query", 
+                "description", "NQL query for analysis",
+                "type", "string",
+                "required", false
+            )
+        ));
+        tools.add(analyzeTool);
+        
         return tools;
     }
 
