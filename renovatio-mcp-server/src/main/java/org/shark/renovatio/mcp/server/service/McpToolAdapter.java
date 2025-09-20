@@ -35,34 +35,32 @@ public class McpToolAdapter {
         mcpTool.setDescription(tool.getDescription());
 
         Map<String, Object> schema = tool.getInputSchema();
-        Map<String, Object> mcpSchema = null;
+        Map<String, Object> mcpSchema;
         if (isProviderTool(mcpToolName) && schema != null) {
             mcpSchema = new HashMap<>(schema);
 
-            Map<String, Object> properties = new LinkedHashMap<>();
             if (schema.get("properties") instanceof Map<?, ?> props) {
+                Map<String, Object> properties = new LinkedHashMap<>();
                 props.forEach((key, value) -> properties.put(String.valueOf(key), value));
-            }
-            if (!properties.isEmpty() && !properties.containsKey("workspacePath")) {
-                Map<String, Object> workspacePathProperty = new HashMap<>();
-                workspacePathProperty.put("type", "string");
-                workspacePathProperty.put("description", "Path to the workspace directory to analyze");
-                properties.put("workspacePath", workspacePathProperty);
+                if (!properties.containsKey("workspacePath")) {
+                    Map<String, Object> workspacePathProperty = new HashMap<>();
+                    workspacePathProperty.put("type", "string");
+                    workspacePathProperty.put("description", "Path to the workspace directory to analyze");
+                    properties.put("workspacePath", workspacePathProperty);
 
-                List<String> requiredFromSchema = new ArrayList<>();
-                if (schema.get("required") instanceof List<?> list) {
-                    for (Object entry : list) {
-                        if (entry != null) {
-                            requiredFromSchema.add(String.valueOf(entry));
+                    List<String> requiredFromSchema = new ArrayList<>();
+                    if (schema.get("required") instanceof List<?> list) {
+                        for (Object entry : list) {
+                            if (entry != null) {
+                                requiredFromSchema.add(String.valueOf(entry));
+                            }
                         }
                     }
+                    if (!requiredFromSchema.contains("workspacePath")) {
+                        requiredFromSchema.add("workspacePath");
+                    }
+                    mcpSchema.put("required", requiredFromSchema);
                 }
-                if (!requiredFromSchema.contains("workspacePath")) {
-                    requiredFromSchema.add("workspacePath");
-                }
-                mcpSchema.put("required", requiredFromSchema);
-            }
-            if (!properties.isEmpty()) {
                 mcpSchema.put("properties", properties);
             }
             mcpTool.setInputSchema(mcpSchema);
@@ -74,17 +72,27 @@ public class McpToolAdapter {
         // MCP-compliant: extract parameters from inputSchema if present
         List<Map<String, Object>> parameters = new ArrayList<>();
         if (mcpSchema != null && mcpSchema.containsKey("properties")) {
-            Map<String, Object> properties = (Map<String, Object>) mcpSchema.get("properties");
-            List<String> required = (List<String>) mcpSchema.getOrDefault("required", new ArrayList<>());
-            for (Map.Entry<String, Object> entry : properties.entrySet()) {
-                String paramName = entry.getKey();
-                Map<String, Object> prop = (Map<String, Object>) entry.getValue();
-                Map<String, Object> param = new HashMap<>();
-                param.put("name", paramName);
-                param.put("type", prop.getOrDefault("type", "string"));
-                param.put("description", prop.getOrDefault("description", ""));
-                param.put("required", required.contains(paramName));
-                parameters.add(param);
+            Object propsObj = mcpSchema.get("properties");
+            Object requiredObj = mcpSchema.getOrDefault("required", new ArrayList<>());
+            if (propsObj instanceof Map<?, ?> && requiredObj instanceof List<?>) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> properties = (Map<String, Object>) propsObj;
+                @SuppressWarnings("unchecked")
+                List<String> required = (List<String>) requiredObj;
+                for (Map.Entry<String, Object> entry : properties.entrySet()) {
+                    String paramName = entry.getKey();
+                    Object propObj = entry.getValue();
+                    if (propObj instanceof Map<?, ?>) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> prop = (Map<String, Object>) propObj;
+                        Map<String, Object> param = new HashMap<>();
+                        param.put("name", paramName);
+                        param.put("type", prop.getOrDefault("type", "string"));
+                        param.put("description", prop.getOrDefault("description", ""));
+                        param.put("required", required.contains(paramName));
+                        parameters.add(param);
+                    }
+                }
             }
         }
         mcpTool.setParameters(parameters);
@@ -93,8 +101,10 @@ public class McpToolAdapter {
         Map<String, Object> example = null;
         if (mcpSchema != null && mcpSchema.containsKey("example")) {
             Object ex = mcpSchema.get("example");
-            if (ex instanceof Map) {
-                example = (Map<String, Object>) ex;
+            if (ex instanceof Map<?, ?>) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> exMap = (Map<String, Object>) ex;
+                example = exMap;
             }
         }
         mcpTool.setExample(example);

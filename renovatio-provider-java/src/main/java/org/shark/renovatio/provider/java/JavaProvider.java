@@ -6,7 +6,6 @@ import org.shark.renovatio.shared.nql.NqlQuery;
 import org.openrewrite.config.Environment;
 import org.openrewrite.config.OptionDescriptor;
 import org.openrewrite.config.RecipeDescriptor;
-import org.openrewrite.config.YamlResourceLoader;
 
 
 import java.io.File;
@@ -165,18 +164,8 @@ public class JavaProvider extends BaseLanguageProvider {
                 cl = JavaProvider.class.getClassLoader();
             }
 
-            Environment.Builder builder = Environment.builder(cl)
-                .scanClasspath("org.openrewrite")
-                .scanClasspath("org.openrewrite.recipe");
-
-            File rewriteYml = new File("rewrite.yml");
-            if (rewriteYml.exists()) {
-                try (java.io.InputStream is = java.nio.file.Files.newInputStream(rewriteYml.toPath())) {
-                    builder.load(new YamlResourceLoader(is, rewriteYml.toURI(), new Properties()));
-                }
-            }
-
-            Environment env = builder.build();
+            // OpenRewrite 8.x+: solo build() para cargar recetas del classpath y rewrite.yml
+            Environment env = Environment.builder().build();
             Collection<RecipeDescriptor> descriptors = env.listRecipeDescriptors();
             Set<String> seen = new LinkedHashSet<>();
             for (RecipeDescriptor descriptor : descriptors) {

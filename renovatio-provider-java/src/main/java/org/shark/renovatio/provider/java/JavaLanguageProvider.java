@@ -4,37 +4,26 @@ import org.openrewrite.config.Environment;
 import org.openrewrite.config.OptionDescriptor;
 import org.openrewrite.config.RecipeDescriptor;
 import org.openrewrite.config.YamlResourceLoader;
-import org.shark.renovatio.shared.domain.*;
+import org.shark.renovatio.shared.domain.AnalyzeResult;
+import org.shark.renovatio.shared.domain.ApplyResult;
+import org.shark.renovatio.shared.domain.StubResult;
+import org.shark.renovatio.shared.domain.Tool;
+import org.shark.renovatio.shared.domain.Workspace;
+import org.shark.renovatio.shared.domain.Scope;
+import org.shark.renovatio.shared.domain.MetricsResult;
+import org.shark.renovatio.shared.domain.DiffResult;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.shared.spi.BaseLanguageProvider;
-
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.*;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.shark.renovatio.shared.domain.PlanResult;
 
 public class JavaLanguageProvider extends BaseLanguageProvider {
-
-    // Patterns for basic Java analysis
-    private static final Pattern CLASS_PATTERN = Pattern.compile(
-        "(?:public\\s+)?(?:abstract\\s+)?(?:final\\s+)?(?:class|interface|enum)\\s+(\\w+)(?:\\s+extends\\s+(\\w+))?(?:\\s+implements\\s+([\\w\\s,]+))?\\s*\\{");
-
-    private static final Pattern METHOD_PATTERN = Pattern.compile(
-        "(?:public|private|protected)?\\s*(?:static\\s+)?(?:final\\s+)?(?:abstract\\s+)?(\\w+(?:<[^>]+>)?(?:\\[\\])?(?:\\s*\\.\\.\\.)?\\s+)(\\w+)\\s*\\([^)]*\\)\\s*(?:throws\\s+[^{]+)?\\s*[{;]");
-
-    private static final Pattern FIELD_PATTERN = Pattern.compile(
-        "(?:public|private|protected)?\\s*(?:static\\s+)?(?:final\\s+)?(\\w+(?:<[^>]+>)?(?:\\[\\])?\\s+)(\\w+)\\s*[=;]");
-
-    private static final Pattern IMPORT_PATTERN = Pattern.compile(
-        "import\\s+(?:static\\s+)?((?:[\\w\\.]+(?:\\.\\*)?));");
-
-    public JavaLanguageProvider() {}
-
-
     @Override
     public String language() {
         return "java";
@@ -46,838 +35,319 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
     }
 
     @Override
-    public AnalyzeResult analyze(NqlQuery query, Workspace workspace) {
-        AnalyzeResult result = new AnalyzeResult();
+    public List<Tool> getTools() {
+        // Solo publica tools MCP para recetas OpenRewrite descubiertas dinámicamente
+        return discoverRecipeTools();
+    }
 
-        // Initialize result with default values to avoid null returns
-        result.setSuccess(false);
-        result.setMessage("Analysis not completed");
-        result.setRunId(generateRunId());
-        result.setData(new HashMap<>());
-        result.setAst(new HashMap<>());
-        result.setDependencies(new HashMap<>());
-        result.setSymbols(new HashMap<>());
 
-        // Add detailed logging for debugging
-        System.out.println("=== JavaLanguageProvider.analyze DEBUG ===");
-        System.out.println("Workspace path: " + workspace.getPath());
-        System.out.println("Query: " + (query != null ? query.getOriginalQuery() : "null"));
-
+    private Environment getOpenRewriteEnvironment() {
         try {
-            // Validate input parameters
-            if (workspace == null || workspace.getPath() == null) {
-                result.setMessage("Invalid workspace: workspace or path is null");
-                System.out.println("ERROR: Invalid workspace");
-                return result;
-            }
-
-            Path workspacePath = Paths.get(workspace.getPath());
-            System.out.println("Resolved workspace path: " + workspacePath.toAbsolutePath());
-            System.out.println("Path exists: " + Files.exists(workspacePath));
-            System.out.println("Is directory: " + Files.isDirectory(workspacePath));
-
-            if (!Files.exists(workspacePath)) {
-                result.setMessage("Workspace path does not exist: " + workspace.getPath());
-                System.out.println("ERROR: Workspace path does not exist");
-                return result;
-            }
-
-            // Find all Java files
-            List<Path> javaFiles = findJavaFiles(workspacePath);
-            System.out.println("Found Java files: " + javaFiles.size());
-            for (Path file : javaFiles) {
-                System.out.println("  - " + file.toString());
-            }
-
-            if (javaFiles.isEmpty()) {
-                result.setMessage("No Java files found in workspace: " + workspace.getPath());
-                System.out.println("WARNING: No Java files found, but analysis considered successful");
-                // Change this to success=true for empty directories
-                result.setSuccess(true);
-                return result;
-            }
-
-            // Analyze each Java file
-            Map<String, Object> analysisData = new HashMap<>();
-            List<String> classes = new ArrayList<>();
-            List<String> methods = new ArrayList<>();
-            List<String> imports = new ArrayList<>();
-
-            for (Path javaFile : javaFiles) {
-                try {
-                    String content = Files.readString(javaFile);
-                    String relativePath = workspacePath.relativize(javaFile).toString();
-                    System.out.println("Analyzing file: " + relativePath + " (size: " + content.length() + " chars)");
-
-                    // Analyze this file
-                    Map<String, Object> fileAnalysis = analyzeJavaFile(content, relativePath);
-                    analysisData.put(relativePath, fileAnalysis);
-
-                    // Collect all classes, methods, imports
-                    @SuppressWarnings("unchecked")
-                    List<String> fileClasses = (List<String>) fileAnalysis.get("classes");
-                    if (fileClasses != null) {
-                        classes.addAll(fileClasses);
-                        System.out.println("  Found classes: " + fileClasses);
-                    }
-
-                    @SuppressWarnings("unchecked")
-                    List<String> fileMethods = (List<String>) fileAnalysis.get("methods");
-                    if (fileMethods != null) {
-                        methods.addAll(fileMethods);
-                        System.out.println("  Found methods: " + fileMethods.size());
-                    }
-
-                    @SuppressWarnings("unchecked")
-                    List<String> fileImports = (List<String>) fileAnalysis.get("imports");
-                    if (fileImports != null) {
-                        imports.addAll(fileImports);
-                        System.out.println("  Found imports: " + fileImports.size());
-                    }
-
-                } catch (IOException e) {
-                    // Skip files that can't be read but don't fail the entire analysis
-                    System.err.println("Could not read Java file: " + javaFile + " - " + e.getMessage());
+            Properties properties = new Properties();
+            Environment.Builder builder = Environment.builder(properties)
+                .scanRuntimeClasspath();
+            File rewriteConfig = new File("rewrite.yml");
+            if (rewriteConfig.exists()) {
+                try (InputStream inputStream = Files.newInputStream(rewriteConfig.toPath())) {
+                    builder.load(new YamlResourceLoader(inputStream, rewriteConfig.toURI(), properties, Thread.currentThread().getContextClassLoader()));
                 }
             }
-
-            // Build summary
-            Map<String, Object> summary = new HashMap<>();
-            summary.put("totalJavaFiles", javaFiles.size());
-            summary.put("totalClasses", classes.size());
-            summary.put("totalMethods", methods.size());
-            summary.put("totalImports", imports.size());
-            summary.put("workspacePath", workspace.getPath());
-            summary.put("analysisTimestamp", System.currentTimeMillis());
-
-            // Set successful result
-            result.setSuccess(true);
-            result.setMessage("Successfully analyzed " + javaFiles.size() + " Java files with " +
-                            classes.size() + " classes and " + methods.size() + " methods");
-            result.setData(analysisData);
-            result.setAst(summary);
-
-            // Set dependencies (convert List to Map)
-            Map<String, Object> dependenciesMap = new HashMap<>();
-            dependenciesMap.put("imports", imports.stream().distinct().collect(Collectors.toList()));
-            dependenciesMap.put("totalImports", imports.size());
-            dependenciesMap.put("uniqueImports", imports.stream().distinct().count());
-            result.setDependencies(dependenciesMap);
-
-            // Set symbols (convert List to Map)
-            Map<String, Object> symbolsMap = new HashMap<>();
-            symbolsMap.put("classes", classes);
-            symbolsMap.put("methods", methods);
-            symbolsMap.put("totalSymbols", classes.size() + methods.size());
-            result.setSymbols(symbolsMap);
-
-            System.out.println("Analysis completed successfully:");
-            System.out.println("  Files analyzed: " + javaFiles.size());
-            System.out.println("  Classes found: " + classes.size());
-            System.out.println("  Methods found: " + methods.size());
-            System.out.println("  Imports found: " + imports.size());
-
+            return builder.build();
         } catch (Exception e) {
-            result.setSuccess(false);
-            result.setMessage("Error analyzing Java code: " + e.getMessage());
-            System.err.println("EXCEPTION in JavaLanguageProvider.analyze: " + e.getMessage());
-            e.printStackTrace();
-
-            // Ensure we have some basic data even on error
-            Map<String, Object> errorData = new HashMap<>();
-            errorData.put("error", e.getMessage());
-            errorData.put("errorType", e.getClass().getSimpleName());
-            result.setData(errorData);
+            throw new RuntimeException("Failed to initialize OpenRewrite Environment", e);
         }
-
-        return result;
     }
 
-    private List<Path> findJavaFiles(Path startPath) throws IOException {
-        System.out.println("=== findJavaFiles DEBUG ===");
-        System.out.println("Start path: " + startPath.toAbsolutePath());
-        System.out.println("Path exists: " + Files.exists(startPath));
-        System.out.println("Is directory: " + Files.isDirectory(startPath));
-
-        if (!Files.exists(startPath)) {
-            System.out.println("ERROR: Start path does not exist");
-            return Collections.emptyList();
-        }
-
-        if (Files.isRegularFile(startPath) && startPath.toString().endsWith(".java")) {
-            System.out.println("Single Java file detected: " + startPath);
-            return Arrays.asList(startPath);
-        }
-
-        if (Files.isDirectory(startPath)) {
-            System.out.println("Scanning directory for Java files...");
-            List<Path> javaFiles = Files.walk(startPath)
-                    .filter(Files::isRegularFile)
-                    .filter(path -> path.toString().endsWith(".java"))
-                    .collect(Collectors.toList());
-
-            System.out.println("Found " + javaFiles.size() + " Java files:");
-            for (Path file : javaFiles) {
-                System.out.println("  - " + file.toAbsolutePath());
-            }
-
-            return javaFiles;
-        }
-
-        System.out.println("ERROR: Path is neither file nor directory");
-        return Collections.emptyList();
-    }
-
-    private Map<String, Object> analyzeJavaFile(String content, String filePath) {
-        Map<String, Object> analysis = new HashMap<>();
-
-        // Extract package
-        Pattern packagePattern = Pattern.compile("package\\s+([\\w\\.]+);");
-        Matcher packageMatcher = packagePattern.matcher(content);
-        if (packageMatcher.find()) {
-            analysis.put("package", packageMatcher.group(1));
-        }
-
-        // Extract imports
-        List<String> imports = new ArrayList<>();
-        Matcher importMatcher = IMPORT_PATTERN.matcher(content);
-        while (importMatcher.find()) {
-            imports.add(importMatcher.group(1));
-        }
-        analysis.put("imports", imports);
-
-        // Extract classes/interfaces/enums
-        List<String> classes = new ArrayList<>();
-        Matcher classMatcher = CLASS_PATTERN.matcher(content);
-        while (classMatcher.find()) {
-            String className = classMatcher.group(1);
-            classes.add(className);
-        }
-        analysis.put("classes", classes);
-
-        // Extract methods
-        List<String> methods = new ArrayList<>();
-        Matcher methodMatcher = METHOD_PATTERN.matcher(content);
-        while (methodMatcher.find()) {
-            String returnType = methodMatcher.group(1).trim();
-            String methodName = methodMatcher.group(2);
-            methods.add(returnType + " " + methodName + "()");
-        }
-        analysis.put("methods", methods);
-
-        // Extract fields
-        List<String> fields = new ArrayList<>();
-        Matcher fieldMatcher = FIELD_PATTERN.matcher(content);
-        while (fieldMatcher.find()) {
-            String fieldType = fieldMatcher.group(1).trim();
-            String fieldName = fieldMatcher.group(2);
-            fields.add(fieldType + " " + fieldName);
-        }
-        analysis.put("fields", fields);
-
-        // Basic metrics
-        Map<String, Object> metrics = new HashMap<>();
-        metrics.put("linesOfCode", content.split("\n").length);
-        metrics.put("classCount", classes.size());
-        metrics.put("methodCount", methods.size());
-        metrics.put("fieldCount", fields.size());
-        metrics.put("importCount", imports.size());
-        analysis.put("metrics", metrics);
-
-        analysis.put("filePath", filePath);
-
-        return analysis;
-    }
-
+    // Métodos MCP fijos: solo para cumplir la interfaz, no deben usarse directamente
     @Override
-    public PlanResult plan(NqlQuery query, Scope scope, Workspace workspace) {
-        PlanResult result = new PlanResult();
-        result.setSuccess(true);
-        result.setMessage("Java refactoring plan generated (placeholder implementation)");
-        result.setPlanId("java-plan-" + System.currentTimeMillis());
-        result.setPlanContent("# Java Refactoring Plan\n\nQuery: " + query.getOriginalQuery() + "\nWorkspace: " + workspace.getPath());
-
-        // Convert List to Map for steps
-        Map<String, Object> stepsMap = new HashMap<>();
-        stepsMap.put("step1", "Analyze code structure");
-        stepsMap.put("step2", "Identify refactoring opportunities");
-        stepsMap.put("step3", "Generate transformation rules");
-        result.setSteps(stepsMap);
-
-        return result;
-    }
-
-    @Override
-    public ApplyResult apply(String planId, boolean dryRun, Workspace workspace) {
-        ApplyResult result = new ApplyResult();
-        result.setSuccess(true);
-        result.setMessage("Java transformations applied (placeholder implementation)");
-        result.setDryRun(dryRun);
-        result.setDiff("No changes made (placeholder implementation)");
-
-        // Convert List to Map for changes
-        Map<String, Object> changesMap = new HashMap<>();
-        changesMap.put("change1", "Updated method signature");
-        result.setChanges(changesMap);
-
-        return result;
-    }
-
-    @Override
-    public DiffResult diff(String runId, Workspace workspace) {
-        DiffResult result = new DiffResult();
-        result.setSuccess(true);
-        result.setMessage("Java diff generated (placeholder implementation)");
-        result.setUnifiedDiff("--- a/Example.java\n+++ b/Example.java\n@@ -1,3 +1,3 @@\n-// Old code\n+// New code");
-
-        // Convert String to Map for semanticDiff
-        Map<String, Object> semanticDiffMap = new HashMap<>();
-        semanticDiffMap.put("changes", "Semantic changes: method signature updated");
-        semanticDiffMap.put("type", "method_signature_change");
-        result.setSemanticDiff(semanticDiffMap);
-
-        // Convert List to Map for hunks
-        Map<String, Object> hunksMap = new HashMap<>();
-        hunksMap.put("hunk1", "Method signature change");
-        result.setHunks(hunksMap);
-
-        return result;
-    }
-
-    @Override
-    public Optional<StubResult> generateStubs(NqlQuery query, Workspace workspace) {
-        return Optional.empty();
+    public AnalyzeResult analyze(NqlQuery query, Workspace workspace) {
+        String recipeId = extractRecipeIdFromNql(query);
+        if (recipeId == null) {
+            throw new IllegalArgumentException("No recipe specified in NQL query for analyze().");
+        }
+        return executeAnalyzeRecipe(recipeId, workspace, query);
     }
 
     @Override
     public MetricsResult metrics(Scope scope, Workspace workspace) {
-        MetricsResult result = new MetricsResult();
-        Map<String, Number> metricsMap = new HashMap<>();
-
-        System.out.println("=== JavaLanguageProvider.metrics DEBUG ===");
-        System.out.println("Workspace path: " + (workspace != null ? workspace.getPath() : "null"));
-        System.out.println("Scope paths: " + (scope != null && scope.getPaths() != null ? scope.getPaths() : "null"));
-
-        try {
-            // Validate input parameters
-            if (workspace == null || workspace.getPath() == null || workspace.getPath().trim().isEmpty()) {
-                result.setSuccess(false);
-                result.setMessage("Invalid workspace: workspace or path is null/empty");
-                System.out.println("ERROR: Invalid workspace");
-                metricsMap.put("error_occurred", 1);
-                result.setMetrics(metricsMap);
-                return result;
-            }
-
-            Path workspacePath = Paths.get(workspace.getPath());
-            System.out.println("Resolved workspace path: " + workspacePath.toAbsolutePath());
-            System.out.println("Path exists: " + Files.exists(workspacePath));
-            System.out.println("Is directory: " + Files.isDirectory(workspacePath));
-
-            if (!Files.exists(workspacePath)) {
-                result.setSuccess(false);
-                result.setMessage("Workspace path does not exist: " + workspace.getPath());
-                System.out.println("ERROR: Workspace path does not exist");
-                metricsMap.put("error_occurred", 1);
-                result.setMetrics(metricsMap);
-                return result;
-            }
-
-            // Find all Java files
-            List<Path> javaFiles = findJavaFiles(workspacePath);
-            System.out.println("Found Java files for metrics: " + javaFiles.size());
-
-            // Even if no Java files, return success with zero metrics
-            if (javaFiles.isEmpty()) {
-                System.out.println("No Java files found, returning zero metrics");
-                metricsMap.put("total_files", 0);
-                metricsMap.put("total_classes", 0);
-                metricsMap.put("total_methods", 0);
-                metricsMap.put("lines_of_code", 0);
-                result.setSuccess(true);
-                result.setMessage("No Java files found in workspace, but metrics calculation completed successfully");
-                result.setMetrics(metricsMap);
-                return result;
-            }
-
-            // Initialize metrics counters
-            int totalFiles = javaFiles.size();
-            int totalClasses = 0;
-            int totalMethods = 0;
-            int totalFields = 0;
-            int totalImports = 0;
-            int totalLinesOfCode = 0;
-            int totalBlankLines = 0;
-            int totalCommentLines = 0;
-            double totalComplexity = 0.0;
-
-            // Calculate detailed metrics for each file
-            for (Path javaFile : javaFiles) {
-                try {
-                    String content = Files.readString(javaFile);
-                    String relativePath = workspacePath.relativize(javaFile).toString();
-                    System.out.println("Calculating metrics for file: " + relativePath);
-
-                    // Analyze this file for metrics
-                    Map<String, Object> fileAnalysis = analyzeJavaFile(content, relativePath);
-
-                    // Extract metrics from file analysis
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> fileMetrics = (Map<String, Object>) fileAnalysis.get("metrics");
-                    if (fileMetrics != null) {
-                        totalClasses += (Integer) fileMetrics.getOrDefault("classCount", 0);
-                        totalMethods += (Integer) fileMetrics.getOrDefault("methodCount", 0);
-                        totalFields += (Integer) fileMetrics.getOrDefault("fieldCount", 0);
-                        totalImports += (Integer) fileMetrics.getOrDefault("importCount", 0);
-                        totalLinesOfCode += (Integer) fileMetrics.getOrDefault("linesOfCode", 0);
-                    }
-
-                    // Calculate additional metrics
-                    String[] lines = content.split("\n");
-                    for (String line : lines) {
-                        String trimmedLine = line.trim();
-                        if (trimmedLine.isEmpty()) {
-                            totalBlankLines++;
-                        } else if (trimmedLine.startsWith("//") || trimmedLine.startsWith("/*") || trimmedLine.startsWith("*")) {
-                            totalCommentLines++;
-                        }
-                    }
-
-                    // Simple cyclomatic complexity estimation
-                    totalComplexity += calculateCyclomaticComplexity(content);
-
-                } catch (IOException e) {
-                    System.err.println("Could not read Java file for metrics: " + javaFile + " - " + e.getMessage());
-                    // Continue with other files, don't fail entirely
-                }
-            }
-
-            // Calculate derived metrics
-            double avgMethodsPerClass = totalClasses > 0 ? (double) totalMethods / totalClasses : 0.0;
-            double avgLinesPerFile = totalFiles > 0 ? (double) totalLinesOfCode / totalFiles : 0.0;
-            double avgLinesPerMethod = totalMethods > 0 ? (double) totalLinesOfCode / totalMethods : 0.0;
-            double commentRatio = totalLinesOfCode > 0 ? (double) totalCommentLines / totalLinesOfCode : 0.0;
-            double avgComplexityPerMethod = totalMethods > 0 ? totalComplexity / totalMethods : 0.0;
-
-            // Populate metrics map with comprehensive Java quality indicators
-            metricsMap.put("total_files", totalFiles);
-            metricsMap.put("total_classes", totalClasses);
-            metricsMap.put("total_methods", totalMethods);
-            metricsMap.put("total_fields", totalFields);
-            metricsMap.put("total_imports", totalImports);
-            metricsMap.put("lines_of_code", totalLinesOfCode);
-            metricsMap.put("blank_lines", totalBlankLines);
-            metricsMap.put("comment_lines", totalCommentLines);
-            metricsMap.put("cyclomatic_complexity", totalComplexity);
-            metricsMap.put("avg_methods_per_class", avgMethodsPerClass);
-            metricsMap.put("avg_lines_per_file", avgLinesPerFile);
-            metricsMap.put("avg_lines_per_method", avgLinesPerMethod);
-            metricsMap.put("comment_ratio", commentRatio);
-            metricsMap.put("avg_complexity_per_method", avgComplexityPerMethod);
-
-            // Quality indicators
-            metricsMap.put("maintainability_index", calculateMaintainabilityIndex(totalLinesOfCode, totalComplexity, totalCommentLines));
-            metricsMap.put("code_coverage_potential", calculateCodeCoveragePotential(totalMethods, totalClasses));
-
-            // Set successful result - THIS IS CRITICAL
-            result.setSuccess(true);
-            result.setMessage("Successfully calculated metrics for " + totalFiles + " Java files: " +
-                            totalClasses + " classes, " + totalMethods + " methods, " + totalLinesOfCode + " LOC");
-            result.setMetrics(metricsMap);
-
-            System.out.println("Metrics calculation completed successfully:");
-            System.out.println("  Files: " + totalFiles);
-            System.out.println("  Classes: " + totalClasses);
-            System.out.println("  Methods: " + totalMethods);
-            System.out.println("  Lines of Code: " + totalLinesOfCode);
-            System.out.println("  SUCCESS FLAG SET TO: " + result.isSuccess());
-
-        } catch (Exception e) {
-            System.err.println("EXCEPTION in JavaLanguageProvider.metrics: " + e.getMessage());
-            e.printStackTrace();
-
-            result.setSuccess(false);
-            result.setMessage("Error calculating Java metrics: " + e.getMessage());
-
-            // Set basic error metrics
-            metricsMap.put("error_occurred", 1);
-            metricsMap.put("total_files", 0);
-            result.setMetrics(metricsMap);
-        }
-
-        System.out.println("Returning metrics result with success=" + result.isSuccess());
-        return result;
-    }
-
-    /**
-     * Calculate cyclomatic complexity for Java code using basic pattern matching
-     */
-    private double calculateCyclomaticComplexity(String content) {
-        double complexity = 1.0; // Base complexity
-
-        // Count decision points that increase complexity
-        String[] complexityKeywords = {
-            "if\\s*\\(", "else\\s+if\\s*\\(", "while\\s*\\(", "for\\s*\\(",
-            "do\\s*\\{", "switch\\s*\\(", "case\\s+", "catch\\s*\\(",
-            "\\?\\s*", "&&", "\\|\\|"
-        };
-
-        for (String keyword : complexityKeywords) {
-            Pattern pattern = Pattern.compile(keyword);
-            Matcher matcher = pattern.matcher(content);
-            while (matcher.find()) {
-                complexity += 1.0;
-            }
-        }
-
-        return complexity;
-    }
-
-    /**
-     * Calculate maintainability index (simplified version)
-     * Higher values indicate better maintainability
-     */
-    private double calculateMaintainabilityIndex(int linesOfCode, double complexity, int commentLines) {
-        if (linesOfCode == 0) return 100.0;
-
-        // Simplified maintainability index calculation
-        double volume = linesOfCode * Math.log(linesOfCode + 1); // Halstead volume approximation
-        double commentRatio = commentLines > 0 ? (double) commentLines / linesOfCode : 0.0;
-
-        double maintainabilityIndex = Math.max(0,
-            171 - 5.2 * Math.log(volume) - 0.23 * complexity - 16.2 * Math.log(linesOfCode) + 50 * Math.sin(Math.sqrt(2.4 * commentRatio))
-        );
-
-        return Math.min(100.0, maintainabilityIndex);
-    }
-
-    /**
-     * Calculate code coverage potential based on methods and classes
-     */
-    private double calculateCodeCoveragePotential(int totalMethods, int totalClasses) {
-        if (totalMethods == 0 && totalClasses == 0) return 0.0;
-
-        // Simple heuristic: more methods relative to classes suggests better testability
-        double methodToClassRatio = totalClasses > 0 ? (double) totalMethods / totalClasses : totalMethods;
-
-        // Normalize to 0-100 scale, with diminishing returns for very high ratios
-        return Math.min(100.0, 20.0 + (methodToClassRatio * 10.0) / (1.0 + methodToClassRatio * 0.1));
+        // Busca una receta de métricas específica, si existe
+        String recipeId = "metrics"; // Ajustar si hay una receta concreta para métricas
+        return executeMetricsRecipe(recipeId, workspace, scope);
     }
 
     @Override
-    public List<Tool> getTools() {
-        List<Tool> tools = new ArrayList<>();
-        tools.add(createAnalyzeTool());
+    public Optional<StubResult> generateStubs(NqlQuery query, Workspace workspace) {
+        // OpenRewrite no soporta generación de stubs para Java
+        return Optional.empty();
+    }
 
-        List<Tool> recipeTools = discoverRecipeTools();
-        if (!recipeTools.isEmpty()) {
-            tools.addAll(recipeTools);
+    @Override
+    public DiffResult diff(String runId, Workspace workspace) {
+        // runId se asume como recipeId para simplificar
+        return executeDiffRecipe(runId, workspace);
+    }
+
+    @Override
+    public ApplyResult apply(String runId, boolean dryRun, Workspace workspace) {
+        // runId se asume como recipeId para simplificar
+        return executeApplyRecipe(runId, workspace, dryRun);
+    }
+
+    @Override
+    public PlanResult plan(NqlQuery query, Scope scope, Workspace workspace) {
+        String recipeId = extractRecipeIdFromNql(query);
+        if (recipeId == null) {
+            throw new IllegalArgumentException("No recipe specified in NQL query for plan().");
         }
+        return executePlanRecipe(recipeId, workspace, scope, query);
+    }
 
-        return tools;
+    // --- Métodos privados para ejecutar recetas OpenRewrite y construir resultados MCP ---
+
+    private AnalyzeResult executeAnalyzeRecipe(String recipeId, Workspace workspace, NqlQuery query) {
+        RecipeExecutionResult result = runOpenRewriteRecipe(recipeId, workspace, true, false);
+        AnalyzeResult ar = new AnalyzeResult();
+        ar.setSuccess(result.success);
+        ar.setMessage(result.summary);
+        Map<String, Object> data = new HashMap<>();
+        data.put("findings", result.findings);
+        ar.setData(data);
+        return ar;
+    }
+
+    private MetricsResult executeMetricsRecipe(String recipeId, Workspace workspace, Scope scope) {
+        RecipeExecutionResult result = runOpenRewriteRecipe(recipeId, workspace, true, true);
+        MetricsResult mr = new MetricsResult();
+        mr.setSuccess(result.success);
+        mr.setMessage(result.summary);
+        // Adaptar a Map<String, Number>
+        Map<String, Number> metrics = new HashMap<>();
+        for (Map.Entry<String, Object> entry : result.metrics.entrySet()) {
+            if (entry.getValue() instanceof Number) {
+                metrics.put(entry.getKey(), (Number) entry.getValue());
+            }
+        }
+        mr.setMetrics(metrics);
+        return mr;
+    }
+
+    private DiffResult executeDiffRecipe(String recipeId, Workspace workspace) {
+        RecipeExecutionResult result = runOpenRewriteRecipe(recipeId, workspace, true, false);
+        DiffResult dr = new DiffResult();
+        dr.setSuccess(result.success);
+        dr.setMessage(result.summary);
+        dr.setUnifiedDiff(String.join("\n\n", result.diffs));
+        return dr;
+    }
+
+    private ApplyResult executeApplyRecipe(String recipeId, Workspace workspace, boolean dryRun) {
+        RecipeExecutionResult result = runOpenRewriteRecipe(recipeId, workspace, !dryRun, false);
+        ApplyResult ap = new ApplyResult();
+        ap.setSuccess(result.success);
+        ap.setMessage(result.summary);
+        ap.setDiff(String.join("\n\n", result.diffs));
+        ap.setModifiedFiles(result.findings);
+        ap.setDryRun(dryRun);
+        return ap;
+    }
+
+    private PlanResult executePlanRecipe(String recipeId, Workspace workspace, Scope scope, NqlQuery query) {
+        RecipeExecutionResult result = runOpenRewriteRecipe(recipeId, workspace, false, true);
+        PlanResult pr = new PlanResult();
+        pr.setSuccess(result.success);
+        pr.setMessage(result.summary);
+        Map<String, Object> steps = new HashMap<>();
+        steps.put("steps", result.plan);
+        pr.setSteps(steps);
+        return pr;
+    }
+
+    /**
+     * Ejecuta una receta OpenRewrite sobre los archivos del workspace.
+     * @param recipeId ID de la receta OpenRewrite
+     * @param workspace Workspace Renovatio
+     * @param apply Si true, aplica los cambios; si false, solo simula
+     * @param collectMetrics Si true, recolecta métricas
+     * @return Resultado de la ejecución de la receta
+     */
+    private RecipeExecutionResult runOpenRewriteRecipe(String recipeId, Workspace workspace, boolean apply, boolean collectMetrics) {
+        RecipeExecutionResult result = new RecipeExecutionResult();
+        try {
+            Environment env = getOpenRewriteEnvironment();
+            org.openrewrite.config.RecipeDescriptor descriptor = env.listRecipeDescriptors().stream()
+                .filter(d -> d.getName().equals(recipeId) || d.getDisplayName().equals(recipeId))
+                .findFirst().orElse(null);
+            if (descriptor == null || descriptor.getRecipeList() == null || descriptor.getRecipeList().isEmpty()) {
+                result.success = false;
+                result.summary = "Recipe not found: " + recipeId;
+                return result;
+            }
+            // Tomar la primera receta real del descriptor y castear a Recipe
+            // Buscar la clase de la receta por nombre y crear instancia por reflection
+            org.openrewrite.Recipe recipe = null;
+            for (RecipeDescriptor child : descriptor.getRecipeList()) {
+                try {
+                    Class<?> clazz = Class.forName(child.getName());
+                    Object instance = clazz.getDeclaredConstructor().newInstance();
+                    if (instance instanceof org.openrewrite.Recipe) {
+                        recipe = (org.openrewrite.Recipe) instance;
+                        break;
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (recipe == null) {
+                result.success = false;
+                result.summary = "Could not instantiate recipe: " + recipeId;
+                return result;
+            }
+            Path workspacePath = Paths.get(workspace.getPath());
+            List<Path> javaFiles;
+            try (var stream = Files.walk(workspacePath)) {
+                javaFiles = stream.filter(p -> p.toString().endsWith(".java")).collect(Collectors.toList());
+            }
+            if (javaFiles.isEmpty()) {
+                result.success = false;
+                result.summary = "No Java files found in workspace.";
+                return result;
+            }
+            org.openrewrite.ExecutionContext ctx = new org.openrewrite.InMemoryExecutionContext(Throwable::printStackTrace);
+            List<String> sources = new ArrayList<>();
+            for (Path p : javaFiles) {
+                sources.add(Files.readString(p));
+            }
+            org.openrewrite.java.JavaParser parser = org.openrewrite.java.JavaParser.fromJavaVersion().build();
+            List<org.openrewrite.SourceFile> sourceFileList = parser.parse(ctx, sources.toArray(new String[0])).collect(Collectors.toList());
+            // OpenRewrite 8.x: run() acepta List<SourceFile> directamente
+            List<org.openrewrite.Result> results = recipe.run(sourceFileList, ctx);
+            if (apply) {
+                for (org.openrewrite.Result r : results) {
+                    if (r.getAfter() != null) {
+                        Path filePath = workspacePath.resolve(r.getAfter().getSourcePath());
+                        Files.createDirectories(filePath.getParent());
+                        Files.writeString(filePath, r.getAfter().printAll());
+                    }
+                }
+            }
+            result.success = true;
+            result.summary = "Recipe executed: " + recipeId + ", files changed: " + results.size();
+            result.diffs = new ArrayList<>();
+            result.findings = new ArrayList<>();
+            result.metrics = new HashMap<>();
+            result.plan = new ArrayList<>();
+            result.applied = apply;
+            for (org.openrewrite.Result r : results) {
+                String before = r.getBefore() != null ? r.getBefore().printAll() : "";
+                String after = r.getAfter() != null ? r.getAfter().printAll() : "";
+                String diff = "--- BEFORE ---\n" + before + "\n--- AFTER ---\n" + after;
+                result.diffs.add(diff);
+                result.findings.add(r.getAfter() != null ? r.getAfter().getSourcePath().toString() : "");
+                result.plan.add(after);
+            }
+            if (collectMetrics) {
+                result.metrics.put("filesChanged", results.size());
+            }
+        } catch (Exception e) {
+            result.success = false;
+            result.summary = "Error executing recipe: " + e.getMessage();
+        }
+        return result;
+    }
+
+    // Clase interna para encapsular el resultado de ejecución de receta
+    private static class RecipeExecutionResult {
+        boolean success = false;
+        String summary;
+        List<String> diffs = new ArrayList<>();
+        List<String> findings = new ArrayList<>();
+        Map<String, Object> metrics = new HashMap<>();
+        List<String> plan = new ArrayList<>();
+        boolean applied = false;
+    }
+
+    private String extractRecipeIdFromNql(NqlQuery query) {
+        // Buscar "recipe: <id>" en el NQL original
+        if (query == null || query.getOriginalQuery() == null) return null;
+        String nql = query.getOriginalQuery();
+        // El guion va al final del grupo y no se escapa
+        Matcher matcher = Pattern.compile("recipe\\s*:\\s*([\\w.-]+)").matcher(nql);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
     }
 
     private List<Tool> discoverRecipeTools() {
         List<Tool> recipeTools = new ArrayList<>();
-
         try {
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-            if (classLoader == null) {
-                classLoader = JavaLanguageProvider.class.getClassLoader();
-            }
-
-            Environment.Builder builder = Environment.builder(classLoader)
+            Properties properties = new Properties();
+            Environment.Builder builder = Environment.builder(properties)
                 .scanRuntimeClasspath();
-
             File rewriteConfig = new File("rewrite.yml");
             if (rewriteConfig.exists()) {
                 try (InputStream inputStream = Files.newInputStream(rewriteConfig.toPath())) {
-                    builder.load(new YamlResourceLoader(inputStream, rewriteConfig.toURI(), new Properties()));
+                    builder.load(new YamlResourceLoader(inputStream, rewriteConfig.toURI(), properties, Thread.currentThread().getContextClassLoader()));
                 }
             }
-
             Environment environment = builder.build();
             Collection<RecipeDescriptor> descriptors = environment.listRecipeDescriptors();
-
             if (descriptors == null || descriptors.isEmpty()) {
                 System.out.println("[JavaLanguageProvider] No OpenRewrite recipes discovered on the classpath.");
                 return recipeTools;
             }
-
             Set<String> seenRecipes = new LinkedHashSet<>();
             Set<String> seenToolNames = new LinkedHashSet<>();
-
             for (RecipeDescriptor descriptor : descriptors) {
                 collectRecipeTools(descriptor, recipeTools, seenRecipes, seenToolNames);
             }
-
             System.out.println("[JavaLanguageProvider] Exposing " + recipeTools.size() + " OpenRewrite recipe tool(s).");
         } catch (Exception e) {
             System.err.println("[WARN] Unable to discover OpenRewrite recipes: " + e.getMessage());
             e.printStackTrace(System.err);
         }
-
         return recipeTools;
     }
 
     private void collectRecipeTools(RecipeDescriptor descriptor, List<Tool> tools, Set<String> seenRecipes, Set<String> seenToolNames) {
-        if (descriptor == null) {
+        if (descriptor == null) return;
+        String recipeId = descriptor.getName();
+        String displayName = descriptor.getDisplayName();
+        String toolName = "java." + recipeId;
+        if (!seenRecipes.add(recipeId) || !seenToolNames.add(toolName)) {
             return;
         }
-
-        String recipeName = descriptor.getName();
-        boolean isListable = descriptor.isListable();
-
-        if (recipeName != null && !recipeName.isBlank() && isListable && seenRecipes.add(recipeName)) {
-            BasicTool tool = createRecipeTool(descriptor, seenToolNames);
-            if (tool != null) {
-                tools.add(tool);
-            }
-        }
-
-        Collection<RecipeDescriptor> nested = descriptor.getRecipeList();
-        if (nested != null) {
-            for (RecipeDescriptor child : nested) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("recipeId", recipeId);
+        metadata.put("displayName", displayName);
+        metadata.put("description", descriptor.getDescription());
+        metadata.put("tags", descriptor.getTags());
+        metadata.put("options", extractRecipeOptions(descriptor));
+        ToolImpl tool = new ToolImpl(
+            toolName,
+            descriptor.getDescription() != null ? descriptor.getDescription() : "OpenRewrite recipe: " + recipeId,
+            null,
+            metadata
+        );
+        tools.add(tool);
+        if (descriptor.getRecipeList() != null) {
+            for (RecipeDescriptor child : descriptor.getRecipeList()) {
                 collectRecipeTools(child, tools, seenRecipes, seenToolNames);
             }
         }
     }
 
-    private BasicTool createRecipeTool(RecipeDescriptor descriptor, Set<String> seenToolNames) {
-        String recipeName = descriptor.getName();
-        if (recipeName == null || recipeName.isBlank()) {
-            return null;
-        }
-
-        String slug = toRecipeSlug(recipeName);
-        String toolName = ensureUniqueToolName("java_apply_" + slug, seenToolNames);
-
-        String description = descriptor.getDescription();
-        if (description == null || description.isBlank()) {
-            description = descriptor.getDisplayName();
-        }
-        if (description == null || description.isBlank()) {
-            description = recipeName;
-        }
-
-        Map<String, Object> properties = new LinkedHashMap<>();
-        Map<String, Object> workspaceProperty = new LinkedHashMap<>();
-        workspaceProperty.put("description", "Path to the workspace directory where the recipe will be executed");
-        workspaceProperty.put("type", "string");
-        properties.put("workspacePath", workspaceProperty);
-
-        List<String> required = new ArrayList<>();
-        required.add("workspacePath");
-
-        Map<String, Object> example = new LinkedHashMap<>();
-        example.put("workspacePath", "/path/to/workspace");
-
-        List<Map<String, Object>> parameters = new ArrayList<>();
-        parameters.add(createParameter(
-            "workspacePath",
-            "Path to the workspace directory where the recipe will be executed",
-            "string",
-            true,
-            null
-        ));
-
-        List<OptionDescriptor> options = descriptor.getOptions();
-        if (options != null) {
-            for (OptionDescriptor option : options) {
-                if (option == null || option.getName() == null || option.getName().isBlank()) {
-                    continue;
-                }
-
-                String optionType = mapOptionType(option.getType());
-                Map<String, Object> property = new LinkedHashMap<>();
-
-                String optionDescription = option.getDescription();
-                if (optionDescription != null && !optionDescription.isBlank()) {
-                    property.put("description", optionDescription);
-                }
-
-                property.put("type", optionType);
-
-                Object optionExample = option.getExample();
-                if (optionExample != null) {
-                    property.put("example", optionExample);
-                    example.put(option.getName(), optionExample);
-                }
-
-                Collection<String> validValues = option.getValid();
-                if (validValues != null && !validValues.isEmpty()) {
-                    property.put("enum", new ArrayList<>(validValues));
-                }
-
-                properties.put(option.getName(), property);
-
-                if (option.isRequired()) {
-                    required.add(option.getName());
-                }
-
-                parameters.add(createParameter(
-                    option.getName(),
-                    optionDescription,
-                    optionType,
-                    option.isRequired(),
-                    optionExample,
-                    validValues
-                ));
+    private List<Map<String, Object>> extractRecipeOptions(RecipeDescriptor descriptor) {
+        List<Map<String, Object>> options = new ArrayList<>();
+        if (descriptor.getOptions() != null) {
+            for (OptionDescriptor opt : descriptor.getOptions()) {
+                Map<String, Object> optMap = new LinkedHashMap<>();
+                optMap.put("name", opt.getName());
+                optMap.put("type", opt.getType());
+                optMap.put("required", opt.isRequired());
+                optMap.put("description", opt.getDescription());
+                optMap.put("example", opt.getExample());
+                options.add(optMap);
             }
         }
-
-        Map<String, Object> schema = new LinkedHashMap<>();
-        schema.put("type", "object");
-        schema.put("properties", properties);
-        schema.put("required", required);
-        schema.put("example", example);
-
-        BasicTool tool = new BasicTool(toolName, description, schema);
-        tool.getMetadata().put("recipeName", recipeName);
-
-        if (descriptor.getDisplayName() != null && !descriptor.getDisplayName().isBlank()) {
-            tool.getMetadata().put("displayName", descriptor.getDisplayName());
-        }
-
-        if (descriptor.getTags() != null && !descriptor.getTags().isEmpty()) {
-            tool.getMetadata().put("tags", new ArrayList<>(descriptor.getTags()));
-        }
-
-        if (descriptor.getEstimatedEffortPerOccurrence() != null) {
-            tool.getMetadata().put(
-                "estimatedEffortPerOccurrence",
-                descriptor.getEstimatedEffortPerOccurrence().toString()
-            );
-        }
-
-        tool.getMetadata().put("parameters", parameters);
-        tool.getMetadata().put("example", example);
-
-        return tool;
-    }
-
-    private BasicTool createAnalyzeTool() {
-        return createWorkspaceTool(
-            "java_analyze",
-            "Analyze for java"
-        );
-    }
-
-    private BasicTool createWorkspaceTool(String name, String description) {
-        Map<String, Object> workspaceProperty = new LinkedHashMap<>();
-        workspaceProperty.put("description", "Path to the workspace directory to analyze");
-        workspaceProperty.put("type", "string");
-
-        Map<String, Object> properties = new LinkedHashMap<>();
-        properties.put("workspacePath", workspaceProperty);
-
-        List<String> required = new ArrayList<>();
-        required.add("workspacePath");
-
-        Map<String, Object> example = new LinkedHashMap<>();
-        example.put("workspacePath", "/path/to/workspace");
-
-        Map<String, Object> schema = new LinkedHashMap<>();
-        schema.put("type", "object");
-        schema.put("properties", properties);
-        schema.put("required", required);
-        schema.put("example", example);
-
-        BasicTool tool = new BasicTool(name, description, schema);
-
-        List<Map<String, Object>> parameters = new ArrayList<>();
-        parameters.add(createParameter(
-            "workspacePath",
-            "Path to the workspace directory to analyze",
-            "string",
-            true,
-            null
-        ));
-
-        tool.getMetadata().put("parameters", parameters);
-        tool.getMetadata().put("example", example);
-
-        return tool;
-    }
-
-    private Map<String, Object> createParameter(String name, String description, String type, boolean required, Object example) {
-        return createParameter(name, description, type, required, example, null);
-    }
-
-    private Map<String, Object> createParameter(
-        String name,
-        String description,
-        String type,
-        boolean required,
-        Object example,
-        Collection<String> validValues
-    ) {
-        Map<String, Object> parameter = new LinkedHashMap<>();
-        parameter.put("name", name);
-        parameter.put("description", description != null ? description : "");
-        parameter.put("type", type != null ? type : "string");
-        parameter.put("required", required);
-
-        if (example != null) {
-            parameter.put("example", example);
-        }
-
-        if (validValues != null && !validValues.isEmpty()) {
-            parameter.put("enum", new ArrayList<>(validValues));
-        }
-
-        return parameter;
-    }
-
-    private String mapOptionType(String optionType) {
-        if (optionType == null || optionType.isBlank()) {
-            return "string";
-        }
-
-        String normalized = optionType.toLowerCase(Locale.ROOT);
-
-        if (normalized.contains("boolean")) {
-            return "boolean";
-        }
-
-        if (normalized.contains("int") || normalized.contains("long") || normalized.contains("short")
-            || normalized.contains("byte")) {
-            return "integer";
-        }
-
-        if (normalized.contains("double") || normalized.contains("float") || normalized.contains("bigdecimal")
-            || normalized.contains("number")) {
-            return "number";
-        }
-
-        if (normalized.contains("list") || normalized.contains("set") || normalized.contains("collection")
-            || normalized.contains("array")) {
-            return "array";
-        }
-
-        return "string";
-    }
-
-    private String toRecipeSlug(String recipeName) {
-        String slug = recipeName.replaceAll("[^a-zA-Z0-9]+", "_");
-        slug = slug.replaceAll("_+", "_");
-        slug = slug.replaceAll("^_", "").replaceAll("_$", "");
-
-        if (slug.isEmpty()) {
-            slug = "recipe";
-        }
-
-        return slug.toLowerCase(Locale.ROOT);
-    }
-
-    private String ensureUniqueToolName(String baseName, Set<String> seenToolNames) {
-        String candidate = baseName;
-        int counter = 1;
-
-        while (!seenToolNames.add(candidate)) {
-            candidate = baseName + "_" + counter++;
-        }
-
-        return candidate;
+        return options;
     }
 }
