@@ -1,35 +1,35 @@
-# Renovatio Architecture - MCP Server and Core Engine Separation
+# Arquitectura Renovatio - Separación MCP Server y Core Engine
 
-This document describes the new modular architecture where MCP logic has been completely separated from the core engine.
+Este documento describe la arquitectura modular de Renovatio, donde la lógica MCP está completamente separada del motor central (core engine), permitiendo máxima flexibilidad, extensibilidad y cumplimiento estricto del estándar Model Content Protocol (MCP).
 
-## Architecture Overview
+## Visión General de la Arquitectura
 
 ```
 ┌─────────────────────┐    ┌─────────────────────┐
-│   MCP Clients       │    │   Library Users     │
-│   (VS Code, etc.)   │    │   (Direct Usage)    │
+│   Clientes MCP      │    │   Usuarios Library  │
+│   (VS Code, etc.)   │    │   (Uso Directo)     │
 └──────────┬──────────┘    └──────────┬──────────┘
            │                          │
-           │ JSON-RPC 2.0             │ Direct Calls
+           │ JSON-RPC 2.0             │ Llamadas directas
            │                          │
 ┌──────────▼──────────┐    ┌──────────▼──────────┐
-│  renovatio-mcp-     │    │     Your App        │
-│  server             │    │                     │
-│  ┌─────────────────┐│    │                     │
-│  │ MCP Protocol    ││    │                     │
-│  │ Implementation  ││    │                     │
-│  └─────────────────┘│    │                     │
+│  renovatio-mcp-     │    │     Tu App         │
+│  server             │    │                    │
+│  ┌─────────────────┐│    │                    │
+│  │ Protocolo MCP   ││    │                    │
+│  │ Implementación  ││    │                    │
+│  └─────────────────┘│    │                    │
 └──────────┬──────────┘    └──────────┬──────────┘
            │                          │
            └──────────────────────────┼──────────┘
                                       │
                            ┌──────────▼──────────┐
                            │  renovatio-core     │
-                           │  (Pure Engine)      │
+                           │  (Motor puro)       │
                            │  ┌─────────────────┐│
-                           │  │ Language        ││
-                           │  │ Provider        ││
-                           │  │ Registry        ││
+                           │  │ Registro de     ││
+                           │  │ Proveedores     ││
+                           │  │ de Lenguaje     ││
                            │  └─────────────────┘│
                            └──────────┬──────────┘
                                       │
@@ -42,20 +42,20 @@ This document describes the new modular architecture where MCP logic has been co
          └─────────────────────┘ └───────┘ └─────────────────────┘
 ```
 
-## Module Structure
+## Estructura de Módulos
 
-### 🎯 renovatio-core (Pure Engine)
+### 🎯 renovatio-core (Motor Puro)
 
-**Purpose**: Protocol-agnostic refactoring and migration engine
+**Propósito**: Motor de refactorización y migración agnóstico de protocolo.
 
-**Key Features**:
-- ✅ Zero MCP dependencies
-- ✅ Protocol-agnostic Tool and Recipe abstractions  
-- ✅ Language provider registry with dynamic tool generation
-- ✅ Can be used as Maven dependency or standalone library
-- ✅ Unified recipe format for all languages
+**Características Clave**:
+- ✅ Sin dependencias MCP
+- ✅ Abstracciones de Tool y Recipe independientes de protocolo
+- ✅ Registro de proveedores de lenguaje con generación dinámica de herramientas
+- ✅ Usable como dependencia Maven o librería standalone
+- ✅ Formato de receta unificado para todos los lenguajes
 
-**Usage as Library**:
+**Ejemplo de uso como librería**:
 ```xml
 <dependency>
     <groupId>org.shark.renovatio</groupId>
@@ -64,87 +64,69 @@ This document describes the new modular architecture where MCP logic has been co
 </dependency>
 ```
 
-**Example Usage**:
 ```java
-// Use core engine directly in your application
+// Uso directo del motor core en tu aplicación
 LanguageProviderRegistry registry = new LanguageProviderRegistry();
-
-// Get available tools (protocol-agnostic)
 List<Tool> tools = registry.generateTools();
-
-// Execute operations
 Map<String, Object> result = registry.routeToolCall("java.analyze", arguments);
 ```
 
-### 🚀 renovatio-mcp-server (MCP Protocol Implementation)
+### 🚀 renovatio-mcp-server (Implementación Protocolo MCP)
 
-**Purpose**: Full MCP specification implementation that exposes the core engine
+**Propósito**: Implementación completa de la especificación MCP que expone el motor core.
 
-**Key Features**:
-- ✅ Full MCP 2025-06-18 specification compliance
-- ✅ Serves on root path "/" for maximum client compatibility
-- ✅ All MCP methods: initialize, tools/*, prompts/*, resources/*, etc.
-- ✅ JSON-RPC 2.0 compliant with proper error handling
-- ✅ Spring Boot application with health checks and monitoring
+**Características Clave**:
+- ✅ Cumplimiento total MCP 2025-06-18
+- ✅ Sirve en la raíz "/" para máxima compatibilidad
+- ✅ Todos los métodos MCP: initialize, tools/*, prompts/*, resources/*, etc.
+- ✅ JSON-RPC 2.0 con manejo de errores robusto
+- ✅ Aplicación Spring Boot con health checks y monitoreo
 
-**Supported MCP Methods**:
-- `initialize` - Establish protocol version and capabilities
-- `ping` - Connectivity test
-- `tools/list` - List all available tools
-- `tools/call` - Execute a specific tool
-- `tools/describe` - Get detailed tool information
-- `capabilities` - Server capabilities
-- `server/info` - Server information
-- `content/read`, `content/write` - File operations
-- `workspace/list`, `workspace/describe` - Workspace operations
-- `prompts/list`, `prompts/get` - Prompt management
-- `resources/list`, `resources/read` - Resource access
+**Métodos MCP soportados**:
+- `initialize`, `ping`, `tools/list`, `tools/call`, `tools/describe`
+- `capabilities`, `server/info`, `content/read`, `content/write`
+- `workspace/list`, `workspace/describe`, `prompts/list`, `prompts/get`, `resources/list`, `resources/read`
 
-**Starting the MCP Server**:
+**Inicio del servidor MCP**:
 ```bash
 cd renovatio-mcp-server
 mvn spring-boot:run
 ```
+El servidor inicia en el puerto 8080 y atiende solicitudes MCP en `http://localhost:8080/`.
 
-The server will start on port 8080 and serve MCP requests at `http://localhost:8080/`.
+### 🔗 renovatio-shared (Abstracciones Comunes)
 
-### 🔗 renovatio-shared (Common Abstractions)
+**Propósito**: Interfaces y utilidades agnósticas de protocolo.
 
-**Purpose**: Protocol-agnostic interfaces and utilities
+**Componentes Clave**:
+- Interfaz `Tool` - Definición universal de herramienta
+- Interfaz `Recipe` - Formato de receta unificado
+- Implementación `BasicTool` - Herramienta concreta
+- Modelos de dominio - Estructuras de datos compartidas
 
-**Key Components**:
-- `Tool` interface - Universal tool definition
-- `Recipe` interface - Unified recipe format
-- `BasicTool` implementation - Concrete tool implementation
-- Domain models - Shared data structures
+### 🛠️ Proveedores de Lenguaje
 
-### 🛠️ Language Providers
+**Propósito**: Plugins de implementación específica por lenguaje.
 
-**Purpose**: Language-specific implementation plugins
+**Lenguajes soportados**:
+- **Java**: Vía recetas OpenRewrite
+- **COBOL**: Vía parsers ANTLR4
+- **Extensible**: Fácil de agregar nuevos lenguajes
 
-**Supported Languages**:
-- **Java**: Via OpenRewrite recipes
-- **COBOL**: Via ANTLR4 parsers
-- **Extensible**: Easy to add new languages
+## Ejemplos de Uso
 
-## Usage Examples
-
-### 1. Using Core Engine as Library
+### 1. Uso del motor core como librería
 
 ```java
 @Component
-public class MyRefactoringService {
-    
+public class MiServicioRefactor {
     private final LanguageProviderRegistry coreEngine;
-    
-    public MyRefactoringService() {
+    public MiServicioRefactor() {
         this.coreEngine = new LanguageProviderRegistry();
     }
-    
     public List<String> getSupportedLanguages() {
         return new ArrayList<>(coreEngine.getSupportedLanguages());
     }
-    
     public Map<String, Object> refactorCode(String language, String operation, Map<String, Object> params) {
         String toolName = language + "." + operation;
         return coreEngine.routeToolCall(toolName, params);
@@ -152,10 +134,9 @@ public class MyRefactoringService {
 }
 ```
 
-### 2. MCP Client Integration
+### 2. Integración Cliente MCP
 
 ```json
-// MCP Client Configuration
 {
   "servers": {
     "renovatio": {
@@ -169,31 +150,25 @@ public class MyRefactoringService {
 }
 ```
 
-### 3. HTTP API Usage
+### 3. Uso HTTP API
 
 ```bash
-# Initialize MCP session
+# Inicializar sesión MCP
 curl -X POST http://localhost:8080/ \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
     "id": 1,
     "method": "initialize",
-    "params": {
-      "protocolVersion": "2025-06-18"
-    }
+    "params": {"protocolVersion": "2025-06-18"}
   }'
 
-# List available tools  
+# Listar herramientas disponibles
 curl -X POST http://localhost:8080/ \
   -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 2,
-    "method": "tools/list"
-  }'
+  -d '{"jsonrpc": "2.0", "id": 2, "method": "tools/list"}'
 
-# Execute a tool
+# Ejecutar una herramienta
 curl -X POST http://localhost:8080/ \
   -H "Content-Type: application/json" \
   -d '{
@@ -210,14 +185,13 @@ curl -X POST http://localhost:8080/ \
   }'
 ```
 
-## Configuration
+## Configuración
 
-### Core Engine Configuration
+### Configuración del motor core
 
-The core engine is configured through the `LanguageProviderRegistry`:
+El motor core se configura a través de `LanguageProviderRegistry`:
 
 ```yaml
-# application.yml (if using Spring Boot)
 renovatio:
   providers:
     java:
@@ -231,13 +205,11 @@ renovatio:
     base-path: "classpath:recipes"
 ```
 
-### MCP Server Configuration
+### Configuración del servidor MCP
 
 ```yaml
-# renovatio-mcp-server/src/main/resources/application.yml
 server:
   port: 8080
-
 mcp:
   server:
     name: "Renovatio MCP Server"
@@ -255,70 +227,67 @@ mcp:
       describe: true
 ```
 
-## Benefits of This Architecture
+## Beneficios de esta arquitectura
 
-### ✅ **Separation of Concerns**
-- Core engine is pure business logic
-- MCP server is pure protocol implementation
-- Easy to maintain and test each component
+### ✅ Separación de responsabilidades
+- El motor core es lógica de negocio pura
+- El servidor MCP es implementación de protocolo
+- Fácil de mantener y testear cada componente
 
-### ✅ **Multiple Usage Patterns**
-- **Library**: Include core as Maven dependency
-- **MCP Server**: Full MCP protocol compliance
-- **REST API**: Traditional HTTP endpoints
-- **Embedded**: Use in any application
+### ✅ Múltiples patrones de uso
+- **Librería**: Incluye core como dependencia Maven
+- **Servidor MCP**: Cumplimiento total de protocolo MCP
+- **REST API**: Endpoints HTTP tradicionales
+- **Embebido**: Uso en cualquier aplicación
 
-### ✅ **Protocol Agnostic**
-- Core engine doesn't know about MCP
-- Easy to add other protocols (GraphQL, gRPC, etc.)
-- Future-proof architecture
+### ✅ Agnosticismo de protocolo
+- El core no conoce MCP
+- Fácil de agregar otros protocolos (GraphQL, gRPC, etc.)
+- Arquitectura preparada para el futuro
 
-### ✅ **Unified Recipe Format**
-- Same recipe interface for all languages
-- Java via OpenRewrite
-- COBOL via ANTLR4
-- Consistent experience across languages
+### ✅ Formato de receta unificado
+- Misma interfaz de receta para todos los lenguajes
+- Java vía OpenRewrite
+- COBOL vía ANTLR4
+- Experiencia consistente entre lenguajes
 
-### ✅ **MCP Compliance**
-- Full compliance with MCP specification
-- Serves at root path for maximum compatibility
-- Proper JSON-RPC 2.0 implementation
-- Complete error handling
+### ✅ Cumplimiento MCP
+- Cumplimiento total de la especificación MCP
+- Sirve en la raíz para máxima compatibilidad
+- Implementación JSON-RPC 2.0 robusta
+- Manejo de errores completo
 
 ## Testing
 
-### Core Engine Tests
+### Tests del motor core
 ```bash
 cd renovatio-core
 mvn test
 ```
 
-### MCP Server Tests  
+### Tests del servidor MCP
 ```bash
 cd renovatio-mcp-server
 mvn test
 ```
 
-### Integration Tests
+### Tests de integración
 ```bash
-# From project root
 mvn verify
 ```
 
-## Development
+## Desarrollo
 
-### Adding New Language Providers
+### Agregar nuevos proveedores de lenguaje
+1. Crear nuevo módulo: `renovatio-provider-<lenguaje>`
+2. Implementar la interfaz `LanguageProvider`
+3. Definir recetas específicas del lenguaje
+4. Registrar en `LanguageProviderRegistry`
 
-1. Create new module: `renovatio-provider-<language>`
-2. Implement `LanguageProvider` interface
-3. Define language-specific recipes
-4. Register with `LanguageProviderRegistry`
+### Extender funcionalidad MCP
+1. Agregar nuevos métodos a `McpProtocolService`
+2. Actualizar `McpCapabilities`
+3. Agregar tests correspondientes
+4. Actualizar documentación
 
-### Extending MCP Functionality
-
-1. Add new methods to `McpProtocolService`
-2. Update `McpCapabilities` 
-3. Add corresponding tests
-4. Update documentation
-
-This architecture provides maximum flexibility while maintaining clean separation between protocol concerns and business logic.
+Esta arquitectura provee máxima flexibilidad y separación limpia entre protocolo y lógica de negocio.
