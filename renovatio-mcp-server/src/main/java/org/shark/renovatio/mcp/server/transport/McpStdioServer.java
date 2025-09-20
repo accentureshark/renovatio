@@ -2,6 +2,7 @@ package org.shark.renovatio.mcp.server.transport;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.shark.renovatio.mcp.server.model.ToolCallResult;
 import org.shark.renovatio.mcp.server.service.McpToolingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -168,7 +169,7 @@ public class McpStdioServer {
                 return;
             }
 
-            String toolName = params.get("name").asText();
+            String toolName = normalizeToolName(params.get("name").asText());
             JsonNode arguments = params.has("arguments") ? params.get("arguments") : null;
 
             System.err.println("[MCP Server] Calling tool: " + toolName + " with arguments: " + arguments);
@@ -190,19 +191,8 @@ public class McpStdioServer {
                 });
             }
 
-            // Call the MCP tooling service with the corrected parameters
-            var result = mcpToolingService.executeTool(toolName, argumentsMap);
-
-            // Wrap the result in MCP-compliant format
-            Map<String, Object> mcpResult = new HashMap<>();
-            mcpResult.put("content", java.util.List.of(
-                Map.of(
-                    "type", "text",
-                    "text", result.toString()
-                )
-            ));
-
-            sendSuccessResponse(id, mcpResult);
+            ToolCallResult result = mcpToolingService.executeToolWithEnvelope(toolName, argumentsMap);
+            sendSuccessResponse(id, result);
 
         } catch (Exception e) {
             System.err.println("[MCP Server] Error in tools/call: " + e.getMessage());
@@ -257,5 +247,19 @@ public class McpStdioServer {
             System.err.println("[MCP Server] Error during cleanup: " + e.getMessage());
         }
         executor.shutdown();
+    }
+
+    private String normalizeToolName(String name) {
+        if (name == null) {
+            return null;
+        }
+        if (name.contains("_")) {
+            return name;
+        }
+        int idx = name.indexOf('.');
+        if (idx < 0) {
+            return name;
+        }
+        return name.substring(0, idx) + '_' + name.substring(idx + 1);
     }
 }

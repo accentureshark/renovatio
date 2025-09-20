@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.shark.renovatio.mcp.server.model.*;
+import org.shark.renovatio.mcp.server.model.ToolCallResult;
 import org.shark.renovatio.core.service.LanguageProviderRegistry;
 
 import java.util.HashMap;
@@ -51,6 +52,9 @@ public class McpProtocolServiceTest {
         mockTools.add(tool);
         when(mcpToolingService.getMcpTools()).thenReturn(mockTools);
         when(mcpToolingService.getSupportedLanguages()).thenReturn(java.util.Set.of("java"));
+        when(mcpToolingService.executeToolWithEnvelope(anyString(), anyMap())).thenReturn(
+            ToolCallResult.ok("stub summary", Map.of("success", true))
+        );
 
         mcpProtocolService = new McpProtocolService(mcpToolingService);
     }
@@ -175,13 +179,35 @@ public class McpProtocolServiceTest {
         McpRequest request = new McpRequest();
         request.setId("test-6");
         request.setMethod("invalid/method");
-        
+
         McpResponse response = mcpProtocolService.handleMcpRequest(request);
-        
+
         assertNotNull(response);
         assertEquals("test-6", response.getId());
         assertNotNull(response.getError());
         assertEquals(-32601, response.getError().getCode());
         assertTrue(response.getError().getMessage().contains("Method not found"));
+    }
+
+    @Test
+    void testToolsCallEnvelope() {
+        McpRequest request = new McpRequest();
+        request.setId("test-7");
+        request.setMethod("tools/call");
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("name", "java.analyze");
+        params.put("arguments", Map.of("workspacePath", "/tmp/project"));
+        request.setParams(params);
+
+        ToolCallResult expected = ToolCallResult.ok("Analyzed 10 files", Map.of("success", true));
+        when(mcpToolingService.executeToolWithEnvelope(eq("java_analyze"), anyMap())).thenReturn(expected);
+
+        McpResponse response = mcpProtocolService.handleMcpRequest(request);
+
+        assertNotNull(response);
+        assertEquals("test-7", response.getId());
+        assertNull(response.getError());
+        assertEquals(expected, response.getResult());
     }
 }

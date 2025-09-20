@@ -110,13 +110,14 @@ public class LanguageProviderRegistry {
 
         try {
             // Parse tool name to extract language and capability
-            String[] parts = toolName.split("\\.");
-            if (parts.length != 2) {
+            int separator = toolName.indexOf('.');
+            if (separator < 0 || separator == toolName.length() - 1) {
                 return createErrorResult("Invalid tool name format: " + toolName);
             }
 
-            String language = parts[0];
-            String capability = parts[1].toLowerCase();
+            String language = toolName.substring(0, separator);
+            String capability = toolName.substring(separator + 1);
+            String capabilityKey = capability.toLowerCase();
 
             LanguageProvider provider = providers.get(language);
             if (provider == null) {
@@ -138,7 +139,7 @@ public class LanguageProviderRegistry {
 
             // Route to appropriate method based on capability
             logger.info("Routing to capability: {}", capability);
-            switch (capability) {
+            switch (capabilityKey) {
                 case "analyze":
                     logger.info("Calling provider.analyze()...");
                     AnalyzeResult analyzeResult = provider.analyze(query, workspace);
@@ -221,6 +222,16 @@ public class LanguageProviderRegistry {
         logger.info("Input result type: {}", result != null ? result.getClass().getName() : "null");
         logger.info("Input result: {}", result);
 
+        if (result instanceof ProviderResult providerResult) {
+            map.put("success", providerResult.isSuccess());
+            map.put("message", providerResult.getMessage());
+            map.put("runId", providerResult.getRunId());
+            map.put("timestamp", providerResult.getTimestamp());
+            if (providerResult.getMetadata() != null && !providerResult.getMetadata().isEmpty()) {
+                map.put("metadata", providerResult.getMetadata());
+            }
+        }
+
         if (result instanceof AnalyzeResult) {
             AnalyzeResult ar = (AnalyzeResult) result;
             logger.info("Converting AnalyzeResult: success={}, message={}", ar.isSuccess(), ar.getMessage());
@@ -232,6 +243,11 @@ public class LanguageProviderRegistry {
             map.put("symbols", ar.getSymbols());
             map.put("dependencies", ar.getDependencies());
             map.put("type", "analyze");
+            if (ar.getPerformance() != null) {
+                Map<String, Object> performance = new HashMap<>();
+                performance.put("executionTimeMs", ar.getPerformance().getExecutionTimeMs());
+                map.put("performance", performance);
+            }
 
         } else if (result instanceof MetricsResult) {
             MetricsResult mr = (MetricsResult) result;

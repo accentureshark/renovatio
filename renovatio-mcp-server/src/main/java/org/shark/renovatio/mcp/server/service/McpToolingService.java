@@ -2,10 +2,10 @@ package org.shark.renovatio.mcp.server.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import org.shark.renovatio.mcp.server.model.McpPrompt;
 import org.shark.renovatio.mcp.server.model.McpResource;
 import org.shark.renovatio.mcp.server.model.McpTool;
+import org.shark.renovatio.mcp.server.model.ToolCallResult;
 import org.shark.renovatio.core.service.LanguageProviderRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -18,13 +18,16 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class McpToolingService {
     private static final Logger logger = LoggerFactory.getLogger(McpToolingService.class);
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
     private final String spec;
     private final LanguageProviderRegistry providerRegistry;
     private final McpToolAdapter toolAdapter;
@@ -35,10 +38,9 @@ public class McpToolingService {
     public McpToolingService(LanguageProviderRegistry providerRegistry, McpToolAdapter toolAdapter) {
         this.providerRegistry = providerRegistry;
         this.toolAdapter = toolAdapter;
-        ObjectMapper mapper = new ObjectMapper();
         try {
             var resource = new ClassPathResource("mcp-tooling.json", McpToolingService.class.getClassLoader());
-            JsonNode root = mapper.readTree(resource.getInputStream());
+            JsonNode root = JSON_MAPPER.readTree(resource.getInputStream());
             this.spec = root.path("spec").asText();
             
             this.prompts = createPrompts();
@@ -66,23 +68,10 @@ public class McpToolingService {
         logger.debug("Executing MCP tool: '{}' with arguments: {}", toolName, arguments);
 
         try {
-            // Normalize MCP tool names to internal format (java_analyze -> java.analyze)
-            String internalToolName = toolName.replace("_", ".");
+            String internalToolName = toInternalToolName(toolName);
 
-            // Ensure required arguments are present
             Map<String, Object> normalizedArguments = new HashMap<>(arguments);
 
-            // Validate workspacePath for Java tools
-            if (internalToolName.startsWith("java.") && !normalizedArguments.containsKey("workspacePath")) {
-                logger.warn("Missing workspacePath for Java tool: {}", internalToolName);
-                Map<String, Object> errorResult = new HashMap<>();
-                errorResult.put("type", "text");
-                errorResult.put("text", "Missing required parameter: workspacePath");
-                errorResult.put("success", false);
-                return errorResult;
-            }
-
-            // Execute the tool through the provider registry
             logger.debug("Routing tool call to provider: {} with args: {}", internalToolName, normalizedArguments);
             var result = providerRegistry.routeToolCall(internalToolName, normalizedArguments);
 
@@ -115,6 +104,14 @@ public class McpToolingService {
             errorResult.put("error", e.getClass().getSimpleName());
             return errorResult;
         }
+    }
+
+    /**
+     * Execute a tool and produce an MCP-compliant result envelope.
+     */
+    public ToolCallResult executeToolWithEnvelope(String toolName, Map<String, Object> arguments) {
+        Map<String, Object> rawResult = executeTool(toolName, arguments);
+        return buildToolCallResult(toolName, rawResult);
     }
 
     /**
@@ -226,6 +223,295 @@ public class McpToolingService {
         return providerRegistry.getSupportedLanguages();
     }
 
+    private ToolCallResult buildToolCallResult(String toolName, Map<String, Object> rawResult) {
+        String canonicalName = toCanonicalName(toolName);
+        if (rawResult == null || rawResult.isEmpty()) {
+            return ToolCallResult.error("Tool '" + canonicalName + "' returned no results");
+        }
+
+        Map<String, Object> structured = sanitizeMap(rawResult);
+        boolean success = parseSuccess(structured);
+
+        if (!success) {
+            String message = stringValue(structured.get("message"), "Tool '" + canonicalName + "' execution failed");
+            return ToolCallResult.error(message, structured);
+        }
+
+        String summary = buildSummary(canonicalName, structured);
+        return ToolCallResult.ok(summary, structured);
+    }
+
+    private Map<String, Object> sanitizeMap(Map<?, ?> raw) {
+        Map<String, Object> sanitized = new LinkedHashMap<>();
+        raw.forEach((key, value) -> sanitized.put(String.valueOf(key), sanitizeValue(value)));
+        return sanitized;
+    }
+
+    private Object sanitizeValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Map<?, ?> map) {
+            return sanitizeMap(map);
+        }
+        if (value instanceof List<?> list) {
+            List<Object> sanitizedList = new ArrayList<>(list.size());
+            for (Object item : list) {
+                sanitizedList.add(sanitizeValue(item));
+            }
+            return sanitizedList;
+        }
+        if (value instanceof Number || value instanceof Boolean || value instanceof String) {
+            return value;
+        }
+        if (value instanceof Enum<?> enumValue) {
+            return enumValue.name();
+        }
+        try {
+            return JSON_MAPPER.convertValue(value, Map.class);
+        } catch (IllegalArgumentException ignored) {
+            return String.valueOf(value);
+        }
+    }
+
+    private boolean parseSuccess(Map<String, Object> structured) {
+        Object successValue = structured.get("success");
+        if (successValue == null) {
+            return !structured.containsKey("error");
+        }
+        return parseBoolean(successValue);
+    }
+
+    private boolean parseBoolean(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        if (value instanceof String str) {
+            return Boolean.parseBoolean(str);
+        }
+        return true;
+    }
+
+    private String buildSummary(String toolName, Map<String, Object> structured) {
+        String type = stringValue(structured.get("type"), "").toLowerCase();
+        return switch (type) {
+            case "analyze" -> buildAnalyzeSummary(toolName, structured);
+            case "metrics" -> buildMetricsSummary(toolName, structured);
+            case "plan" -> buildPlanSummary(toolName, structured);
+            case "apply" -> buildApplySummary(toolName, structured);
+            case "diff" -> buildDiffSummary(toolName, structured);
+            default -> buildGenericSummary(toolName, structured);
+        };
+    }
+
+    private String buildAnalyzeSummary(String toolName, Map<String, Object> structured) {
+        Map<String, Object> data = asMap(structured.get("data"));
+        Map<String, Object> ast = asMap(structured.get("ast"));
+        Map<String, Object> dependencies = asMap(structured.get("dependencies"));
+        Map<String, Object> performance = asMap(structured.get("performance"));
+
+        int files = data.size();
+        long classes = getLong(ast, "totalClasses");
+        long methods = getLong(ast, "totalMethods");
+        long uniqueImports = getLong(dependencies, "uniqueImports");
+        long totalImports = getLong(dependencies, "totalImports");
+        Long durationMs = getOptionalLong(performance, "executionTimeMs");
+        if (durationMs == null) {
+            durationMs = getOptionalLong(ast, "durationMs");
+        }
+
+        List<String> metrics = new ArrayList<>();
+        if (classes > 0) {
+            metrics.add(classes + " classes");
+        }
+        if (methods > 0) {
+            metrics.add(methods + " methods");
+        }
+        if (uniqueImports > 0) {
+            String importSummary = uniqueImports + " unique imports";
+            if (totalImports > 0 && totalImports != uniqueImports) {
+                importSummary += " (" + totalImports + " total)";
+            }
+            metrics.add(importSummary);
+        }
+
+        StringBuilder summary = new StringBuilder();
+        summary.append(toolName).append(": analyzed ").append(files).append(" files");
+        if (!metrics.isEmpty()) {
+            summary.append(" (").append(String.join(", ", metrics)).append(")");
+        }
+
+        List<?> issues = asList(structured.get("issues"));
+        if (!issues.isEmpty()) {
+            summary.append(", found ").append(issues.size()).append(" issues");
+        }
+
+        if (durationMs != null && durationMs > 0) {
+            summary.append(" in ").append(durationMs).append(" ms");
+        }
+
+        String message = stringValue(structured.get("message"), "");
+        if (!message.isEmpty()) {
+            summary.append(". ").append(message);
+        } else {
+            summary.append('.');
+        }
+
+        return summary.toString();
+    }
+
+    private String buildMetricsSummary(String toolName, Map<String, Object> structured) {
+        Map<String, Object> metrics = asMap(structured.get("metrics"));
+        List<String> parts = new ArrayList<>();
+        if (metrics.containsKey("totalFiles")) {
+            parts.add(metrics.get("totalFiles") + " files");
+        }
+        if (metrics.containsKey("issuesFound")) {
+            parts.add(metrics.get("issuesFound") + " issues");
+        }
+        if (metrics.containsKey("durationMs")) {
+            parts.add(metrics.get("durationMs") + " ms");
+        }
+
+        StringBuilder summary = new StringBuilder(toolName).append(": metrics collected");
+        if (!parts.isEmpty()) {
+            summary.append(" - ").append(String.join(", ", parts));
+        }
+
+        String message = stringValue(structured.get("message"), "");
+        if (!message.isEmpty()) {
+            summary.append(". ").append(message);
+        } else {
+            summary.append('.');
+        }
+
+        return summary.toString();
+    }
+
+    private String buildPlanSummary(String toolName, Map<String, Object> structured) {
+        String planId = stringValue(structured.get("planId"), "plan");
+        List<?> steps = asList(structured.get("steps"));
+        StringBuilder summary = new StringBuilder(toolName)
+            .append(": generated plan ")
+            .append(planId)
+            .append(" with ")
+            .append(steps.size())
+            .append(" steps");
+
+        String message = stringValue(structured.get("message"), "");
+        if (!message.isEmpty()) {
+            summary.append(". ").append(message);
+        } else {
+            summary.append('.');
+        }
+
+        return summary.toString();
+    }
+
+    private String buildApplySummary(String toolName, Map<String, Object> structured) {
+        boolean dryRun = parseBoolean(structured.get("dryRun"));
+        List<?> changes = asList(structured.get("changes"));
+        String action = dryRun ? "previewed" : "applied";
+
+        StringBuilder summary = new StringBuilder(toolName)
+            .append(": ")
+            .append(action)
+            .append(' ')
+            .append(changes.size())
+            .append(" changes");
+
+        String message = stringValue(structured.get("message"), "");
+        if (!message.isEmpty()) {
+            summary.append(". ").append(message);
+        } else {
+            summary.append('.');
+        }
+
+        return summary.toString();
+    }
+
+    private String buildDiffSummary(String toolName, Map<String, Object> structured) {
+        List<?> hunks = asList(structured.get("hunks"));
+        StringBuilder summary = new StringBuilder(toolName)
+            .append(": produced diff with ")
+            .append(hunks.size())
+            .append(hunks.size() == 1 ? " hunk" : " hunks");
+
+        String message = stringValue(structured.get("message"), "");
+        if (!message.isEmpty()) {
+            summary.append(". ").append(message);
+        } else {
+            summary.append('.');
+        }
+
+        return summary.toString();
+    }
+
+    private String buildGenericSummary(String toolName, Map<String, Object> structured) {
+        String message = stringValue(structured.get("message"), "");
+        if (!message.isEmpty()) {
+            return toolName + ": " + message;
+        }
+        return toolName + " executed successfully.";
+    }
+
+    private Map<String, Object> asMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> copy = new LinkedHashMap<>();
+            map.forEach((k, v) -> copy.put(String.valueOf(k), v));
+            return copy;
+        }
+        return Collections.emptyMap();
+    }
+
+    private List<?> asList(Object value) {
+        if (value instanceof List<?> list) {
+            return list;
+        }
+        return Collections.emptyList();
+    }
+
+    private long getLong(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String str && !str.isBlank()) {
+            try {
+                return Long.parseLong(str);
+            } catch (NumberFormatException ignored) {
+                return 0L;
+            }
+        }
+        return 0L;
+    }
+
+    private Long getOptionalLong(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String str && !str.isBlank()) {
+            try {
+                return Long.parseLong(str);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private String stringValue(Object value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.toString().trim();
+        return text.isEmpty() ? defaultValue : text;
+    }
+
     private List<McpPrompt> createPrompts() {
         List<McpPrompt> prompts = new ArrayList<>();
 
@@ -296,5 +582,27 @@ public class McpToolingService {
                 logger.info("- {}: {}", tool.getName(), tool.getDescription());
             }
         }
+    }
+
+    private String toInternalToolName(String toolName) {
+        if (toolName == null) {
+            return null;
+        }
+        int idx = toolName.indexOf('_');
+        if (idx < 0) {
+            return toolName;
+        }
+        return toolName.substring(0, idx) + '.' + toolName.substring(idx + 1);
+    }
+
+    private String toCanonicalName(String toolName) {
+        if (toolName == null) {
+            return null;
+        }
+        int idx = toolName.indexOf('_');
+        if (idx < 0) {
+            return toolName;
+        }
+        return toolName.substring(0, idx) + '.' + toolName.substring(idx + 1);
     }
 }

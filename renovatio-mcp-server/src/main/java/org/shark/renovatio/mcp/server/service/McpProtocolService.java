@@ -141,34 +141,30 @@ public class McpProtocolService {
                     new McpError(-32602, "Invalid params - missing tool name"));
             }
 
-            String toolName = (String) params.get("name");
+            String toolName = normalizeToolName((String) params.get("name"));
             @SuppressWarnings("unchecked")
             Map<String, Object> arguments = (Map<String, Object>) params.getOrDefault("arguments", new HashMap<>());
 
-            // Execute the tool using McpToolingService
-            Map<String, Object> rawResult = mcpToolingService.executeTool(toolName, arguments);
-
-            Map<String, Object> result = new HashMap<>();
-            // --- MCP metrics content flattening ---
-            if (rawResult.containsKey("metrics")) {
-                Map<String, Object> metrics = (Map<String, Object>) rawResult.get("metrics");
-                Map<String, Object> content = new HashMap<>();
-                content.put("type", "metrics");
-                content.putAll(metrics); // flatten metrics at top level
-                result.put("content", List.of(content));
-            } else {
-                // Default: text or other types
-                Map<String, Object> content = new HashMap<>();
-                content.put("type", rawResult.getOrDefault("type", "text"));
-                content.put("text", rawResult.getOrDefault("text", rawResult.toString()));
-                result.put("content", List.of(content));
-            }
-
-            return new McpResponse(request.getId(), result);
+            ToolCallResult toolResult = mcpToolingService.executeToolWithEnvelope(toolName, arguments);
+            return new McpResponse(request.getId(), toolResult);
         } catch (Exception e) {
             return new McpResponse(request.getId(),
                 new McpError(-32603, "Tool execution error: " + e.getMessage()));
         }
+    }
+
+    private String normalizeToolName(String name) {
+        if (name == null) {
+            return null;
+        }
+        if (name.contains("_")) {
+            return name;
+        }
+        int idx = name.indexOf('.');
+        if (idx < 0) {
+            return name;
+        }
+        return name.substring(0, idx) + '_' + name.substring(idx + 1);
     }
 
     /**
@@ -202,7 +198,7 @@ public class McpProtocolService {
     private McpResponse handleToolsDescribe(McpRequest request) {
         @SuppressWarnings("unchecked")
         Map<String, Object> params = (Map<String, Object>) request.getParams();
-        String toolName = (String) params.get("name");
+        String toolName = normalizeToolName((String) params.get("name"));
         var tool = mcpToolingService.getTool(toolName);
         if (tool == null) {
             return new McpResponse(request.getId(), new McpError(-32602, "Tool not found: " + toolName));
