@@ -1,10 +1,16 @@
 package org.shark.renovatio.provider.java;
 
-import org.shark.renovatio.shared.spi.BaseLanguageProvider;
+import org.openrewrite.config.Environment;
+import org.openrewrite.config.OptionDescriptor;
+import org.openrewrite.config.RecipeDescriptor;
+import org.openrewrite.config.YamlResourceLoader;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
+import org.shark.renovatio.shared.spi.BaseLanguageProvider;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.*;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -559,25 +565,319 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
     }
 
     @Override
-    public List<org.shark.renovatio.shared.domain.Tool> getTools() {
-        List<org.shark.renovatio.shared.domain.Tool> tools = new ArrayList<>();
-        // Define input schema for java_analyze
-        Map<String, Object> properties = new HashMap<>();
-        Map<String, Object> workspacePath = new HashMap<>();
-        workspacePath.put("type", "string");
-        workspacePath.put("description", "Path to the workspace directory to analyze");
-        properties.put("workspacePath", workspacePath);
-        Map<String, Object> inputSchema = new HashMap<>();
-        inputSchema.put("type", "object");
-        inputSchema.put("properties", properties);
-        inputSchema.put("required", List.of("workspacePath"));
-        inputSchema.put("example", Map.of("workspacePath", "/path/to/workspace"));
-        tools.add(new org.shark.renovatio.shared.domain.BasicTool(
-            "java_analyze",
-            "Analyze for java",
-            inputSchema
-        ));
-        // Puedes agregar más herramientas MCP aquí (java_metrics, java_plan, etc.)
+    public List<Tool> getTools() {
+        List<Tool> tools = new ArrayList<>();
+        tools.add(createAnalyzeTool());
+
+        List<Tool> recipeTools = discoverRecipeTools();
+        if (!recipeTools.isEmpty()) {
+            tools.addAll(recipeTools);
+        }
+
         return tools;
+    }
+
+    private List<Tool> discoverRecipeTools() {
+        List<Tool> recipeTools = new ArrayList<>();
+
+        try {
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+            if (classLoader == null) {
+                classLoader = JavaLanguageProvider.class.getClassLoader();
+            }
+
+            Environment.Builder builder = Environment.builder(classLoader)
+                .scanRuntimeClasspath();
+
+            File rewriteConfig = new File("rewrite.yml");
+            if (rewriteConfig.exists()) {
+                try (InputStream inputStream = Files.newInputStream(rewriteConfig.toPath())) {
+                    builder.load(new YamlResourceLoader(inputStream, rewriteConfig.toURI(), new Properties()));
+                }
+            }
+
+            Environment environment = builder.build();
+            Collection<RecipeDescriptor> descriptors = environment.listRecipeDescriptors();
+
+            if (descriptors == null || descriptors.isEmpty()) {
+                System.out.println("[JavaLanguageProvider] No OpenRewrite recipes discovered on the classpath.");
+                return recipeTools;
+            }
+
+            Set<String> seenRecipes = new LinkedHashSet<>();
+            Set<String> seenToolNames = new LinkedHashSet<>();
+
+            for (RecipeDescriptor descriptor : descriptors) {
+                collectRecipeTools(descriptor, recipeTools, seenRecipes, seenToolNames);
+            }
+
+            System.out.println("[JavaLanguageProvider] Exposing " + recipeTools.size() + " OpenRewrite recipe tool(s).");
+        } catch (Exception e) {
+            System.err.println("[WARN] Unable to discover OpenRewrite recipes: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+
+        return recipeTools;
+    }
+
+    private void collectRecipeTools(RecipeDescriptor descriptor, List<Tool> tools, Set<String> seenRecipes, Set<String> seenToolNames) {
+        if (descriptor == null) {
+            return;
+        }
+
+        String recipeName = descriptor.getName();
+        boolean isListable = descriptor.isListable();
+
+        if (recipeName != null && !recipeName.isBlank() && isListable && seenRecipes.add(recipeName)) {
+            BasicTool tool = createRecipeTool(descriptor, seenToolNames);
+            if (tool != null) {
+                tools.add(tool);
+            }
+        }
+
+        Collection<RecipeDescriptor> nested = descriptor.getRecipeList();
+        if (nested != null) {
+            for (RecipeDescriptor child : nested) {
+                collectRecipeTools(child, tools, seenRecipes, seenToolNames);
+            }
+        }
+    }
+
+    private BasicTool createRecipeTool(RecipeDescriptor descriptor, Set<String> seenToolNames) {
+        String recipeName = descriptor.getName();
+        if (recipeName == null || recipeName.isBlank()) {
+            return null;
+        }
+
+        String slug = toRecipeSlug(recipeName);
+        String toolName = ensureUniqueToolName("java_apply_" + slug, seenToolNames);
+
+        String description = descriptor.getDescription();
+        if (description == null || description.isBlank()) {
+            description = descriptor.getDisplayName();
+        }
+        if (description == null || description.isBlank()) {
+            description = recipeName;
+        }
+
+        Map<String, Object> properties = new LinkedHashMap<>();
+        Map<String, Object> workspaceProperty = new LinkedHashMap<>();
+        workspaceProperty.put("description", "Path to the workspace directory where the recipe will be executed");
+        workspaceProperty.put("type", "string");
+        properties.put("workspacePath", workspaceProperty);
+
+        List<String> required = new ArrayList<>();
+        required.add("workspacePath");
+
+        Map<String, Object> example = new LinkedHashMap<>();
+        example.put("workspacePath", "/path/to/workspace");
+
+        List<Map<String, Object>> parameters = new ArrayList<>();
+        parameters.add(createParameter(
+            "workspacePath",
+            "Path to the workspace directory where the recipe will be executed",
+            "string",
+            true,
+            null
+        ));
+
+        List<OptionDescriptor> options = descriptor.getOptions();
+        if (options != null) {
+            for (OptionDescriptor option : options) {
+                if (option == null || option.getName() == null || option.getName().isBlank()) {
+                    continue;
+                }
+
+                String optionType = mapOptionType(option.getType());
+                Map<String, Object> property = new LinkedHashMap<>();
+
+                String optionDescription = option.getDescription();
+                if (optionDescription != null && !optionDescription.isBlank()) {
+                    property.put("description", optionDescription);
+                }
+
+                property.put("type", optionType);
+
+                Object optionExample = option.getExample();
+                if (optionExample != null) {
+                    property.put("example", optionExample);
+                    example.put(option.getName(), optionExample);
+                }
+
+                Collection<String> validValues = option.getValid();
+                if (validValues != null && !validValues.isEmpty()) {
+                    property.put("enum", new ArrayList<>(validValues));
+                }
+
+                properties.put(option.getName(), property);
+
+                if (option.isRequired()) {
+                    required.add(option.getName());
+                }
+
+                parameters.add(createParameter(
+                    option.getName(),
+                    optionDescription,
+                    optionType,
+                    option.isRequired(),
+                    optionExample,
+                    validValues
+                ));
+            }
+        }
+
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", properties);
+        schema.put("required", required);
+        schema.put("example", example);
+
+        BasicTool tool = new BasicTool(toolName, description, schema);
+        tool.getMetadata().put("recipeName", recipeName);
+
+        if (descriptor.getDisplayName() != null && !descriptor.getDisplayName().isBlank()) {
+            tool.getMetadata().put("displayName", descriptor.getDisplayName());
+        }
+
+        if (descriptor.getTags() != null && !descriptor.getTags().isEmpty()) {
+            tool.getMetadata().put("tags", new ArrayList<>(descriptor.getTags()));
+        }
+
+        if (descriptor.getEstimatedEffortPerOccurrence() != null) {
+            tool.getMetadata().put(
+                "estimatedEffortPerOccurrence",
+                descriptor.getEstimatedEffortPerOccurrence().toString()
+            );
+        }
+
+        tool.getMetadata().put("parameters", parameters);
+        tool.getMetadata().put("example", example);
+
+        return tool;
+    }
+
+    private BasicTool createAnalyzeTool() {
+        return createWorkspaceTool(
+            "java_analyze",
+            "Analyze for java"
+        );
+    }
+
+    private BasicTool createWorkspaceTool(String name, String description) {
+        Map<String, Object> workspaceProperty = new LinkedHashMap<>();
+        workspaceProperty.put("description", "Path to the workspace directory to analyze");
+        workspaceProperty.put("type", "string");
+
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("workspacePath", workspaceProperty);
+
+        List<String> required = new ArrayList<>();
+        required.add("workspacePath");
+
+        Map<String, Object> example = new LinkedHashMap<>();
+        example.put("workspacePath", "/path/to/workspace");
+
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", properties);
+        schema.put("required", required);
+        schema.put("example", example);
+
+        BasicTool tool = new BasicTool(name, description, schema);
+
+        List<Map<String, Object>> parameters = new ArrayList<>();
+        parameters.add(createParameter(
+            "workspacePath",
+            "Path to the workspace directory to analyze",
+            "string",
+            true,
+            null
+        ));
+
+        tool.getMetadata().put("parameters", parameters);
+        tool.getMetadata().put("example", example);
+
+        return tool;
+    }
+
+    private Map<String, Object> createParameter(String name, String description, String type, boolean required, Object example) {
+        return createParameter(name, description, type, required, example, null);
+    }
+
+    private Map<String, Object> createParameter(
+        String name,
+        String description,
+        String type,
+        boolean required,
+        Object example,
+        Collection<String> validValues
+    ) {
+        Map<String, Object> parameter = new LinkedHashMap<>();
+        parameter.put("name", name);
+        parameter.put("description", description != null ? description : "");
+        parameter.put("type", type != null ? type : "string");
+        parameter.put("required", required);
+
+        if (example != null) {
+            parameter.put("example", example);
+        }
+
+        if (validValues != null && !validValues.isEmpty()) {
+            parameter.put("enum", new ArrayList<>(validValues));
+        }
+
+        return parameter;
+    }
+
+    private String mapOptionType(String optionType) {
+        if (optionType == null || optionType.isBlank()) {
+            return "string";
+        }
+
+        String normalized = optionType.toLowerCase(Locale.ROOT);
+
+        if (normalized.contains("boolean")) {
+            return "boolean";
+        }
+
+        if (normalized.contains("int") || normalized.contains("long") || normalized.contains("short")
+            || normalized.contains("byte")) {
+            return "integer";
+        }
+
+        if (normalized.contains("double") || normalized.contains("float") || normalized.contains("bigdecimal")
+            || normalized.contains("number")) {
+            return "number";
+        }
+
+        if (normalized.contains("list") || normalized.contains("set") || normalized.contains("collection")
+            || normalized.contains("array")) {
+            return "array";
+        }
+
+        return "string";
+    }
+
+    private String toRecipeSlug(String recipeName) {
+        String slug = recipeName.replaceAll("[^a-zA-Z0-9]+", "_");
+        slug = slug.replaceAll("_+", "_");
+        slug = slug.replaceAll("^_", "").replaceAll("_$", "");
+
+        if (slug.isEmpty()) {
+            slug = "recipe";
+        }
+
+        return slug.toLowerCase(Locale.ROOT);
+    }
+
+    private String ensureUniqueToolName(String baseName, Set<String> seenToolNames) {
+        String candidate = baseName;
+        int counter = 1;
+
+        while (!seenToolNames.add(candidate)) {
+            candidate = baseName + "_" + counter++;
+        }
+
+        return candidate;
     }
 }
