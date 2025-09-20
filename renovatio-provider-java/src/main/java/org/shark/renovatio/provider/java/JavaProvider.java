@@ -4,12 +4,25 @@ import org.shark.renovatio.shared.spi.BaseLanguageProvider;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.openrewrite.config.Environment;
-import org.openrewrite.Recipe;
 import org.openrewrite.config.OptionDescriptor;
-import org.openrewrite.yaml.YamlResourceLoader;
+import org.openrewrite.config.RecipeDescriptor;
+import org.openrewrite.config.YamlResourceLoader;
+
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.Set;
 
 /**
  * Java language provider implementation using OpenRewrite
@@ -144,117 +157,237 @@ public class JavaProvider extends BaseLanguageProvider {
     
     @Override
     public java.util.List<Tool> getTools() {
-        List<Tool> tools = new ArrayList<>();
+        List<Tool> recipeTools = new ArrayList<>();
+
         try {
-            // Use the current thread's classloader for deep recipe discovery
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            if (cl == null) {
+                cl = JavaProvider.class.getClassLoader();
+            }
+
             Environment.Builder builder = Environment.builder(cl)
                 .scanClasspath("org.openrewrite")
                 .scanClasspath("org.openrewrite.recipe");
+
             File rewriteYml = new File("rewrite.yml");
             if (rewriteYml.exists()) {
                 try (java.io.InputStream is = java.nio.file.Files.newInputStream(rewriteYml.toPath())) {
                     builder.load(new YamlResourceLoader(is, rewriteYml.toURI(), new Properties()));
                 }
             }
+
             Environment env = builder.build();
-            Collection<Recipe> recipes = env.listRecipes();
-            System.out.println("[DEBUG] OpenRewrite discovered " + recipes.size() + " recipes:");
-            for (Recipe recipe : recipes) {
-                System.out.println("[DEBUG] - " + recipe.getName() + ": " + recipe.getDisplayName());
-            }
-            for (Recipe recipe : recipes) {
-                String name = recipe.getName();
-                String displayName = recipe.getDisplayName() != null ? recipe.getDisplayName() : name;
-                String description = recipe.getDescription() != null ? recipe.getDescription() : displayName;
-                // Try to get options/parameters if available
-                List<Map<String, Object>> parameters = new ArrayList<>();
-                Map<String, Object> properties = new LinkedHashMap<>();
-                List<String> required = new ArrayList<>();
-                Map<String, Object> example = new LinkedHashMap<>();
-                try {
-                    var optionDescriptorsMethod = recipe.getClass().getMethod("getOptionDescriptors");
-                    @SuppressWarnings("unchecked")
-                    List<Object> optionDescriptors = (List<Object>) optionDescriptorsMethod.invoke(recipe);
-                    for (Object opt : optionDescriptors) {
-                        var getName = opt.getClass().getMethod("getName");
-                        var getDescription = opt.getClass().getMethod("getDescription");
-                        var getType = opt.getClass().getMethod("getType");
-                        var isRequired = opt.getClass().getMethod("isRequired");
-                        var getExample = opt.getClass().getMethod("getExample");
-                        String optName = (String) getName.invoke(opt);
-                        String optDesc = (String) getDescription.invoke(opt);
-                        String optType = (String) getType.invoke(opt);
-                        boolean optReq = (boolean) isRequired.invoke(opt);
-                        Object optExample = getExample.invoke(opt);
-                        Map<String, Object> param = new LinkedHashMap<>();
-                        param.put("name", optName);
-                        param.put("description", optDesc != null ? optDesc : "");
-                        param.put("type", optType);
-                        param.put("required", optReq);
-                        if (optExample != null) {
-                            param.put("example", optExample);
-                            example.put(optName, optExample);
-                        }
-                        parameters.add(param);
-                        Map<String, Object> prop = new LinkedHashMap<>();
-                        prop.put("description", optDesc != null ? optDesc : "");
-                        prop.put("type", optType);
-                        if (optExample != null) {
-                            prop.put("example", optExample);
-                        }
-                        properties.put(optName, prop);
-                        if (optReq) {
-                            required.add(optName);
-                        }
-                    }
-                } catch (Exception ignore) {
-                    // No options available for this recipe
-                }
-                Map<String, Object> inputSchema = Map.of(
-                    "type", "object",
-                    "properties", properties,
-                    "required", required,
-                    "example", example
-                );
-                BasicTool tool = new BasicTool(
-                    "java_" + name,
-                    description,
-                    inputSchema
-                );
-                tool.getMetadata().put("parameters", parameters);
-                tool.getMetadata().put("example", example);
-                tools.add(tool);
+            Collection<RecipeDescriptor> descriptors = env.listRecipeDescriptors();
+            Set<String> seen = new LinkedHashSet<>();
+            for (RecipeDescriptor descriptor : descriptors) {
+                collectRecipeTools(descriptor, recipeTools, seen);
             }
         } catch (Exception e) {
-            // Fallback: expose only a default tool if OpenRewrite is not available
-            BasicTool fallback = new BasicTool(
-                "java_analyze",
-                "Analyze for java",
-                Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "workspacePath", Map.of(
-                            "description", "Path to the workspace directory to analyze",
-                            "type", "string"
-                        )
-                    ),
-                    "required", List.of("workspacePath"),
-                    "example", Map.of("workspacePath", "/path/to/workspace")
-                )
-            );
-            fallback.getMetadata().put("parameters", List.of(
-                Map.of(
-                    "name", "workspacePath",
-                    "description", "Path to the workspace directory to analyze",
-                    "type", "string",
-                    "required", true
-                )
-            ));
-            fallback.getMetadata().put("example", Map.of("workspacePath", "/path/to/workspace"));
-            tools.add(fallback);
+            System.err.println("[WARN] Unable to discover OpenRewrite recipes: " + e.getMessage());
+            e.printStackTrace(System.err);
         }
+
+        if (recipeTools.isEmpty()) {
+            return List.of(createFallbackAnalyzeTool());
+        }
+
+        List<Tool> tools = new ArrayList<>();
+        tools.add(createAnalyzeTool());
+        tools.addAll(recipeTools);
         return tools;
+    }
+
+    private void collectRecipeTools(RecipeDescriptor descriptor, List<Tool> tools, Set<String> seen) {
+        if (descriptor == null) {
+            return;
+        }
+
+        String recipeName = descriptor.getName();
+        if (recipeName == null || recipeName.isBlank() || !seen.add(recipeName)) {
+            // Skip empty names or already processed recipes
+            return;
+        }
+
+        BasicTool tool = createRecipeTool(descriptor);
+        if (tool != null) {
+            tools.add(tool);
+        }
+
+        Collection<RecipeDescriptor> nested = descriptor.getRecipeList();
+        if (nested != null) {
+            for (RecipeDescriptor child : nested) {
+                collectRecipeTools(child, tools, seen);
+            }
+        }
+    }
+
+    private BasicTool createRecipeTool(RecipeDescriptor descriptor) {
+        String recipeName = descriptor.getName();
+        if (recipeName == null || recipeName.isBlank()) {
+            return null;
+        }
+
+        String slug = toRecipeSlug(recipeName);
+        String toolName = "java.apply." + slug;
+
+        String description = descriptor.getDescription();
+        if (description == null || description.isBlank()) {
+            description = descriptor.getDisplayName();
+        }
+        if (description == null || description.isBlank()) {
+            description = recipeName;
+        }
+
+        Map<String, Object> properties = new LinkedHashMap<>();
+        Map<String, Object> workspaceProperty = new LinkedHashMap<>();
+        workspaceProperty.put("description", "Path to the workspace directory where the recipe will be executed");
+        workspaceProperty.put("type", "string");
+        properties.put("workspacePath", workspaceProperty);
+
+        List<String> required = new ArrayList<>();
+        required.add("workspacePath");
+
+        Map<String, Object> example = new LinkedHashMap<>();
+        example.put("workspacePath", "/path/to/workspace");
+
+        List<Map<String, Object>> parameters = new ArrayList<>();
+        parameters.add(createParameter(
+            "workspacePath",
+            "Path to the workspace directory where the recipe will be executed",
+            "string",
+            true,
+            null
+        ));
+
+        List<OptionDescriptor> options = descriptor.getOptions();
+        if (options != null) {
+            for (OptionDescriptor option : options) {
+                String optionType = mapOptionType(option.getType());
+                Map<String, Object> property = new LinkedHashMap<>();
+                String optionDescription = option.getDescription();
+                if (optionDescription != null && !optionDescription.isBlank()) {
+                    property.put("description", optionDescription);
+                }
+                property.put("type", optionType);
+                Object optionExample = option.getExample();
+                if (optionExample != null) {
+                    property.put("example", optionExample);
+                    example.put(option.getName(), optionExample);
+                }
+                properties.put(option.getName(), property);
+                if (option.isRequired()) {
+                    required.add(option.getName());
+                }
+                parameters.add(createParameter(option.getName(), optionDescription, optionType, option.isRequired(), optionExample));
+            }
+        }
+
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", properties);
+        schema.put("required", required);
+        schema.put("example", example);
+
+        BasicTool tool = new BasicTool(toolName, description, schema);
+        tool.getMetadata().put("recipeName", recipeName);
+        tool.getMetadata().put("displayName", descriptor.getDisplayName());
+        tool.getMetadata().put("parameters", parameters);
+        tool.getMetadata().put("example", example);
+        if (descriptor.getTags() != null && !descriptor.getTags().isEmpty()) {
+            tool.getMetadata().put("tags", new ArrayList<>(descriptor.getTags()));
+        }
+        return tool;
+    }
+
+    private BasicTool createAnalyzeTool() {
+        return createWorkspaceTool(
+            "java.analyze",
+            "Analyze Java code structure and dependencies using Renovatio's Java provider"
+        );
+    }
+
+    private BasicTool createFallbackAnalyzeTool() {
+        return createWorkspaceTool(
+            "java.analyze",
+            "Analyze Java code structure when OpenRewrite recipes are not available"
+        );
+    }
+
+    private BasicTool createWorkspaceTool(String name, String description) {
+        Map<String, Object> workspaceProperty = new LinkedHashMap<>();
+        workspaceProperty.put("description", "Path to the workspace directory to analyze");
+        workspaceProperty.put("type", "string");
+
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("workspacePath", workspaceProperty);
+
+        List<String> required = List.of("workspacePath");
+        Map<String, Object> example = Map.of("workspacePath", "/path/to/workspace");
+
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", properties);
+        schema.put("required", required);
+        schema.put("example", example);
+
+        BasicTool tool = new BasicTool(name, description, schema);
+        List<Map<String, Object>> parameters = new ArrayList<>();
+        parameters.add(createParameter(
+            "workspacePath",
+            "Path to the workspace directory to analyze",
+            "string",
+            true,
+            null
+        ));
+        tool.getMetadata().put("parameters", parameters);
+        tool.getMetadata().put("example", example);
+        return tool;
+    }
+
+    private Map<String, Object> createParameter(String name, String description, String type, boolean required, Object example) {
+        Map<String, Object> parameter = new LinkedHashMap<>();
+        parameter.put("name", name);
+        parameter.put("description", description != null ? description : "");
+        parameter.put("type", type != null ? type : "string");
+        parameter.put("required", required);
+        if (example != null) {
+            parameter.put("example", example);
+        }
+        return parameter;
+    }
+
+    private String mapOptionType(String optionType) {
+        if (optionType == null || optionType.isBlank()) {
+            return "string";
+        }
+
+        String normalized = optionType.toLowerCase(Locale.ROOT);
+        if (normalized.contains("boolean")) {
+            return "boolean";
+        }
+        if (normalized.contains("int") || normalized.contains("long") || normalized.contains("short")
+            || normalized.contains("byte")) {
+            return "integer";
+        }
+        if (normalized.contains("double") || normalized.contains("float") || normalized.contains("bigdecimal")
+            || normalized.contains("number")) {
+            return "number";
+        }
+        if (normalized.contains("list") || normalized.contains("set") || normalized.contains("collection")
+            || normalized.contains("array")) {
+            return "array";
+        }
+        return "string";
+    }
+
+    private String toRecipeSlug(String recipeName) {
+        String slug = recipeName.replaceAll("[^a-zA-Z0-9]+", "_");
+        slug = slug.replaceAll("_+", "_");
+        slug = slug.replaceAll("^_", "").replaceAll("_$", "");
+        if (slug.isEmpty()) {
+            slug = "recipe";
+        }
+        return slug;
     }
 
 }
