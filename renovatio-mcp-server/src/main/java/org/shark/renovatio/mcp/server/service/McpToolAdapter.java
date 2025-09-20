@@ -39,12 +39,11 @@ public class McpToolAdapter {
         if (isProviderTool(mcpToolName) && schema != null) {
             mcpSchema = new HashMap<>(schema);
 
-            Map<String, Object> properties = null;
+            Map<String, Object> properties = new LinkedHashMap<>();
             if (schema.get("properties") instanceof Map<?, ?> props) {
-                properties = new LinkedHashMap<>();
                 props.forEach((key, value) -> properties.put(String.valueOf(key), value));
             }
-            if (properties != null && !properties.containsKey("workspacePath")) {
+            if (!properties.isEmpty() && !properties.containsKey("workspacePath")) {
                 Map<String, Object> workspacePathProperty = new HashMap<>();
                 workspacePathProperty.put("type", "string");
                 workspacePathProperty.put("description", "Path to the workspace directory to analyze");
@@ -63,7 +62,7 @@ public class McpToolAdapter {
                 }
                 mcpSchema.put("required", requiredFromSchema);
             }
-            if (properties != null) {
+            if (!properties.isEmpty()) {
                 mcpSchema.put("properties", properties);
             }
             mcpTool.setInputSchema(mcpSchema);

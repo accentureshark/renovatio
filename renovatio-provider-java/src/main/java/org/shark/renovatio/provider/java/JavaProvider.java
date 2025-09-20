@@ -6,7 +6,7 @@ import org.shark.renovatio.shared.nql.NqlQuery;
 import org.openrewrite.config.Environment;
 import org.openrewrite.Recipe;
 import org.openrewrite.config.OptionDescriptor;
-import org.openrewrite.config.YamlResourceLoader;
+import org.openrewrite.yaml.YamlResourceLoader;
 
 import java.io.File;
 import java.util.*;
