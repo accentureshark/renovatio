@@ -10,15 +10,18 @@ public class McpTool {
     private String name;
     private String description;
     private Map<String, Object> inputSchema;
+    private Map<String, Object> outputSchema;
     private List<Map<String, Object>> parameters;
     private Map<String, Object> example;
 
     public McpTool() {}
 
-    public McpTool(String name, String description, Map<String, Object> inputSchema, List<Map<String, Object>> parameters, Map<String, Object> example) {
+    public McpTool(String name, String description, Map<String, Object> inputSchema, Map<String, Object> outputSchema,
+                   List<Map<String, Object>> parameters, Map<String, Object> example) {
         this.name = name;
         this.description = description;
         this.inputSchema = inputSchema;
+        this.outputSchema = outputSchema;
         this.parameters = parameters;
         this.example = example;
     }
@@ -47,6 +50,14 @@ public class McpTool {
         this.inputSchema = inputSchema;
     }
 
+    public Map<String, Object> getOutputSchema() {
+        return outputSchema;
+    }
+
+    public void setOutputSchema(Map<String, Object> outputSchema) {
+        this.outputSchema = outputSchema;
+    }
+
     public List<Map<String, Object>> getParameters() {
         return parameters;
     }
@@ -69,6 +80,7 @@ public class McpTool {
                 "name='" + name + '\'' +
                 ", description='" + description + '\'' +
                 ", inputSchema=" + inputSchema +
+                ", outputSchema=" + outputSchema +
                 ", parameters=" + parameters +
                 ", example=" + example +
                 '}';

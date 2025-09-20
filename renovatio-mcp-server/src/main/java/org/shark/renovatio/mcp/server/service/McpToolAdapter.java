@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -24,10 +25,10 @@ public class McpToolAdapter {
     public McpTool toMcpTool(Tool tool) {
         McpTool mcpTool = new McpTool();
 
-        // Convert tool names to MCP-compliant format (dots to underscores)
-        String mcpToolName = tool.getName();
-        if (mcpToolName.contains(".")) {
-            mcpToolName = mcpToolName.replace(".", "_");
+        String originalToolName = tool.getName();
+        String mcpToolName = originalToolName;
+        if (mcpToolName != null && !mcpToolName.contains("_") && mcpToolName.contains(".")) {
+            mcpToolName = mcpToolName.replace('.', '_');
         }
 
         mcpTool.setName(mcpToolName);
@@ -36,26 +37,34 @@ public class McpToolAdapter {
         Map<String, Object> schema = tool.getInputSchema();
         Map<String, Object> mcpSchema = null;
         if (isProviderTool(mcpToolName) && schema != null) {
-            // Make a copy of the schema to avoid modifying the original
             mcpSchema = new HashMap<>(schema);
-            Map<String, Object> properties = (Map<String, Object>) mcpSchema.get("properties");
 
+            Map<String, Object> properties = null;
+            if (schema.get("properties") instanceof Map<?, ?> props) {
+                properties = new LinkedHashMap<>();
+                props.forEach((key, value) -> properties.put(String.valueOf(key), value));
+            }
             if (properties != null && !properties.containsKey("workspacePath")) {
-                // Add workspacePath as required parameter
                 Map<String, Object> workspacePathProperty = new HashMap<>();
                 workspacePathProperty.put("type", "string");
                 workspacePathProperty.put("description", "Path to the workspace directory to analyze");
                 properties.put("workspacePath", workspacePathProperty);
 
-                // Update required fields
-                List<String> required = (List<String>) mcpSchema.get("required");
-                if (required == null) {
-                    required = new ArrayList<>();
-                    mcpSchema.put("required", required);
+                List<String> requiredFromSchema = new ArrayList<>();
+                if (schema.get("required") instanceof List<?> list) {
+                    for (Object entry : list) {
+                        if (entry != null) {
+                            requiredFromSchema.add(String.valueOf(entry));
+                        }
+                    }
                 }
-                if (!required.contains("workspacePath")) {
-                    required.add("workspacePath");
+                if (!requiredFromSchema.contains("workspacePath")) {
+                    requiredFromSchema.add("workspacePath");
                 }
+                mcpSchema.put("required", requiredFromSchema);
+            }
+            if (properties != null) {
+                mcpSchema.put("properties", properties);
             }
             mcpTool.setInputSchema(mcpSchema);
         } else {
@@ -91,9 +100,63 @@ public class McpToolAdapter {
         }
         mcpTool.setExample(example);
 
+        Map<String, Object> outputSchema = buildOutputSchema(tool);
+        mcpTool.setOutputSchema(outputSchema);
+
         return mcpTool;
     }
-    
+
+    private Map<String, Object> buildOutputSchema(Tool tool) {
+        Map<String, Object> metadata = tool.getMetadata();
+        if (metadata != null) {
+            Object schema = metadata.get("outputSchema");
+            if (schema instanceof Map<?, ?> map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> copy = new LinkedHashMap<>((Map<String, Object>) map);
+                return copy;
+            }
+        }
+
+        String canonicalName = toCanonicalName(tool.getName());
+        if (!"java.analyze".equals(canonicalName)) {
+            return null;
+        }
+
+        Map<String, Object> issueProperties = new HashMap<>();
+        issueProperties.put("file", Map.of("type", "string"));
+        issueProperties.put("line", Map.of("type", "integer"));
+        issueProperties.put("severity", Map.of("type", "string"));
+        issueProperties.put("type", Map.of("type", "string"));
+        issueProperties.put("message", Map.of("type", "string"));
+
+        Map<String, Object> issueSchema = new HashMap<>();
+        issueSchema.put("type", "object");
+        issueSchema.put("properties", issueProperties);
+        issueSchema.put("required", List.of("file", "message"));
+
+        Map<String, Object> issuesSchema = new HashMap<>();
+        issuesSchema.put("type", "array");
+        issuesSchema.put("items", issueSchema);
+
+        Map<String, Object> metricsProperties = new HashMap<>();
+        metricsProperties.put("totalFiles", Map.of("type", "integer"));
+        metricsProperties.put("issuesFound", Map.of("type", "integer"));
+        metricsProperties.put("durationMs", Map.of("type", "integer"));
+
+        Map<String, Object> metricsSchema = new HashMap<>();
+        metricsSchema.put("type", "object");
+        metricsSchema.put("properties", metricsProperties);
+
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("issues", issuesSchema);
+        properties.put("metrics", metricsSchema);
+
+        Map<String, Object> outputSchema = new HashMap<>();
+        outputSchema.put("type", "object");
+        outputSchema.put("properties", properties);
+        return outputSchema;
+    }
+
     /**
      * Check if a tool is a provider-specific tool (java, cobol, etc.)
      */
@@ -125,6 +188,17 @@ public class McpToolAdapter {
             mcpTool.getDescription(),
             mcpTool.getInputSchema()
         );
+    }
+
+    private String toCanonicalName(String toolName) {
+        if (toolName == null) {
+            return null;
+        }
+        int idx = toolName.indexOf('_');
+        if (idx < 0) {
+            return toolName;
+        }
+        return toolName.substring(0, idx) + '.' + toolName.substring(idx + 1);
     }
     
     /**
