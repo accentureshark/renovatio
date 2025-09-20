@@ -1,5 +1,6 @@
 package org.shark.renovatio.provider.java;
 
+import org.openrewrite.LargeSourceSet;
 import org.openrewrite.config.Environment;
 import org.openrewrite.config.OptionDescriptor;
 import org.openrewrite.config.RecipeDescriptor;
@@ -221,6 +222,7 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
             org.openrewrite.java.JavaParser parser = org.openrewrite.java.JavaParser.fromJavaVersion().build();
             List<org.openrewrite.SourceFile> sourceFileList = parser.parse(ctx, sources.toArray(new String[0])).collect(Collectors.toList());
             List<org.openrewrite.Result> results = executeRecipeWithCompatibility(recipe, ctx, sourceFileList);
+
             if (apply) {
                 for (org.openrewrite.Result r : results) {
                     if (r.getAfter() != null) {

@@ -57,12 +57,13 @@
         <dependency>
             <groupId>org.openrewrite</groupId>
             <artifactId>rewrite-java</artifactId>
+            <version>${openrewrite.version}</version>
         </dependency>
         <!-- OpenRewrite YAML resource loader for loading rewrite.yml -->
         <dependency>
             <groupId>org.openrewrite</groupId>
             <artifactId>rewrite-yaml</artifactId>
-            <version>7.28.0</version>
+            <version>${openrewrite.version}</version>
         </dependency>
 
         <!-- Test dependencies -->
