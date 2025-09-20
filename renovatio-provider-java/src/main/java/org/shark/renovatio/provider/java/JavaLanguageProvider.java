@@ -1,5 +1,6 @@
 package org.shark.renovatio.provider.java;
 
+import org.openrewrite.LargeSourceSet;
 import org.openrewrite.config.Environment;
 import org.openrewrite.config.OptionDescriptor;
 import org.openrewrite.config.RecipeDescriptor;
@@ -217,8 +218,9 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
             }
             org.openrewrite.java.JavaParser parser = org.openrewrite.java.JavaParser.fromJavaVersion().build();
             List<org.openrewrite.SourceFile> sourceFileList = parser.parse(ctx, sources.toArray(new String[0])).collect(Collectors.toList());
-            // OpenRewrite 8.x: run() acepta List<SourceFile> directamente
-            List<org.openrewrite.Result> results = recipe.run(sourceFileList, ctx);
+            // OpenRewrite 8.x requires wrapping the parsed sources in a LargeSourceSet before executing the recipe
+            LargeSourceSet sourceSet = LargeSourceSet.from(sourceFileList);
+            List<org.openrewrite.Result> results = recipe.run(sourceSet, ctx);
             if (apply) {
                 for (org.openrewrite.Result r : results) {
                     if (r.getAfter() != null) {
