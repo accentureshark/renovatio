@@ -312,13 +312,31 @@ public class McpToolingService {
         Map<String, Object> ast = asMap(structured.get("ast"));
         Map<String, Object> dependencies = asMap(structured.get("dependencies"));
         Map<String, Object> performance = asMap(structured.get("performance"));
+        Map<String, Object> metricsData = asMap(data.get("metrics"));
 
-        int files = data.size();
+        long files = getLong(metricsData, "totalFiles");
+        if (files == 0) {
+            List<?> analyzedFiles = asList(data.get("analyzedFiles"));
+            if (!analyzedFiles.isEmpty()) {
+                files = analyzedFiles.size();
+            }
+        }
+        if (files == 0 && data.containsKey("files")) {
+            files = asList(data.get("files")).size();
+        }
+        if (files == 0) {
+            files = data.size();
+        }
+
         long classes = getLong(ast, "totalClasses");
         long methods = getLong(ast, "totalMethods");
         long uniqueImports = getLong(dependencies, "uniqueImports");
         long totalImports = getLong(dependencies, "totalImports");
-        Long durationMs = getOptionalLong(performance, "executionTimeMs");
+
+        Long durationMs = getOptionalLong(metricsData, "durationMs");
+        if (durationMs == null) {
+            durationMs = getOptionalLong(performance, "executionTimeMs");
+        }
         if (durationMs == null) {
             durationMs = getOptionalLong(ast, "durationMs");
         }
@@ -339,14 +357,22 @@ public class McpToolingService {
         }
 
         StringBuilder summary = new StringBuilder();
-        summary.append(toolName).append(": analyzed ").append(files).append(" files");
+        summary.append(toolName)
+            .append(": analyzed ")
+            .append(files)
+            .append(files == 1 ? " file" : " files");
         if (!metrics.isEmpty()) {
             summary.append(" (").append(String.join(", ", metrics)).append(")");
         }
 
-        List<?> issues = asList(structured.get("issues"));
+        List<?> issues = asList(data.containsKey("issues") ? data.get("issues") : structured.get("issues"));
         if (!issues.isEmpty()) {
             summary.append(", found ").append(issues.size()).append(" issues");
+        } else {
+            long issuesFound = getLong(metricsData, "issuesFound");
+            if (issuesFound > 0) {
+                summary.append(", found ").append(issuesFound).append(" issues");
+            }
         }
 
         if (durationMs != null && durationMs > 0) {
@@ -354,6 +380,9 @@ public class McpToolingService {
         }
 
         String message = stringValue(structured.get("message"), "");
+        if (message.isEmpty()) {
+            message = stringValue(data.get("summary"), "");
+        }
         if (!message.isEmpty()) {
             summary.append(". ").append(message);
         } else {
