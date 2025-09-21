@@ -136,6 +136,7 @@ public class McpToolAdapter {
                 : new LinkedHashMap<>();
         schema.put("properties", props);
 
+
         if (!props.containsKey("workspacePath")) {
             Map<String, Object> workspacePathProperty = new LinkedHashMap<>();
             workspacePathProperty.put("type", "string");
