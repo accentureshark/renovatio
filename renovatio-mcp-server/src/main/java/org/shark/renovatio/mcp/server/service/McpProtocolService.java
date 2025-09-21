@@ -157,14 +157,17 @@ public class McpProtocolService {
         if (name == null) {
             return null;
         }
-        if (name.contains("_")) {
+        int dotIndex = name.indexOf('.');
+        if (dotIndex < 0) {
             return name;
         }
-        int idx = name.indexOf('.');
-        if (idx < 0) {
+
+        int underscoreIndex = name.indexOf('_');
+        if (underscoreIndex >= 0 && underscoreIndex < dotIndex) {
             return name;
         }
-        return name.substring(0, idx) + '_' + name.substring(idx + 1);
+
+        return name.substring(0, dotIndex) + '_' + name.substring(dotIndex + 1);
     }
 
     /**

@@ -780,7 +780,7 @@ public class McpToolingService {
             return toolName;
         }
         String language = toolName.substring(0, idx);
-        String remainder = toolName.substring(idx + 1).replace('_', '.');
+        String remainder = toolName.substring(idx + 1);
         return language + '.' + remainder;
     }
 
@@ -793,7 +793,7 @@ public class McpToolingService {
             return toolName;
         }
         String language = toolName.substring(0, idx);
-        String remainder = toolName.substring(idx + 1).replace('_', '.');
+        String remainder = toolName.substring(idx + 1);
         return language + '.' + remainder;
     }
 }
