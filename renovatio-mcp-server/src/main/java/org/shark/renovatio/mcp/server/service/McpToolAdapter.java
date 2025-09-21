@@ -130,10 +130,12 @@ public class McpToolAdapter {
             return;
         }
         Object propsObj = schema.get("properties");
-        if (!(propsObj instanceof Map<?, ?> props)) {
-            props = new LinkedHashMap<>();
-            schema.put("properties", props);
-        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> props = propsObj instanceof Map<?, ?>
+                ? new LinkedHashMap<>((Map<String, Object>) propsObj)
+                : new LinkedHashMap<>();
+        schema.put("properties", props);
+
 
         if (!props.containsKey("workspacePath")) {
             Map<String, Object> workspacePathProperty = new LinkedHashMap<>();
