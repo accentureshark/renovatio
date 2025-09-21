@@ -58,8 +58,23 @@ public class McpToolingService {
         // Use the new protocol-agnostic API and convert to MCP tools
         var tools = providerRegistry.generateTools();
         var mcpTools = toolAdapter.toMcpTools(tools);
-        logger.info("DEBUG getMcpTools: {}", mcpTools);
+        logger.debug("Resolved {} MCP tool(s)", mcpTools.size());
         return mcpTools;
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void logRegisteredTools() {
+        try {
+            var tools = getMcpTools();
+            if (tools.isEmpty()) {
+                logger.warn("No MCP tools registered.");
+                return;
+            }
+
+            logger.info(formatToolCatalog(tools));
+        } catch (Exception exception) {
+            logger.warn("Could not list MCP tools at startup: {}", exception.getMessage(), exception);
+        }
     }
 
     /**
@@ -275,6 +290,41 @@ public class McpToolingService {
         } catch (IllegalArgumentException ignored) {
             return String.valueOf(value);
         }
+    }
+
+    private String formatToolCatalog(List<McpTool> tools) {
+        int nameColumnWidth = Math.min(
+                tools.stream()
+                        .map(McpTool::getName)
+                        .filter(name -> name != null && !name.isBlank())
+                        .mapToInt(String::length)
+                        .max()
+                        .orElse(10),
+                60);
+
+        StringBuilder builder = new StringBuilder();
+        builder.append(System.lineSeparator())
+                .append("================ MCP Tools ================")
+                .append(System.lineSeparator())
+                .append(String.format(Locale.ROOT, "Total: %d tool(s)%n", tools.size()));
+
+        for (McpTool tool : tools) {
+            String name = tool.getName() == null || tool.getName().isBlank()
+                    ? "<unnamed>"
+                    : tool.getName();
+            String description = tool.getDescription() == null || tool.getDescription().isBlank()
+                    ? "(sin descripción)"
+                    : tool.getDescription();
+
+            if (name.length() > nameColumnWidth) {
+                name = name.substring(0, nameColumnWidth - 1) + "…";
+            }
+
+            builder.append(String.format(Locale.ROOT, "  %1$-" + nameColumnWidth + "s : %2$s%n", name, description));
+        }
+
+        builder.append("===========================================");
+        return builder.toString();
     }
 
     private boolean parseSuccess(Map<String, Object> structured) {
