@@ -49,12 +49,17 @@ public class McpProtocolServiceTest {
         params.add(param);
         tool.setParameters(params);
         tool.setExample(Map.of("workspacePath", "/tmp/project"));
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("displayName", "Java Analyze");
+        metadata.put("tags", List.of("java", "analysis"));
+        tool.setMetadata(metadata);
         mockTools.add(tool);
         when(mcpToolingService.getMcpTools()).thenReturn(mockTools);
         when(mcpToolingService.getSupportedLanguages()).thenReturn(java.util.Set.of("java"));
         when(mcpToolingService.executeToolWithEnvelope(anyString(), anyMap())).thenReturn(
             ToolCallResult.ok("stub summary", Map.of("success", true))
         );
+        when(mcpToolingService.getTool(anyString())).thenReturn(tool);
 
         mcpProtocolService = new McpProtocolService(mcpToolingService);
     }
@@ -78,6 +83,10 @@ public class McpProtocolServiceTest {
         assertNotNull(result.get("capabilities"));
         assertNotNull(result.get("serverInfo"));
         assertNotNull(result.get("availableTools"));
+        @SuppressWarnings("unchecked")
+        List<McpTool> availableTools = (List<McpTool>) result.get("availableTools");
+        assertFalse(availableTools.isEmpty());
+        assertEquals("Java Analyze", availableTools.get(0).getMetadata().get("displayName"));
     }
 
     @Test
@@ -130,7 +139,31 @@ public class McpProtocolServiceTest {
                 assertNotNull(param.get("description"));
                 assertTrue(param.containsKey("required"));
             }
+            assertEquals("Java Analyze", tool.getMetadata().get("displayName"));
         }
+    }
+
+    @Test
+    void testToolsDescribeIncludesMetadata() {
+        McpRequest request = new McpRequest();
+        request.setId("test-8");
+        request.setMethod("tools/describe");
+        Map<String, Object> params = new HashMap<>();
+        params.put("name", "java.analyze");
+        request.setParams(params);
+
+        McpResponse response = mcpProtocolService.handleMcpRequest(request);
+
+        assertNotNull(response);
+        assertEquals("test-8", response.getId());
+        assertNotNull(response.getResult());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) response.getResult();
+        McpTool describedTool = (McpTool) result.get("tool");
+        assertNotNull(describedTool);
+        assertEquals("Java Analyze", describedTool.getMetadata().get("displayName"));
+        assertEquals(List.of("java", "analysis"), describedTool.getMetadata().get("tags"));
     }
 
     @Test
