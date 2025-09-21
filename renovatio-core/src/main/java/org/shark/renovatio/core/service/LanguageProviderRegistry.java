@@ -238,11 +238,26 @@ public class LanguageProviderRegistry {
             map.put("success", ar.isSuccess());
             map.put("message", ar.getMessage());
             map.put("runId", ar.getRunId());
-            map.put("data", ar.getData());
+
+            Map<String, Object> data = ar.getData() != null
+                ? new LinkedHashMap<>(ar.getData())
+                : new LinkedHashMap<>();
+            map.put("data", data);
+
             map.put("ast", ar.getAst());
             map.put("symbols", ar.getSymbols());
             map.put("dependencies", ar.getDependencies());
             map.put("type", "analyze");
+
+            map.put("summary", data.getOrDefault("summary", ar.getMessage()));
+            map.put("issues", data.getOrDefault("issues", Collections.emptyList()));
+            map.put("metrics", data.getOrDefault("metrics", Collections.emptyMap()));
+            map.put("diffs", data.getOrDefault("diffs", Collections.emptyList()));
+            map.put("analyzedFiles", data.getOrDefault("analyzedFiles", Collections.emptyList()));
+            if (data.containsKey("applied")) {
+                map.put("applied", data.get("applied"));
+            }
+
             if (ar.getPerformance() != null) {
                 Map<String, Object> performance = new HashMap<>();
                 performance.put("executionTimeMs", ar.getPerformance().getExecutionTimeMs());
