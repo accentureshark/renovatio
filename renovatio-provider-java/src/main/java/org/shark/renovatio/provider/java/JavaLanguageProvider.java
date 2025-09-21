@@ -14,6 +14,7 @@ import org.shark.renovatio.shared.domain.Workspace;
 import org.shark.renovatio.shared.domain.Scope;
 import org.shark.renovatio.shared.domain.MetricsResult;
 import org.shark.renovatio.shared.domain.DiffResult;
+import org.shark.renovatio.shared.domain.PerformanceMetrics;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.shared.spi.BaseLanguageProvider;
 import java.io.File;
@@ -23,6 +24,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -110,13 +112,31 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
     // --- Métodos privados para ejecutar recetas OpenRewrite y construir resultados MCP ---
 
     private AnalyzeResult executeAnalyzeRecipe(String recipeId, Workspace workspace, NqlQuery query) {
-        RecipeExecutionResult result = runOpenRewriteRecipe(recipeId, workspace, true, false);
+        RecipeExecutionResult result = runOpenRewriteRecipe(recipeId, workspace, false, false);
         AnalyzeResult ar = new AnalyzeResult();
         ar.setSuccess(result.success);
         ar.setMessage(result.summary);
-        Map<String, Object> data = new HashMap<>();
-        data.put("findings", result.findings);
+        ar.setAst(Collections.emptyMap());
+        ar.setDependencies(Collections.emptyMap());
+        ar.setSymbols(Collections.emptyMap());
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("recipeId", recipeId);
+        data.put("summary", result.summary);
+        data.put("issues", result.issues);
+        data.put("diffs", result.diffs);
+        data.put("analyzedFiles", result.analyzedFiles);
+        data.put("applied", result.applied);
+
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("totalFiles", result.totalFiles);
+        metrics.put("issuesFound", result.issues.size());
+        metrics.put("filesChanged", result.findings.size());
+        metrics.put("durationMs", result.durationMs);
+        data.put("metrics", metrics);
+
         ar.setData(data);
+        ar.setPerformance(new PerformanceMetrics(result.durationMs));
         return ar;
     }
 
@@ -177,7 +197,17 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
      */
     private RecipeExecutionResult runOpenRewriteRecipe(String recipeId, Workspace workspace, boolean apply, boolean collectMetrics) {
         RecipeExecutionResult result = new RecipeExecutionResult();
+        result.applied = apply;
+        long startNanos = System.nanoTime();
         try {
+            if (workspace == null || workspace.getPath() == null || workspace.getPath().isBlank()) {
+                result.success = false;
+                result.summary = "Workspace path is required.";
+                result.metrics.put("totalFiles", 0);
+                result.metrics.put("issuesFound", 0);
+                return result;
+            }
+
             Environment env = getOpenRewriteEnvironment();
             org.openrewrite.config.RecipeDescriptor descriptor = env.listRecipeDescriptors().stream()
                 .filter(d -> d.getName().equals(recipeId) || d.getDisplayName().equals(recipeId))
@@ -187,8 +217,7 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
                 result.summary = "Recipe not found: " + recipeId;
                 return result;
             }
-            // Tomar la primera receta real del descriptor y castear a Recipe
-            // Buscar la clase de la receta por nombre y crear instancia por reflection
+
             org.openrewrite.Recipe recipe = null;
             for (RecipeDescriptor child : descriptor.getRecipeList()) {
                 try {
@@ -198,28 +227,37 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
                         recipe = (org.openrewrite.Recipe) instance;
                         break;
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                    // Continue searching for a concrete recipe implementation
+                }
             }
             if (recipe == null) {
                 result.success = false;
                 result.summary = "Could not instantiate recipe: " + recipeId;
                 return result;
             }
+
             Path workspacePath = Paths.get(workspace.getPath());
             List<Path> javaFiles;
             try (var stream = Files.walk(workspacePath)) {
                 javaFiles = stream.filter(p -> p.toString().endsWith(".java")).collect(Collectors.toList());
+            }
+            result.totalFiles = javaFiles.size();
+            for (Path file : javaFiles) {
+                result.analyzedFiles.add(relativizePath(workspacePath, file));
             }
             if (javaFiles.isEmpty()) {
                 result.success = false;
                 result.summary = "No Java files found in workspace.";
                 return result;
             }
+
             org.openrewrite.ExecutionContext ctx = new org.openrewrite.InMemoryExecutionContext(Throwable::printStackTrace);
-            List<String> sources = new ArrayList<>();
+            List<String> sources = new ArrayList<>(javaFiles.size());
             for (Path p : javaFiles) {
                 sources.add(Files.readString(p));
             }
+
             org.openrewrite.java.JavaParser parser = org.openrewrite.java.JavaParser.fromJavaVersion().build();
             List<org.openrewrite.SourceFile> sourceFileList = parser.parse(ctx, sources.toArray(new String[0])).collect(Collectors.toList());
             List<org.openrewrite.Result> results = executeRecipeWithCompatibility(recipe, ctx, sourceFileList);
@@ -233,28 +271,66 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
                     }
                 }
             }
-            result.success = true;
-            result.summary = "Recipe executed: " + recipeId + ", files changed: " + results.size();
-            result.diffs = new ArrayList<>();
-            result.findings = new ArrayList<>();
-            result.metrics = new HashMap<>();
-            result.plan = new ArrayList<>();
-            result.applied = apply;
+
             for (org.openrewrite.Result r : results) {
                 String before = r.getBefore() != null ? r.getBefore().printAll() : "";
                 String after = r.getAfter() != null ? r.getAfter().printAll() : "";
                 String diff = "--- BEFORE ---\n" + before + "\n--- AFTER ---\n" + after;
+                String sourcePath = "";
+                if (r.getAfter() != null) {
+                    sourcePath = r.getAfter().getSourcePath().toString();
+                } else if (r.getBefore() != null) {
+                    sourcePath = r.getBefore().getSourcePath().toString();
+                }
+
                 result.diffs.add(diff);
-                result.findings.add(r.getAfter() != null ? r.getAfter().getSourcePath().toString() : "");
+                result.findings.add(sourcePath);
                 result.plan.add(after);
+
+                Map<String, Object> issue = new LinkedHashMap<>();
+                issue.put("file", sourcePath);
+                issue.put("message", "Recipe '" + recipeId + "' would modify this file.");
+                issue.put("severity", "INFO");
+                issue.put("type", "MODIFICATION");
+                issue.put("diff", diff);
+                issue.put("applied", apply);
+                result.issues.add(issue);
             }
+
+            result.metrics.put("totalFiles", result.totalFiles);
+            result.metrics.put("filesChanged", results.size());
+            result.metrics.put("affectedFiles", results.size());
+            result.metrics.put("issuesFound", result.issues.size());
             if (collectMetrics) {
-                result.metrics.put("filesChanged", results.size());
+                result.metrics.put("metricsCollected", Boolean.TRUE);
             }
+
+            result.success = true;
         } catch (Exception e) {
             result.success = false;
             result.summary = "Error executing recipe: " + e.getMessage();
+        } finally {
+            result.durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+            result.metrics.put("durationMs", result.durationMs);
         }
+
+        if (result.success) {
+            StringBuilder summary = new StringBuilder();
+            summary.append("Recipe '").append(recipeId).append("' ");
+            summary.append(apply ? "applied" : "evaluated").append(' ');
+            if (result.issues.isEmpty()) {
+                summary.append("without modifying any files");
+            } else {
+                summary.append("changes to ").append(result.issues.size())
+                    .append(result.issues.size() == 1 ? " file" : " files");
+            }
+            if (result.durationMs > 0) {
+                summary.append(" in ").append(result.durationMs).append(" ms");
+            }
+            summary.append('.');
+            result.summary = summary.toString();
+        }
+
         return result;
     }
 
@@ -344,6 +420,24 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
             return sourceFiles.toArray(new org.openrewrite.SourceFile[0]);
         }
         throw new IllegalArgumentException("Unsupported Recipe.run parameter type: " + parameterType.getName());
+    }
+
+    private String relativizePath(Path workspacePath, Path filePath) {
+        if (filePath == null) {
+            return "";
+        }
+        try {
+            if (workspacePath != null) {
+                Path normalizedWorkspace = workspacePath.toAbsolutePath().normalize();
+                Path normalizedFile = filePath.toAbsolutePath().normalize();
+                if (normalizedFile.startsWith(normalizedWorkspace)) {
+                    return normalizedWorkspace.relativize(normalizedFile).toString();
+                }
+            }
+        } catch (Exception ignored) {
+            // Fall back to absolute representation below
+        }
+        return filePath.toString();
     }
 
     private RuntimeException propagateInvocationException(InvocationTargetException ex) {
@@ -450,9 +544,13 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
         String summary;
         List<String> diffs = new ArrayList<>();
         List<String> findings = new ArrayList<>();
+        List<Map<String, Object>> issues = new ArrayList<>();
+        List<String> analyzedFiles = new ArrayList<>();
         Map<String, Object> metrics = new HashMap<>();
         List<String> plan = new ArrayList<>();
         boolean applied = false;
+        int totalFiles = 0;
+        long durationMs = 0L;
     }
 
     private String extractRecipeIdFromNql(NqlQuery query) {
