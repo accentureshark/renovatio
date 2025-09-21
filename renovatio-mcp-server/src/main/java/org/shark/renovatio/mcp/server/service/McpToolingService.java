@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -231,6 +232,7 @@ public class McpToolingService {
 
         Map<String, Object> structured = sanitizeMap(rawResult);
         boolean success = parseSuccess(structured);
+        String type = stringValue(structured.get("type"), "").toLowerCase(Locale.ROOT);
 
         if (!success) {
             String message = stringValue(structured.get("message"), "Tool '" + canonicalName + "' execution failed");
@@ -238,7 +240,8 @@ public class McpToolingService {
         }
 
         String summary = buildSummary(canonicalName, structured);
-        return ToolCallResult.ok(summary, structured);
+        Object payload = adaptStructuredForClient(type, structured);
+        return ToolCallResult.ok(summary, payload);
     }
 
     private Map<String, Object> sanitizeMap(Map<?, ?> raw) {
@@ -312,13 +315,31 @@ public class McpToolingService {
         Map<String, Object> ast = asMap(structured.get("ast"));
         Map<String, Object> dependencies = asMap(structured.get("dependencies"));
         Map<String, Object> performance = asMap(structured.get("performance"));
+        Map<String, Object> metricsData = asMap(data.get("metrics"));
 
-        int files = data.size();
+        long files = getLong(metricsData, "totalFiles");
+        if (files == 0) {
+            List<?> analyzedFiles = asList(data.get("analyzedFiles"));
+            if (!analyzedFiles.isEmpty()) {
+                files = analyzedFiles.size();
+            }
+        }
+        if (files == 0 && data.containsKey("files")) {
+            files = asList(data.get("files")).size();
+        }
+        if (files == 0) {
+            files = data.size();
+        }
+
         long classes = getLong(ast, "totalClasses");
         long methods = getLong(ast, "totalMethods");
         long uniqueImports = getLong(dependencies, "uniqueImports");
         long totalImports = getLong(dependencies, "totalImports");
-        Long durationMs = getOptionalLong(performance, "executionTimeMs");
+
+        Long durationMs = getOptionalLong(metricsData, "durationMs");
+        if (durationMs == null) {
+            durationMs = getOptionalLong(performance, "executionTimeMs");
+        }
         if (durationMs == null) {
             durationMs = getOptionalLong(ast, "durationMs");
         }
@@ -339,14 +360,22 @@ public class McpToolingService {
         }
 
         StringBuilder summary = new StringBuilder();
-        summary.append(toolName).append(": analyzed ").append(files).append(" files");
+        summary.append(toolName)
+            .append(": analyzed ")
+            .append(files)
+            .append(files == 1 ? " file" : " files");
         if (!metrics.isEmpty()) {
             summary.append(" (").append(String.join(", ", metrics)).append(")");
         }
 
-        List<?> issues = asList(structured.get("issues"));
+        List<?> issues = asList(data.containsKey("issues") ? data.get("issues") : structured.get("issues"));
         if (!issues.isEmpty()) {
             summary.append(", found ").append(issues.size()).append(" issues");
+        } else {
+            long issuesFound = getLong(metricsData, "issuesFound");
+            if (issuesFound > 0) {
+                summary.append(", found ").append(issuesFound).append(" issues");
+            }
         }
 
         if (durationMs != null && durationMs > 0) {
@@ -354,6 +383,9 @@ public class McpToolingService {
         }
 
         String message = stringValue(structured.get("message"), "");
+        if (message.isEmpty()) {
+            message = stringValue(data.get("summary"), "");
+        }
         if (!message.isEmpty()) {
             summary.append(". ").append(message);
         } else {
@@ -456,6 +488,111 @@ public class McpToolingService {
             return toolName + ": " + message;
         }
         return toolName + " executed successfully.";
+    }
+
+    private Object adaptStructuredForClient(String type, Map<String, Object> structured) {
+        if ("analyze".equals(type)) {
+            return simplifyAnalyzeStructured(structured);
+        }
+        return structured;
+    }
+
+    private Map<String, Object> simplifyAnalyzeStructured(Map<String, Object> structured) {
+        Map<String, Object> simplified = new LinkedHashMap<>();
+        Map<String, Object> data = asMap(structured.get("data"));
+
+        simplified.put("type", "analyze");
+        simplified.put("success", parseSuccess(structured));
+
+        String summary = firstNonEmptyString(
+            structured.get("summary"),
+            data.get("summary"),
+            structured.get("message")
+        );
+        if (!summary.isEmpty()) {
+            simplified.put("summary", summary);
+        }
+
+        List<?> issues = firstNonEmptyList(structured.get("issues"), data.get("issues"));
+        simplified.put("issues", new ArrayList<>(issues));
+
+        Map<String, Object> metrics = mergeMaps(structured.get("metrics"), data.get("metrics"));
+        if (!metrics.isEmpty()) {
+            simplified.put("metrics", metrics);
+        } else {
+            simplified.put("metrics", Collections.emptyMap());
+        }
+
+        List<?> files = firstNonEmptyList(
+            structured.get("analyzedFiles"),
+            structured.get("files"),
+            data.get("analyzedFiles")
+        );
+        simplified.put("analyzedFiles", new ArrayList<>(files));
+
+        List<?> diffs = firstNonEmptyList(structured.get("diffs"), data.get("diffs"));
+        if (!diffs.isEmpty()) {
+            simplified.put("diffs", new ArrayList<>(diffs));
+        }
+
+        Boolean applied = firstBoolean(structured.get("applied"), data.get("applied"));
+        if (applied != null) {
+            simplified.put("applied", applied);
+        }
+
+        Long duration = getOptionalLong(metrics, "durationMs");
+        if (duration == null) {
+            duration = getOptionalLong(asMap(structured.get("performance")), "executionTimeMs");
+        }
+        if (duration == null) {
+            duration = getOptionalLong(asMap(data.get("performance")), "executionTimeMs");
+        }
+        if (duration != null) {
+            simplified.put("durationMs", duration);
+        }
+
+        return simplified;
+    }
+
+    private Map<String, Object> mergeMaps(Object... candidates) {
+        Map<String, Object> merged = new LinkedHashMap<>();
+        for (Object candidate : candidates) {
+            Map<String, Object> map = asMap(candidate);
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                merged.putIfAbsent(entry.getKey(), entry.getValue());
+            }
+        }
+        return merged;
+    }
+
+    private List<?> firstNonEmptyList(Object... candidates) {
+        for (Object candidate : candidates) {
+            List<?> list = asList(candidate);
+            if (!list.isEmpty()) {
+                return list;
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    private String firstNonEmptyString(Object... candidates) {
+        for (Object candidate : candidates) {
+            String text = stringValue(candidate, "");
+            if (!text.isEmpty()) {
+                return text;
+            }
+        }
+        return "";
+    }
+
+    private Boolean firstBoolean(Object... candidates) {
+        for (Object candidate : candidates) {
+            if (candidate == null) {
+                continue;
+            }
+            return parseBoolean(candidate);
+        }
+        return null;
     }
 
     private Map<String, Object> asMap(Object value) {
