@@ -592,7 +592,9 @@ public class McpToolingService {
         if (idx < 0) {
             return toolName;
         }
-        return toolName.substring(0, idx) + '.' + toolName.substring(idx + 1);
+        String language = toolName.substring(0, idx);
+        String remainder = toolName.substring(idx + 1).replace('_', '.');
+        return language + '.' + remainder;
     }
 
     private String toCanonicalName(String toolName) {
@@ -603,6 +605,8 @@ public class McpToolingService {
         if (idx < 0) {
             return toolName;
         }
-        return toolName.substring(0, idx) + '.' + toolName.substring(idx + 1);
+        String language = toolName.substring(0, idx);
+        String remainder = toolName.substring(idx + 1).replace('_', '.');
+        return language + '.' + remainder;
     }
 }
