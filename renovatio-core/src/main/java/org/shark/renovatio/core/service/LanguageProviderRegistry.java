@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.annotation.PostConstruct;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Registry for language providers that handles routing tool calls to appropriate providers.
@@ -20,11 +22,21 @@ import java.util.*;
 public class LanguageProviderRegistry {
 
     private static final Logger logger = LoggerFactory.getLogger(LanguageProviderRegistry.class);
+    private static final Set<String> RESERVED_ARGUMENT_KEYS = Set.of(
+            "workspacePath",
+            "scope",
+            "planId",
+            "runId",
+            "dryRun",
+            "language",
+            "nql"
+    );
 
     @Autowired
     private ApplicationContext applicationContext;
 
-    private final Map<String, LanguageProvider> providers = new HashMap<>();
+    private final Map<String, List<LanguageProvider>> providersByLanguage = new LinkedHashMap<>();
+    private final Map<String, LanguageProvider> toolProviders = new ConcurrentHashMap<>();
 
     /**
      * Auto-register all LanguageProvider beans after Spring context initialization
@@ -40,19 +52,32 @@ public class LanguageProviderRegistry {
             logger.info("Found {} LanguageProvider beans in Spring context", providerBeans.size());
 
             for (Map.Entry<String, LanguageProvider> entry : providerBeans.entrySet()) {
-                String beanName = entry.getKey();
-                LanguageProvider provider = entry.getValue();
-
-                providers.put(provider.language(), provider);
-                logger.info("Auto-registered LanguageProvider: {} (bean: {}) with capabilities: {}",
-                        provider.language(), beanName, provider.capabilities());
+                registerProviderInternal(entry.getValue(), entry.getKey());
             }
 
             logger.info("LanguageProviderRegistry initialized with {} providers: {}",
-                    providers.size(), providers.keySet());
+                    providersByLanguage.values().stream().mapToInt(List::size).sum(), providersByLanguage.keySet());
 
         } catch (Exception e) {
             logger.error("Error during LanguageProvider auto-registration: {}", e.getMessage(), e);
+        }
+    }
+
+    private void registerProviderInternal(LanguageProvider provider, String source) {
+        if (provider == null) {
+            return;
+        }
+
+        String language = Optional.ofNullable(provider.language()).orElse("unknown");
+        List<LanguageProvider> languageProviders = providersByLanguage.computeIfAbsent(language, key -> new ArrayList<>());
+        languageProviders.add(provider);
+
+        if (languageProviders.size() == 1) {
+            logger.info("Registered LanguageProvider [{}] for language '{}' via {} with capabilities: {}",
+                    provider.getClass().getSimpleName(), language, source, provider.capabilities());
+        } else {
+            logger.info("Registered additional LanguageProvider [{}] for language '{}' via {} ({} providers total)",
+                    provider.getClass().getSimpleName(), language, source, languageProviders.size());
         }
     }
 
@@ -60,30 +85,34 @@ public class LanguageProviderRegistry {
      * Manual registration method (kept for compatibility)
      */
     public void registerProvider(LanguageProvider provider) {
-        providers.put(provider.language(), provider);
-        logger.info("Manually registered language provider: {} with capabilities: {}",
-                provider.language(), provider.capabilities());
+        registerProviderInternal(provider, "manual-registration");
     }
 
     /**
      * Get all registered providers
      */
-    public Collection<LanguageProvider> getAllProviders() {
-        return providers.values();
+    public List<LanguageProvider> getAllProviders() {
+        return providersByLanguage.values().stream()
+                .flatMap(Collection::stream)
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /**
      * Get supported languages
      */
     public Set<String> getSupportedLanguages() {
-        return providers.keySet();
+        return providersByLanguage.keySet();
     }
 
     /**
      * Get a specific provider by language
      */
     public LanguageProvider getProvider(String language) {
-        return providers.get(language);
+        List<LanguageProvider> languageProviders = providersByLanguage.get(language);
+        if (languageProviders == null || languageProviders.isEmpty()) {
+            return null;
+        }
+        return languageProviders.get(0);
     }
 
     /**
@@ -91,10 +120,23 @@ public class LanguageProviderRegistry {
      */
     public List<Tool> generateTools() {
         List<Tool> allTools = new ArrayList<>();
-        for (LanguageProvider provider : providers.values()) {
-            List<Tool> tools = provider.getTools();
-            if (tools != null) {
-                allTools.addAll(tools);
+        toolProviders.clear();
+        for (Map.Entry<String, List<LanguageProvider>> entry : providersByLanguage.entrySet()) {
+            for (LanguageProvider provider : entry.getValue()) {
+                List<Tool> tools = provider.getTools();
+                if (tools != null) {
+                    for (Tool tool : tools) {
+                        if (tool == null) {
+                            continue;
+                        }
+                        allTools.add(tool);
+                        LanguageProvider previous = toolProviders.put(tool.getName(), provider);
+                        if (previous != null && previous != provider) {
+                            logger.debug("Tool '{}' was previously provided by {} and is now mapped to {}", tool.getName(),
+                                    previous.getClass().getSimpleName(), provider.getClass().getSimpleName());
+                        }
+                    }
+                }
             }
         }
         return allTools;
@@ -109,6 +151,10 @@ public class LanguageProviderRegistry {
         logger.info("Arguments: {}", arguments);
 
         try {
+            Map<String, Object> safeArguments = arguments != null
+                    ? new LinkedHashMap<>(arguments)
+                    : new LinkedHashMap<>();
+
             // Parse tool name to extract language and capability
             int separator = toolName.indexOf('.');
             if (separator < 0 || separator == toolName.length() - 1) {
@@ -137,15 +183,23 @@ public class LanguageProviderRegistry {
                 capability = capabilitySection.substring(0, recipeSeparator);
                 recipeId = capabilitySection.substring(recipeSeparator + 1);
                 if (!recipeId.isEmpty()) {
-                    arguments.putIfAbsent("recipeId", recipeId);
+                    safeArguments.putIfAbsent("recipeId", recipeId);
+                    if (arguments != null) {
+                        arguments.putIfAbsent("recipeId", recipeId);
+                    }
                 }
             }
 
             String capabilityKey = capability.toLowerCase();
 
-            LanguageProvider provider = providers.get(language);
-            if (provider == null) {
+            List<LanguageProvider> languageProviders = providersByLanguage.get(language);
+            if (languageProviders == null || languageProviders.isEmpty()) {
                 return createErrorResult("No provider found for language: " + language);
+            }
+
+            LanguageProvider provider = resolveProvider(languageProviders, toolName, capabilityKey);
+            if (provider == null) {
+                return createErrorResult("Unsupported capability '" + capability + "' for language: " + language);
             }
 
             logger.info("Found provider for language: {}", language);
@@ -153,9 +207,9 @@ public class LanguageProviderRegistry {
             logger.info("Provider capabilities: {}", provider.capabilities());
 
             // Create workspace and query objects
-            Workspace workspace = createWorkspace(arguments);
-            NqlQuery query = createNqlQuery(arguments);
-            Scope scope = createScope(arguments);
+            Workspace workspace = createWorkspace(safeArguments);
+            NqlQuery query = createNqlQuery(safeArguments, language);
+            Scope scope = createScope(safeArguments);
 
             logger.info("Created workspace: path={}, id={}", workspace.getPath(), workspace.getId());
             logger.info("Created query: query={}, language={}", query.getOriginalQuery(), query.getLanguage());
@@ -165,6 +219,7 @@ public class LanguageProviderRegistry {
             logger.info("Routing to capability: {}", capability);
             switch (capabilityKey) {
                 case "analyze":
+                    query.setType(NqlQuery.QueryType.FIND);
                     logger.info("Calling provider.analyze()...");
                     AnalyzeResult analyzeResult = provider.analyze(query, workspace);
                     logger.info("Provider.analyze() returned: success={}, message={}, runId={}",
@@ -183,6 +238,7 @@ public class LanguageProviderRegistry {
                     return metricsMap;
 
                 case "plan":
+                    query.setType(NqlQuery.QueryType.PLAN);
                     logger.info("Calling provider.plan()...");
                     PlanResult planResult = provider.plan(query, scope, workspace);
                     logger.info("Provider.plan() returned: success={}, message={}",
@@ -190,8 +246,9 @@ public class LanguageProviderRegistry {
                     return convertToMap(planResult);
 
                 case "apply":
-                    String planId = (String) arguments.get("planId");
-                    boolean dryRun = Boolean.parseBoolean(arguments.getOrDefault("dryRun", "true").toString());
+                    query.setType(NqlQuery.QueryType.APPLY);
+                    String planId = (String) safeArguments.get("planId");
+                    boolean dryRun = Boolean.parseBoolean(safeArguments.getOrDefault("dryRun", "true").toString());
                     logger.info("Calling provider.apply() with planId={}, dryRun={}", planId, dryRun);
                     ApplyResult applyResult = provider.apply(planId, dryRun, workspace);
                     logger.info("Provider.apply() returned: success={}, message={}",
@@ -199,7 +256,7 @@ public class LanguageProviderRegistry {
                     return convertToMap(applyResult);
 
                 case "diff":
-                    String runId = (String) arguments.get("runId");
+                    String runId = (String) safeArguments.get("runId");
                     logger.info("Calling provider.diff() with runId={}", runId);
                     DiffResult diffResult = provider.diff(runId, workspace);
                     logger.info("Provider.diff() returned: success={}, message={}",
@@ -217,6 +274,48 @@ public class LanguageProviderRegistry {
         }
     }
 
+    private LanguageProvider resolveProvider(List<LanguageProvider> candidates, String toolName, String capabilityKey) {
+        if (candidates == null || candidates.isEmpty()) {
+            return null;
+        }
+
+        LanguageProvider direct = toolProviders.get(toolName);
+        if (direct != null && candidates.contains(direct)) {
+            return direct;
+        }
+
+        LanguageProvider.Capabilities capability = toCapability(capabilityKey);
+        if (capability == null) {
+            return null;
+        }
+
+        for (LanguageProvider provider : candidates) {
+            Set<LanguageProvider.Capabilities> providerCapabilities = provider.capabilities();
+            if (providerCapabilities == null) {
+                continue;
+            }
+            for (LanguageProvider.Capabilities candidateCapability : providerCapabilities) {
+                if (candidateCapability == capability || candidateCapability.name().equalsIgnoreCase(capabilityKey)) {
+                    return provider;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private LanguageProvider.Capabilities toCapability(String capabilityKey) {
+        if (capabilityKey == null || capabilityKey.isBlank()) {
+            return null;
+        }
+        try {
+            return LanguageProvider.Capabilities.valueOf(capabilityKey.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            logger.warn("Unknown capability key '{}': {}", capabilityKey, ex.getMessage());
+            return null;
+        }
+    }
+
     private Workspace createWorkspace(Map<String, Object> arguments) {
         Workspace workspace = new Workspace();
         workspace.setId("default");
@@ -225,10 +324,24 @@ public class LanguageProviderRegistry {
         return workspace;
     }
 
-    private NqlQuery createNqlQuery(Map<String, Object> arguments) {
+    private NqlQuery createNqlQuery(Map<String, Object> arguments, String language) {
         NqlQuery query = new NqlQuery();
         query.setOriginalQuery((String) arguments.getOrDefault("nql", "default query"));
-        query.setLanguage((String) arguments.getOrDefault("language", "java"));
+        if (language != null && !language.isBlank()) {
+            query.setLanguage(language);
+        } else {
+            query.setLanguage((String) arguments.getOrDefault("language", "java"));
+        }
+
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : arguments.entrySet()) {
+            if (!RESERVED_ARGUMENT_KEYS.contains(entry.getKey())) {
+                parameters.put(entry.getKey(), entry.getValue());
+            }
+        }
+        if (!parameters.isEmpty()) {
+            query.setParameters(parameters);
+        }
         return query;
     }
 

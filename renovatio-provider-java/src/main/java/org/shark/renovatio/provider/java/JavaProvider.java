@@ -217,7 +217,7 @@ public class JavaProvider extends BaseLanguageProvider {
         }
 
         String slug = toRecipeSlug(recipeName);
-        String toolName = "java.apply." + slug;
+        String toolName = "java.apply_" + slug;
 
         String description = descriptor.getDescription();
         if (description == null || description.isBlank()) {
@@ -279,9 +279,16 @@ public class JavaProvider extends BaseLanguageProvider {
 
         BasicTool tool = new BasicTool(toolName, description, schema);
         tool.getMetadata().put("recipeName", recipeName);
-        tool.getMetadata().put("displayName", descriptor.getDisplayName());
+        String displayName = descriptor.getDisplayName();
+        if (displayName == null || displayName.isBlank()) {
+            displayName = description;
+        }
+        tool.getMetadata().put("displayName", displayName);
         tool.getMetadata().put("parameters", parameters);
         tool.getMetadata().put("example", example);
+        tool.getMetadata().put("capability", "apply");
+        tool.getMetadata().put("workflowPhase", "refactor");
+        tool.getMetadata().put("language", language());
         if (descriptor.getTags() != null && !descriptor.getTags().isEmpty()) {
             tool.getMetadata().put("tags", new ArrayList<>(descriptor.getTags()));
         }
@@ -330,6 +337,10 @@ public class JavaProvider extends BaseLanguageProvider {
         ));
         tool.getMetadata().put("parameters", parameters);
         tool.getMetadata().put("example", example);
+        tool.getMetadata().put("capability", name.substring(name.indexOf('.') + 1));
+        tool.getMetadata().put("workflowPhase", name.contains("metrics") ? "baseline" : "analysis");
+        tool.getMetadata().put("language", language());
+        tool.getMetadata().put("displayName", description);
         return tool;
     }
 
@@ -370,13 +381,55 @@ public class JavaProvider extends BaseLanguageProvider {
     }
 
     private String toRecipeSlug(String recipeName) {
-        String slug = recipeName.replaceAll("[^a-zA-Z0-9]+", "_");
-        slug = slug.replaceAll("_+", "_");
-        slug = slug.replaceAll("^_", "").replaceAll("_$", "");
-        if (slug.isEmpty()) {
-            slug = "recipe";
+        if (recipeName == null || recipeName.isBlank()) {
+            return "recipe";
         }
-        return slug;
+
+        StringBuilder slug = new StringBuilder();
+        char previous = '\0';
+        for (int index = 0; index < recipeName.length(); index++) {
+            char current = recipeName.charAt(index);
+
+            if (Character.isLetterOrDigit(current)) {
+                if (Character.isUpperCase(current)) {
+                    boolean needsSeparator = slug.length() > 0;
+                    if (needsSeparator) {
+                        char lastAppended = slug.charAt(slug.length() - 1);
+                        if (lastAppended != '_') {
+                            if (Character.isLowerCase(previous) || Character.isDigit(previous)) {
+                                slug.append('_');
+                            } else if (Character.isUpperCase(previous)) {
+                                if (index + 1 < recipeName.length()) {
+                                    char next = recipeName.charAt(index + 1);
+                                    if (Character.isLowerCase(next)) {
+                                        slug.append('_');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    slug.append(Character.toLowerCase(current));
+                } else {
+                    slug.append(current);
+                }
+                previous = current;
+            } else {
+                if (slug.length() > 0 && slug.charAt(slug.length() - 1) != '_') {
+                    slug.append('_');
+                }
+                previous = current;
+            }
+        }
+
+        while (slug.length() > 0 && slug.charAt(slug.length() - 1) == '_') {
+            slug.deleteCharAt(slug.length() - 1);
+        }
+
+        if (slug.length() == 0) {
+            return "recipe";
+        }
+
+        return slug.toString().toLowerCase(Locale.ROOT);
     }
 
 }

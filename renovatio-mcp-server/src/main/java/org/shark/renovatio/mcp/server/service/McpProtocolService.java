@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -159,15 +160,16 @@ public class McpProtocolService {
         }
         int dotIndex = name.indexOf('.');
         if (dotIndex < 0) {
-            return name;
+            return name != null ? name.toLowerCase(Locale.ROOT) : null;
         }
 
         int underscoreIndex = name.indexOf('_');
         if (underscoreIndex >= 0 && underscoreIndex < dotIndex) {
-            return name;
+            return name.toLowerCase(Locale.ROOT);
         }
 
-        return name.substring(0, dotIndex) + '_' + name.substring(dotIndex + 1);
+        String normalized = name.substring(0, dotIndex) + '_' + name.substring(dotIndex + 1);
+        return normalized.toLowerCase(Locale.ROOT);
     }
 
     /**
