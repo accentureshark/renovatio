@@ -150,7 +150,7 @@ public class CobolProvider extends BaseLanguageProvider {
 
         // Analyze tool
         BasicTool analyzeTool = new BasicTool(
-            "cobol_analyze",
+            "cobol.analyze",
             "Analyze COBOL source code",
             Map.of(
                 "type", "object",
@@ -173,11 +173,15 @@ public class CobolProvider extends BaseLanguageProvider {
             )
         ));
         analyzeTool.getMetadata().put("example", Map.of("workspacePath", "/path/to/cobol/workspace"));
+        analyzeTool.getMetadata().put("capability", "analyze");
+        analyzeTool.getMetadata().put("workflowPhase", "analysis");
+        analyzeTool.getMetadata().put("language", language());
+        analyzeTool.getMetadata().put("displayName", "Analyze COBOL code");
         tools.add(analyzeTool);
 
         // Metrics tool
         BasicTool metricsTool = new BasicTool(
-            "cobol_metrics",
+            "cobol.metrics",
             "Calculate COBOL code metrics",
             Map.of(
                 "type", "object",
@@ -200,11 +204,15 @@ public class CobolProvider extends BaseLanguageProvider {
             )
         ));
         metricsTool.getMetadata().put("example", Map.of("workspacePath", "/path/to/cobol/workspace"));
+        metricsTool.getMetadata().put("capability", "metrics");
+        metricsTool.getMetadata().put("workflowPhase", "baseline");
+        metricsTool.getMetadata().put("language", language());
+        metricsTool.getMetadata().put("displayName", "Collect COBOL metrics");
         tools.add(metricsTool);
 
         // Diff tool
         BasicTool diffTool = new BasicTool(
-            "cobol_diff",
+            "cobol.diff",
             "Generate semantic diff for COBOL code",
             Map.of(
                 "type", "object",
@@ -237,11 +245,15 @@ public class CobolProvider extends BaseLanguageProvider {
             )
         ));
         diffTool.getMetadata().put("example", Map.of("runId", "run-123", "workspacePath", "/path/to/cobol/workspace"));
+        diffTool.getMetadata().put("capability", "diff");
+        diffTool.getMetadata().put("workflowPhase", "review");
+        diffTool.getMetadata().put("language", language());
+        diffTool.getMetadata().put("displayName", "Review COBOL changes");
         tools.add(diffTool);
 
         // Generate stubs tool
         BasicTool stubsTool = new BasicTool(
-            "cobol_generateStubs",
+            "cobol.stubs_generate",
             "Generate Java stubs/adapters for COBOL interfaces",
             Map.of(
                 "type", "object",
@@ -274,6 +286,10 @@ public class CobolProvider extends BaseLanguageProvider {
             )
         ));
         stubsTool.getMetadata().put("example", Map.of("workspacePath", "/path/to/cobol/workspace", "targetLanguage", "java"));
+        stubsTool.getMetadata().put("capability", "stubs");
+        stubsTool.getMetadata().put("workflowPhase", "refactor");
+        stubsTool.getMetadata().put("language", language());
+        stubsTool.getMetadata().put("displayName", "Generate COBOL interface stubs");
         tools.add(stubsTool);
 
         return tools;

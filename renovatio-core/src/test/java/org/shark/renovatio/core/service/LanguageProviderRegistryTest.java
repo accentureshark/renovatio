@@ -3,6 +3,7 @@ package org.shark.renovatio.core.service;
 import org.junit.jupiter.api.Test;
 import org.shark.renovatio.shared.domain.ApplyResult;
 import org.shark.renovatio.shared.spi.LanguageProvider;
+import org.shark.renovatio.shared.domain.MetricsResult;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -62,5 +63,34 @@ class LanguageProviderRegistryTest {
 
         assertEquals("org_openrewrite", arguments.get("recipeId"));
         verify(provider).apply(any(), eq(true), any());
+    }
+
+    @Test
+    void routeToolCallChoosesProviderWithMatchingCapability() {
+        LanguageProviderRegistry registry = new LanguageProviderRegistry();
+
+        LanguageProvider analyzeProvider = mock(LanguageProvider.class);
+        when(analyzeProvider.language()).thenReturn("java");
+        when(analyzeProvider.capabilities()).thenReturn(Set.of(LanguageProvider.Capabilities.ANALYZE));
+
+        LanguageProvider metricsProvider = mock(LanguageProvider.class);
+        when(metricsProvider.language()).thenReturn("java");
+        when(metricsProvider.capabilities()).thenReturn(Set.of(LanguageProvider.Capabilities.METRICS));
+
+        MetricsResult metricsResult = new MetricsResult(true, "ok");
+        when(metricsProvider.metrics(any(), any())).thenReturn(metricsResult);
+
+        registry.registerProvider(analyzeProvider);
+        registry.registerProvider(metricsProvider);
+
+        Map<String, Object> arguments = new HashMap<>();
+        arguments.put("workspacePath", "/tmp/workspace");
+
+        Map<String, Object> response = registry.routeToolCall("java.metrics", arguments);
+
+        assertNotNull(response);
+        assertEquals(true, response.get("success"));
+
+        verify(metricsProvider).metrics(any(), any());
     }
 }

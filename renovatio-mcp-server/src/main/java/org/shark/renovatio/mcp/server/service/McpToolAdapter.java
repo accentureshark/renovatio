@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -37,19 +38,46 @@ public class McpToolAdapter {
             }
         }
 
-        mcpTool.setName(mcpToolName);
+        String sanitizedName = sanitizeToolName(mcpToolName);
+        mcpTool.setName(sanitizedName);
         mcpTool.setDescription(tool.getDescription());
 
         Map<String, Object> toolMetadata = tool.getMetadata();
         Map<String, Object> metadataCopy = toolMetadata != null
                 ? new LinkedHashMap<>(toolMetadata)
                 : new LinkedHashMap<>();
+
+        if (originalToolName != null && !originalToolName.equals(sanitizedName)) {
+            metadataCopy.putIfAbsent("originalName", originalToolName);
+        }
+
+        if (originalToolName != null && !metadataCopy.containsKey("language")) {
+            int separator = originalToolName.indexOf('.');
+            if (separator > 0) {
+                metadataCopy.put("language", originalToolName.substring(0, separator));
+            }
+        }
+
+        if (originalToolName != null && !metadataCopy.containsKey("capability")) {
+            int separator = originalToolName.indexOf('.');
+            if (separator > 0 && separator < originalToolName.length() - 1) {
+                String capabilityPart = originalToolName.substring(separator + 1);
+                int capabilitySeparator = capabilityPart.indexOf('.');
+                if (capabilitySeparator < 0) {
+                    capabilitySeparator = capabilityPart.indexOf('_');
+                }
+                String capability = capabilitySeparator >= 0
+                        ? capabilityPart.substring(0, capabilitySeparator)
+                        : capabilityPart;
+                metadataCopy.put("capability", capability);
+            }
+        }
         mcpTool.setMetadata(metadataCopy);
 
         Map<String, Object> schema = tool.getInputSchema();
         Map<String, Object> mcpSchema = normalizeSchema(schema);
 
-        if (isProviderTool(mcpToolName)) {
+        if (isProviderTool(sanitizedName)) {
             ensureWorkspacePath(mcpSchema);
         }
 
@@ -344,5 +372,24 @@ public class McpToolAdapter {
         return mcpTools.stream()
                 .map(this::fromMcpTool)
                 .collect(Collectors.toList());
+    }
+
+    private String sanitizeToolName(String toolName) {
+        if (toolName == null) {
+            return null;
+        }
+        String lowerCased = toolName.toLowerCase(Locale.ROOT);
+        String sanitized = lowerCased.replaceAll("[^a-z0-9_-]", "_");
+        sanitized = sanitized.replaceAll("_+", "_");
+        if (sanitized.startsWith("_")) {
+            sanitized = sanitized.substring(1);
+        }
+        if (sanitized.endsWith("_")) {
+            sanitized = sanitized.substring(0, sanitized.length() - 1);
+        }
+        if (sanitized.isEmpty()) {
+            sanitized = "tool";
+        }
+        return sanitized;
     }
 }
