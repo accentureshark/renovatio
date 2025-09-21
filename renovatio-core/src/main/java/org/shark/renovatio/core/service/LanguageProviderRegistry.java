@@ -116,7 +116,31 @@ public class LanguageProviderRegistry {
             }
 
             String language = toolName.substring(0, separator);
-            String capability = toolName.substring(separator + 1);
+            String capabilitySection = toolName.substring(separator + 1);
+
+            String capability = capabilitySection;
+            String recipeId = null;
+
+            int dotInCapability = capabilitySection.indexOf('.');
+            int underscoreInCapability = capabilitySection.indexOf('_');
+            int recipeSeparator = -1;
+
+            if (dotInCapability >= 0 && underscoreInCapability >= 0) {
+                recipeSeparator = Math.min(dotInCapability, underscoreInCapability);
+            } else if (dotInCapability >= 0) {
+                recipeSeparator = dotInCapability;
+            } else if (underscoreInCapability >= 0) {
+                recipeSeparator = underscoreInCapability;
+            }
+
+            if (recipeSeparator > 0) {
+                capability = capabilitySection.substring(0, recipeSeparator);
+                recipeId = capabilitySection.substring(recipeSeparator + 1);
+                if (!recipeId.isEmpty()) {
+                    arguments.putIfAbsent("recipeId", recipeId);
+                }
+            }
+
             String capabilityKey = capability.toLowerCase();
 
             LanguageProvider provider = providers.get(language);

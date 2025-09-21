@@ -27,8 +27,14 @@ public class McpToolAdapter {
 
         String originalToolName = tool.getName();
         String mcpToolName = originalToolName;
-        if (mcpToolName != null && !mcpToolName.contains("_") && mcpToolName.contains(".")) {
-            mcpToolName = mcpToolName.replace('.', '_');
+        if (mcpToolName != null) {
+            int dotIndex = mcpToolName.indexOf('.');
+            if (dotIndex > 0) {
+                int underscoreIndex = mcpToolName.indexOf('_');
+                if (underscoreIndex < 0 || dotIndex < underscoreIndex) {
+                    mcpToolName = mcpToolName.substring(0, dotIndex) + '_' + mcpToolName.substring(dotIndex + 1);
+                }
+            }
         }
 
         mcpTool.setName(mcpToolName);
