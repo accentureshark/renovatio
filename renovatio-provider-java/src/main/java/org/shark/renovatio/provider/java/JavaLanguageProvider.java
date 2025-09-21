@@ -7,6 +7,7 @@ import org.openrewrite.config.RecipeDescriptor;
 import org.openrewrite.config.YamlResourceLoader;
 import org.shark.renovatio.shared.domain.AnalyzeResult;
 import org.shark.renovatio.shared.domain.ApplyResult;
+import org.shark.renovatio.shared.domain.BasicTool;
 import org.shark.renovatio.shared.domain.StubResult;
 import org.shark.renovatio.shared.domain.Tool;
 import org.shark.renovatio.shared.domain.Workspace;
@@ -511,12 +512,16 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
         metadata.put("description", descriptor.getDescription());
         metadata.put("tags", descriptor.getTags());
         metadata.put("options", extractRecipeOptions(descriptor));
-        ToolImpl tool = new ToolImpl(
-            toolName,
-            descriptor.getDescription() != null ? descriptor.getDescription() : "OpenRewrite recipe: " + recipeId,
-            null,
-            metadata
-        );
+
+        Map<String, Object> inputSchema = buildRecipeInputSchema(descriptor);
+
+        BasicTool tool = new BasicTool();
+        tool.setName(toolName);
+        tool.setDescription(descriptor.getDescription() != null
+            ? descriptor.getDescription()
+            : "OpenRewrite recipe: " + recipeId);
+        tool.setInputSchema(inputSchema);
+        tool.setMetadata(metadata);
         tools.add(tool);
         if (descriptor.getRecipeList() != null) {
             for (RecipeDescriptor child : descriptor.getRecipeList()) {
@@ -539,5 +544,75 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
             }
         }
         return options;
+    }
+
+    private Map<String, Object> buildRecipeInputSchema(RecipeDescriptor descriptor) {
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+
+        Map<String, Object> properties = new LinkedHashMap<>();
+        Map<String, Object> workspacePath = new LinkedHashMap<>();
+        workspacePath.put("type", "string");
+        workspacePath.put("description", "Absolute path to the workspace directory containing sources to refactor");
+        properties.put("workspacePath", workspacePath);
+
+        List<String> required = new ArrayList<>();
+        required.add("workspacePath");
+
+        if (descriptor.getOptions() != null) {
+            for (OptionDescriptor option : descriptor.getOptions()) {
+                if (option.getName() == null || option.getName().isBlank()) {
+                    continue;
+                }
+                Map<String, Object> optionSchema = new LinkedHashMap<>();
+                optionSchema.put("type", mapOptionType(option.getType()));
+                if (option.getDescription() != null && !option.getDescription().isBlank()) {
+                    optionSchema.put("description", option.getDescription());
+                }
+                if (option.getExample() != null) {
+                    optionSchema.put("example", option.getExample());
+                }
+                if (optionSchema.get("type").equals("array")) {
+                    optionSchema.putIfAbsent("items", Map.of("type", "string"));
+                }
+                properties.put(option.getName(), optionSchema);
+                if (option.isRequired()) {
+                    required.add(option.getName());
+                }
+            }
+        }
+
+        schema.put("properties", properties);
+        if (!required.isEmpty()) {
+            schema.put("required", required);
+        }
+        schema.put("additionalProperties", false);
+        return schema;
+    }
+
+    private String mapOptionType(String optionType) {
+        if (optionType == null || optionType.isBlank()) {
+            return "string";
+        }
+        String normalized = optionType.toLowerCase(Locale.ROOT);
+        if (normalized.contains("boolean")) {
+            return "boolean";
+        }
+        if (normalized.contains("int") || normalized.contains("long") || normalized.contains("short")
+            || normalized.contains("byte")) {
+            return "integer";
+        }
+        if (normalized.contains("double") || normalized.contains("float") || normalized.contains("bigdecimal")
+            || normalized.contains("number")) {
+            return "number";
+        }
+        if (normalized.contains("list") || normalized.contains("set") || normalized.contains("collection")
+            || normalized.contains("array")) {
+            return "array";
+        }
+        if (normalized.contains("map")) {
+            return "object";
+        }
+        return "string";
     }
 }

@@ -35,39 +35,18 @@ public class McpToolAdapter {
         mcpTool.setDescription(tool.getDescription());
 
         Map<String, Object> schema = tool.getInputSchema();
-        Map<String, Object> mcpSchema;
-        if (isProviderTool(mcpToolName) && schema != null) {
-            mcpSchema = new HashMap<>(schema);
+        Map<String, Object> mcpSchema = normalizeSchema(schema);
 
-            if (schema.get("properties") instanceof Map<?, ?> props) {
-                Map<String, Object> properties = new LinkedHashMap<>();
-                props.forEach((key, value) -> properties.put(String.valueOf(key), value));
-                if (!properties.containsKey("workspacePath")) {
-                    Map<String, Object> workspacePathProperty = new HashMap<>();
-                    workspacePathProperty.put("type", "string");
-                    workspacePathProperty.put("description", "Path to the workspace directory to analyze");
-                    properties.put("workspacePath", workspacePathProperty);
-
-                    List<String> requiredFromSchema = new ArrayList<>();
-                    if (schema.get("required") instanceof List<?> list) {
-                        for (Object entry : list) {
-                            if (entry != null) {
-                                requiredFromSchema.add(String.valueOf(entry));
-                            }
-                        }
-                    }
-                    if (!requiredFromSchema.contains("workspacePath")) {
-                        requiredFromSchema.add("workspacePath");
-                    }
-                    mcpSchema.put("required", requiredFromSchema);
-                }
-                mcpSchema.put("properties", properties);
-            }
-            mcpTool.setInputSchema(mcpSchema);
-        } else {
-            mcpTool.setInputSchema(schema);
-            mcpSchema = schema;
+        if (isProviderTool(mcpToolName)) {
+            ensureWorkspacePath(mcpSchema);
         }
+
+        if (mcpSchema != null && mcpSchema.get("required") instanceof List<?> requiredList
+                && ((List<?>) mcpSchema.get("required")).isEmpty()) {
+            mcpSchema.remove("required");
+        }
+
+        mcpTool.setInputSchema(mcpSchema);
 
         // MCP-compliant: extract parameters from inputSchema if present
         List<Map<String, Object>> parameters = new ArrayList<>();
@@ -113,6 +92,71 @@ public class McpToolAdapter {
         mcpTool.setOutputSchema(outputSchema);
 
         return mcpTool;
+    }
+
+    private Map<String, Object> normalizeSchema(Map<String, Object> schema) {
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        if (schema != null) {
+            schema.forEach((key, value) -> normalized.put(String.valueOf(key), value));
+        }
+
+        Object propertiesObj = normalized.get("properties");
+        Map<String, Object> properties = new LinkedHashMap<>();
+        if (propertiesObj instanceof Map<?, ?> map) {
+            map.forEach((key, value) -> properties.put(String.valueOf(key), value));
+        }
+        normalized.put("properties", properties);
+
+        Object requiredObj = normalized.get("required");
+        List<String> required = new ArrayList<>();
+        if (requiredObj instanceof List<?> list) {
+            for (Object entry : list) {
+                if (entry != null) {
+                    required.add(String.valueOf(entry));
+                }
+            }
+        }
+        if (!required.isEmpty()) {
+            normalized.put("required", required);
+        }
+
+        normalized.putIfAbsent("type", "object");
+        normalized.putIfAbsent("additionalProperties", Boolean.FALSE);
+        return normalized;
+    }
+
+    private void ensureWorkspacePath(Map<String, Object> schema) {
+        if (schema == null) {
+            return;
+        }
+        Object propsObj = schema.get("properties");
+        if (!(propsObj instanceof Map<?, ?> props)) {
+            props = new LinkedHashMap<>();
+            schema.put("properties", props);
+        }
+
+        if (!props.containsKey("workspacePath")) {
+            Map<String, Object> workspacePathProperty = new LinkedHashMap<>();
+            workspacePathProperty.put("type", "string");
+            workspacePathProperty.put("description", "Path to the workspace directory to analyze");
+            props.put("workspacePath", workspacePathProperty);
+
+            List<String> required = new ArrayList<>();
+            Object requiredObj = schema.get("required");
+            if (requiredObj instanceof List<?> list) {
+                for (Object entry : list) {
+                    if (entry != null) {
+                        required.add(String.valueOf(entry));
+                    }
+                }
+            }
+            if (!required.contains("workspacePath")) {
+                required.add("workspacePath");
+            }
+            if (!required.isEmpty()) {
+                schema.put("required", required);
+            }
+        }
     }
 
     private Map<String, Object> buildOutputSchema(Tool tool) {
