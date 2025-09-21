@@ -34,6 +34,12 @@ public class McpToolAdapter {
         mcpTool.setName(mcpToolName);
         mcpTool.setDescription(tool.getDescription());
 
+        Map<String, Object> toolMetadata = tool.getMetadata();
+        Map<String, Object> metadataCopy = toolMetadata != null
+                ? new LinkedHashMap<>(toolMetadata)
+                : new LinkedHashMap<>();
+        mcpTool.setMetadata(metadataCopy);
+
         Map<String, Object> schema = tool.getInputSchema();
         Map<String, Object> mcpSchema = normalizeSchema(schema);
 
@@ -74,6 +80,12 @@ public class McpToolAdapter {
                 }
             }
         }
+        if (metadataCopy.containsKey("parameters")) {
+            List<Map<String, Object>> metadataParameters = convertToParameterList(metadataCopy.get("parameters"));
+            if (metadataParameters != null) {
+                parameters = metadataParameters;
+            }
+        }
         mcpTool.setParameters(parameters);
 
         // MCP-compliant: set example if present in schema
@@ -86,12 +98,42 @@ public class McpToolAdapter {
                 example = exMap;
             }
         }
+        if (metadataCopy.containsKey("example")) {
+            Map<String, Object> metadataExample = convertToMap(metadataCopy.get("example"));
+            if (metadataExample != null) {
+                example = metadataExample;
+            }
+        }
         mcpTool.setExample(example);
 
         Map<String, Object> outputSchema = buildOutputSchema(tool);
         mcpTool.setOutputSchema(outputSchema);
 
         return mcpTool;
+    }
+
+    private List<Map<String, Object>> convertToParameterList(Object parametersObj) {
+        if (!(parametersObj instanceof List<?> list)) {
+            return null;
+        }
+        List<Map<String, Object>> parameters = new ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> mapItem) {
+                Map<String, Object> parameter = new LinkedHashMap<>();
+                mapItem.forEach((key, value) -> parameter.put(String.valueOf(key), value));
+                parameters.add(parameter);
+            }
+        }
+        return parameters;
+    }
+
+    private Map<String, Object> convertToMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> copy = new LinkedHashMap<>();
+            map.forEach((key, mapValue) -> copy.put(String.valueOf(key), mapValue));
+            return copy;
+        }
+        return null;
     }
 
     private Map<String, Object> normalizeSchema(Map<String, Object> schema) {
@@ -238,11 +280,44 @@ public class McpToolAdapter {
         String internalToolName = mcpTool.getName();
         // Removed automatic underscore to dot conversion
 
-        return new org.shark.renovatio.shared.domain.BasicTool(
+        org.shark.renovatio.shared.domain.BasicTool basicTool = new org.shark.renovatio.shared.domain.BasicTool(
             internalToolName,
             mcpTool.getDescription(),
             mcpTool.getInputSchema()
         );
+
+        Map<String, Object> metadata = mcpTool.getMetadata();
+        if (metadata != null) {
+            basicTool.setMetadata(new LinkedHashMap<>(metadata));
+        }
+
+        Map<String, Object> example = mcpTool.getExample();
+        if (example != null && (metadata == null || !metadata.containsKey("example"))) {
+            // Preserve schema-derived example symmetry by keeping it inside metadata when absent
+            Map<String, Object> metadataCopy = new LinkedHashMap<>(basicTool.getMetadata());
+            Map<String, Object> exampleCopy = convertToMap(example);
+            if (exampleCopy != null) {
+                metadataCopy.put("example", exampleCopy);
+                basicTool.setMetadata(metadataCopy);
+            }
+        }
+
+        List<Map<String, Object>> parameters = mcpTool.getParameters();
+        if (parameters != null && !parameters.isEmpty() && (metadata == null || !metadata.containsKey("parameters"))) {
+            List<Map<String, Object>> parameterCopies = parameters.stream()
+                    .map(param -> {
+                        Map<String, Object> copy = new LinkedHashMap<>();
+                        param.forEach((key, value) -> copy.put(String.valueOf(key), value));
+                        return copy;
+                    })
+                    .collect(Collectors.toList());
+
+            Map<String, Object> metadataCopy = new LinkedHashMap<>(basicTool.getMetadata());
+            metadataCopy.put("parameters", parameterCopies);
+            basicTool.setMetadata(metadataCopy);
+        }
+
+        return basicTool;
     }
 
     private String toCanonicalName(String toolName) {

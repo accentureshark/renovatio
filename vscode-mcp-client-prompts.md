@@ -25,6 +25,29 @@ Primero, asegúrate de que tu archivo `mcp.json` esté configurado correctamente
 
 El servidor Renovatio expone las siguientes herramientas MCP:
 
+### Metadata enriquecida disponible para prompts
+
+Cada herramienta publicada por el servidor incluye un bloque `metadata` que viaja en todas las respuestas MCP relevantes (`initialize.availableTools`, `tools/list.tools` y `tools/describe.tool`). Este bloque aporta información adicional que puedes aprovechar en tus prompts:
+
+- `displayName`: nombre amigable que puedes mostrar en UI o repetir en la conversación para confirmar la herramienta seleccionada.
+- `tags`: lista de etiquetas que describe el dominio, el lenguaje o el tipo de tarea que resuelve la herramienta. Útil para búsquedas o filtros rápidos.
+- Otros campos opcionales (`category`, `documentation`, etc.) pueden aparecer según el proveedor. Mantén el contenido textual del metadata accesible para enriquecer instrucciones y desambiguar herramientas similares.
+
+Ejemplo de fragmento devuelto por `tools/list`:
+
+```json
+{
+  "name": "java_analyze",
+  "description": "Analyze for java",
+  "metadata": {
+    "displayName": "Java Analyze",
+    "tags": ["java", "analysis"]
+  }
+}
+```
+
+Cuando redactes prompts, referencia el `displayName` para dar contexto al asistente (por ejemplo: *"utiliza la herramienta **Java Analyze** para..."*) y usa las `tags` como pistas para elegir la herramienta correcta en flujos automáticos.
+
 ### 🔍 Análisis de Código Java
 - **java_analyze**: Analiza estructura y extrae información de código Java
 - **java_metrics**: Calcula métricas de calidad y complejidad para código Java
