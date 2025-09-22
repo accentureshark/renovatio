@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -172,17 +173,41 @@ public class McpToolAdapter {
 
     private Map<String, Object> normalizeSchema(Map<String, Object> schema) {
         Map<String, Object> normalized = new LinkedHashMap<>();
-        if (schema != null) {
-            schema.forEach((key, value) -> normalized.put(String.valueOf(key), value));
+        // Si el schema original es nulo o vacío, retorna un schema mínimo válido
+        if (schema == null || schema.isEmpty()) {
+            normalized.put("type", "object");
+            normalized.put("properties", new LinkedHashMap<>());
+            normalized.put("additionalProperties", Boolean.FALSE);
+            return normalized;
         }
-
+        // Copia solo valores no nulos
+        schema.forEach((key, value) -> {
+            if (value != null) {
+                normalized.put(String.valueOf(key), value);
+            }
+        });
+        // Siempre 'type' object
+        normalized.put("type", "object");
+        // Siempre 'properties' objeto no nulo y sin 'required' en propiedades
         Object propertiesObj = normalized.get("properties");
         Map<String, Object> properties = new LinkedHashMap<>();
         if (propertiesObj instanceof Map<?, ?> map) {
-            map.forEach((key, value) -> properties.put(String.valueOf(key), value));
+            map.forEach((key, value) -> {
+                if (key != null && value instanceof Map<?, ?> propMap) {
+                    Map<String, Object> cleanProp = new LinkedHashMap<>();
+                    propMap.forEach((k, v) -> {
+                        if (v != null && !"required".equals(k)) {
+                            cleanProp.put(String.valueOf(k), v);
+                        }
+                    });
+                    properties.put(String.valueOf(key), cleanProp);
+                } else if (key != null && value != null) {
+                    properties.put(String.valueOf(key), value);
+                }
+            });
         }
         normalized.put("properties", properties);
-
+        // 'required' debe ser array de strings o no estar
         Object requiredObj = normalized.get("required");
         List<String> required = new ArrayList<>();
         if (requiredObj instanceof List<?> list) {
@@ -194,10 +219,16 @@ public class McpToolAdapter {
         }
         if (!required.isEmpty()) {
             normalized.put("required", required);
+        } else {
+            normalized.remove("required");
         }
-
-        normalized.putIfAbsent("type", "object");
-        normalized.putIfAbsent("additionalProperties", Boolean.FALSE);
+        // Elimina cualquier campo no permitido por JSON Schema draft-07
+        Set<String> allowed = Set.of("type", "properties", "required", "description", "additionalProperties", "title", "default", "examples");
+        normalized.keySet().removeIf(k -> !allowed.contains(k));
+        // Siempre 'additionalProperties' false salvo que sea true explícito
+        if (!Boolean.TRUE.equals(normalized.get("additionalProperties"))) {
+            normalized.put("additionalProperties", Boolean.FALSE);
+        }
         return normalized;
     }
 

@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(classes = org.shark.renovatio.mcp.server.McpServerApplication.class)
 class McpToolingServiceIntegrationTest {
 
     @Autowired

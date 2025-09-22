@@ -255,7 +255,11 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
             org.openrewrite.ExecutionContext ctx = new org.openrewrite.InMemoryExecutionContext(Throwable::printStackTrace);
 
             org.openrewrite.java.JavaParser parser = org.openrewrite.java.JavaParser.fromJavaVersion().build();
-            List<org.openrewrite.SourceFile> sourceFileList = parser.parse(ctx, javaFiles.toArray(Path[]::new));
+            List<String> sources = new ArrayList<>();
+            for (Path p : javaFiles) {
+                sources.add(Files.readString(p));
+            }
+            List<org.openrewrite.SourceFile> sourceFileList = parser.parse(ctx, sources.toArray(new String[0])).collect(Collectors.toList());
             List<org.openrewrite.Result> results = executeRecipeWithCompatibility(recipe, ctx, sourceFileList);
 
             if (apply) {

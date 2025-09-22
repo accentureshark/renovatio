@@ -180,7 +180,11 @@ public class JavaRecipeExecutor {
 
     private List<SourceFile> parseSources(List<Path> javaFiles, ExecutionContext ctx) throws IOException {
         JavaParser parser = JavaParser.fromJavaVersion().build();
-        return parser.parse(ctx, javaFiles.toArray(Path[]::new));
+        List<String> sources = new ArrayList<>();
+        for (Path path : javaFiles) {
+            sources.add(Files.readString(path));
+        }
+        return parser.parse(ctx, sources.toArray(new String[0])).collect(Collectors.toList());
     }
 
     private Map<String, Object> buildMetrics(List<Path> javaFiles,
