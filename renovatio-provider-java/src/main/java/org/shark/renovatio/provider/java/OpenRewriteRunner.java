@@ -5,6 +5,14 @@ import org.openrewrite.Recipe;
 import org.openrewrite.Result;
 import org.openrewrite.SourceFile;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
@@ -18,6 +26,67 @@ import java.util.Objects;
  */
 public class OpenRewriteRunner {
 
+    private static final Class<?> LARGE_SOURCE_SET_CLASS;
+    private static final Method RUN_WITH_LARGE_SOURCE_SET;
+    private static final Method RUN_WITH_ITERABLE;
+    private static final Constructor<?> LARGE_SOURCE_SET_ITERABLE_CTOR;
+    private static final Method LARGE_SOURCE_SET_FACTORY_FROM_ITERABLE;
+
+    static {
+        Method runIterable;
+        try {
+            runIterable = Recipe.class.getMethod("run", Iterable.class, ExecutionContext.class);
+        } catch (NoSuchMethodException ex) {
+            runIterable = null;
+        }
+        RUN_WITH_ITERABLE = runIterable;
+
+        Class<?> largeSourceSetClass = null;
+        Method runWithLargeSourceSet = null;
+        Constructor<?> iterableCtor = null;
+        Method factoryFromIterable = null;
+
+        try {
+            largeSourceSetClass = Class.forName("org.openrewrite.LargeSourceSet");
+            runWithLargeSourceSet = Recipe.class.getMethod("run", largeSourceSetClass, ExecutionContext.class);
+
+            try {
+                Class<?> inMemory = Class.forName("org.openrewrite.InMemoryLargeSourceSet");
+                for (Constructor<?> ctor : inMemory.getConstructors()) {
+                    Class<?>[] parameterTypes = ctor.getParameterTypes();
+                    if (parameterTypes.length == 1 && Iterable.class.isAssignableFrom(parameterTypes[0])) {
+                        iterableCtor = ctor;
+                        break;
+                    }
+                }
+
+                if (iterableCtor == null) {
+                    for (Method method : inMemory.getMethods()) {
+                        if (Modifier.isStatic(method.getModifiers())
+                            && method.getParameterCount() == 1
+                            && Iterable.class.isAssignableFrom(method.getParameterTypes()[0])
+                            && largeSourceSetClass.isAssignableFrom(method.getReturnType())) {
+                            factoryFromIterable = method;
+                            break;
+                        }
+                    }
+                }
+            } catch (ClassNotFoundException ignored) {
+                // Older OpenRewrite versions did not expose the helper implementation.
+            }
+        } catch (ClassNotFoundException | NoSuchMethodException ex) {
+            largeSourceSetClass = null;
+            runWithLargeSourceSet = null;
+            iterableCtor = null;
+            factoryFromIterable = null;
+        }
+
+        LARGE_SOURCE_SET_CLASS = largeSourceSetClass;
+        RUN_WITH_LARGE_SOURCE_SET = runWithLargeSourceSet;
+        LARGE_SOURCE_SET_ITERABLE_CTOR = iterableCtor;
+        LARGE_SOURCE_SET_FACTORY_FROM_ITERABLE = factoryFromIterable;
+    }
+
     /**
      * Execute the provided recipe for the given source files.
      *
@@ -26,11 +95,132 @@ public class OpenRewriteRunner {
      * @param sourceFiles parsed source files
      * @return the resulting changes from the recipe execution
      */
+    @SuppressWarnings("unchecked")
     public List<Result> runRecipe(Recipe recipe, ExecutionContext ctx, List<SourceFile> sourceFiles) {
         Objects.requireNonNull(recipe, "recipe");
         Objects.requireNonNull(ctx, "ctx");
         Objects.requireNonNull(sourceFiles, "sourceFiles");
-        // OpenRewrite 8.x+ API: run(List<SourceFile>, ExecutionContext)
-        return recipe.run(sourceFiles, ctx);
+
+        try {
+            if (RUN_WITH_LARGE_SOURCE_SET != null && LARGE_SOURCE_SET_CLASS != null) {
+                Object largeSourceSet = createLargeSourceSet(sourceFiles);
+                return (List<Result>) RUN_WITH_LARGE_SOURCE_SET.invoke(recipe, largeSourceSet, ctx);
+            }
+
+            if (RUN_WITH_ITERABLE != null) {
+                return (List<Result>) RUN_WITH_ITERABLE.invoke(recipe, sourceFiles, ctx);
+            }
+        } catch (ReflectiveOperationException ex) {
+            throw new IllegalStateException("Failed to execute OpenRewrite recipe", ex);
+        }
+
+        throw new IllegalStateException("No compatible OpenRewrite Recipe#run overload found");
+    }
+
+    private Object createLargeSourceSet(List<SourceFile> sourceFiles) throws ReflectiveOperationException {
+        if (LARGE_SOURCE_SET_CLASS == null) {
+            throw new IllegalStateException("LargeSourceSet class is not available on the classpath");
+        }
+
+        if (LARGE_SOURCE_SET_ITERABLE_CTOR != null) {
+            return LARGE_SOURCE_SET_ITERABLE_CTOR.newInstance(sourceFiles);
+        }
+
+        if (LARGE_SOURCE_SET_FACTORY_FROM_ITERABLE != null) {
+            return LARGE_SOURCE_SET_FACTORY_FROM_ITERABLE.invoke(null, sourceFiles);
+        }
+
+        return Proxy.newProxyInstance(
+            LARGE_SOURCE_SET_CLASS.getClassLoader(),
+            new Class<?>[]{LARGE_SOURCE_SET_CLASS},
+            new LargeSourceSetInvocationHandler(sourceFiles)
+        );
+    }
+
+    private static final class LargeSourceSetInvocationHandler implements InvocationHandler {
+        private final List<SourceFile> delegate;
+
+        private LargeSourceSetInvocationHandler(List<SourceFile> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            String name = method.getName();
+            Object[] actualArgs = args == null ? new Object[0] : args;
+
+            if (method.isDefault()) {
+                return invokeDefault(proxy, method, actualArgs);
+            }
+
+            switch (name) {
+                case "iterator":
+                    return delegate.iterator();
+                case "spliterator":
+                    return delegate.spliterator();
+                case "stream":
+                    return delegate.stream();
+                case "isEmpty":
+                    return delegate.isEmpty();
+                case "size":
+                    return delegate.size();
+                default:
+                    break;
+            }
+
+            Object invocationResult = tryInvokeOn(Collection.class, name, method.getParameterTypes(), actualArgs);
+            if (invocationResult != InvocationResult.NOT_HANDLED) {
+                return invocationResult;
+            }
+
+            invocationResult = tryInvokeOn(List.class, name, method.getParameterTypes(), actualArgs);
+            if (invocationResult != InvocationResult.NOT_HANDLED) {
+                return invocationResult;
+            }
+
+            invocationResult = tryInvokeOn(Iterable.class, name, method.getParameterTypes(), actualArgs);
+            if (invocationResult != InvocationResult.NOT_HANDLED) {
+                return invocationResult;
+            }
+
+            if ("getSourceFiles".equals(name) && method.getParameterCount() == 0) {
+                return delegate;
+            }
+
+            if ("toString".equals(name) && method.getParameterCount() == 0) {
+                return "LargeSourceSet" + delegate;
+            }
+
+            if ("hashCode".equals(name) && method.getParameterCount() == 0) {
+                return System.identityHashCode(proxy);
+            }
+
+            if ("equals".equals(name) && method.getParameterCount() == 1) {
+                return proxy == actualArgs[0];
+            }
+
+            throw new UnsupportedOperationException("Unsupported LargeSourceSet method: " + method);
+        }
+
+        private Object tryInvokeOn(Class<?> targetClass, String methodName, Class<?>[] parameterTypes, Object[] args) throws Throwable {
+            try {
+                Method target = targetClass.getMethod(methodName, parameterTypes);
+                return target.invoke(delegate, args);
+            } catch (NoSuchMethodException ignored) {
+                return InvocationResult.NOT_HANDLED;
+            }
+        }
+
+        private Object invokeDefault(Object proxy, Method method, Object[] args) throws Throwable {
+            MethodHandles.Lookup lookup = MethodHandles.lookup();
+            MethodHandle handle = MethodHandles.privateLookupIn(method.getDeclaringClass(), lookup)
+                .unreflectSpecial(method, method.getDeclaringClass())
+                .bindTo(proxy);
+            return handle.invokeWithArguments(args);
+        }
+    }
+
+    private enum InvocationResult {
+        NOT_HANDLED
     }
 }

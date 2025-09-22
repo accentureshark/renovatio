@@ -258,8 +258,8 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
                 sources.add(Files.readString(p));
             }
             List<org.openrewrite.SourceFile> sourceFileList = parser.parse(ctx, sources.toArray(new String[0])).collect(Collectors.toList());
-            // Usar la API moderna de OpenRewrite directamente
-            List<org.openrewrite.Result> results = recipe.run(sourceFileList, ctx);
+            // Delegate to OpenRewriteRunner to support both legacy and modern APIs
+            List<org.openrewrite.Result> results = openRewriteRunner.runRecipe(recipe, ctx, sourceFileList);
 
             if (apply) {
                 for (org.openrewrite.Result r : results) {
