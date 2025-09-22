@@ -1,6 +1,5 @@
 package org.shark.renovatio.mcp.server.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.shark.renovatio.mcp.server.model.McpPrompt;
 import org.shark.renovatio.mcp.server.model.McpResource;
@@ -8,7 +7,6 @@ import org.shark.renovatio.mcp.server.model.McpTool;
 import org.shark.renovatio.mcp.server.model.ToolCallResult;
 import org.shark.renovatio.core.service.LanguageProviderRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.context.event.EventListener;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -29,6 +27,7 @@ import java.util.Map;
 public class McpToolingService {
     private static final Logger logger = LoggerFactory.getLogger(McpToolingService.class);
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
+    private static final String DEFAULT_SPEC = "2024-11-05";
     private final String spec;
     private final LanguageProviderRegistry providerRegistry;
     private final McpToolAdapter toolAdapter;
@@ -37,18 +36,15 @@ public class McpToolingService {
 
     @Autowired
     public McpToolingService(LanguageProviderRegistry providerRegistry, McpToolAdapter toolAdapter) {
+        this(providerRegistry, toolAdapter, DEFAULT_SPEC);
+    }
+
+    McpToolingService(LanguageProviderRegistry providerRegistry, McpToolAdapter toolAdapter, String protocolSpec) {
         this.providerRegistry = providerRegistry;
         this.toolAdapter = toolAdapter;
-        try {
-            var resource = new ClassPathResource("mcp-tooling.json", McpToolingService.class.getClassLoader());
-            JsonNode root = JSON_MAPPER.readTree(resource.getInputStream());
-            this.spec = root.path("spec").asText();
-            
-            this.prompts = createPrompts();
-            this.resources = createResources();
-        } catch (IOException e) {
-            throw new RuntimeException("No se pudo leer mcp-tooling.json", e);
-        }
+        this.spec = protocolSpec;
+        this.prompts = createPrompts();
+        this.resources = createResources();
     }
 
     /**
@@ -356,6 +352,13 @@ public class McpToolingService {
             case "plan" -> buildPlanSummary(toolName, structured);
             case "apply" -> buildApplySummary(toolName, structured);
             case "diff" -> buildDiffSummary(toolName, structured);
+            case "discover" -> buildDiscoverSummary(toolName, structured);
+            case "review" -> buildReviewSummary(toolName, structured);
+            case "format" -> buildFormatSummary(toolName, structured);
+            case "test" -> buildTestSummary(toolName, structured);
+            case "recipe_list" -> buildRecipeListSummary(toolName, structured);
+            case "recipe_describe" -> buildRecipeDescribeSummary(toolName, structured);
+            case "pipeline" -> buildPipelineSummary(toolName, structured);
             default -> buildGenericSummary(toolName, structured);
         };
     }
@@ -516,7 +519,7 @@ public class McpToolingService {
     }
 
     private String buildDiffSummary(String toolName, Map<String, Object> structured) {
-        List<?> hunks = asList(structured.get("hunks"));
+        List<?> hunks = asList(structured.get("changes"));
         StringBuilder summary = new StringBuilder(toolName)
             .append(": produced diff with ")
             .append(hunks.size())
@@ -530,6 +533,55 @@ public class McpToolingService {
         }
 
         return summary.toString();
+    }
+
+    private String buildDiscoverSummary(String toolName, Map<String, Object> structured) {
+        List<?> modules = asList(structured.get("modules"));
+        StringBuilder summary = new StringBuilder(toolName)
+            .append(": discovered ")
+            .append(modules.size())
+            .append(modules.size() == 1 ? " module" : " modules");
+        String message = stringValue(structured.get("message"), "");
+        if (!message.isEmpty()) {
+            summary.append(". ").append(message);
+        }
+        return summary.toString();
+    }
+
+    private String buildReviewSummary(String toolName, Map<String, Object> structured) {
+        List<?> highlights = asList(structured.get("highlights"));
+        return toolName + ": review generated " + highlights.size() + " highlight(s).";
+    }
+
+    private String buildFormatSummary(String toolName, Map<String, Object> structured) {
+        List<?> changes = asList(structured.get("changes"));
+        return toolName + ": formatted " + changes.size() + " file(s).";
+    }
+
+    private String buildTestSummary(String toolName, Map<String, Object> structured) {
+        boolean passed = parseBoolean(structured.get("passed"));
+        return toolName + ": tests " + (passed ? "passed" : "failed") + '.';
+    }
+
+    private String buildRecipeListSummary(String toolName, Map<String, Object> structured) {
+        List<?> recipes = asList(structured.get("recipes"));
+        return toolName + ": " + recipes.size() + " recipe(s) available.";
+    }
+
+    private String buildRecipeDescribeSummary(String toolName, Map<String, Object> structured) {
+        Object recipe = structured.get("recipe");
+        if (recipe instanceof Map<?, ?> map) {
+            Object displayName = map.get("displayName");
+            if (displayName != null) {
+                return toolName + ": " + displayName + '.';
+            }
+        }
+        return toolName + ": recipe details ready.";
+    }
+
+    private String buildPipelineSummary(String toolName, Map<String, Object> structured) {
+        List<?> changes = asList(structured.get("changes"));
+        return toolName + ": pipeline executed with " + changes.size() + " change(s).";
     }
 
     private String buildGenericSummary(String toolName, Map<String, Object> structured) {

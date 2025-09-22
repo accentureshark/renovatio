@@ -3,7 +3,7 @@ package org.shark.renovatio.shared.spi;
 /**
  * Base class for language providers offering common utility methods.
  */
-public abstract class BaseLanguageProvider implements LanguageProvider {
+public abstract class BaseLanguageProvider implements LanguageProvider, ExtendedLanguageProvider {
 
     /**
      * Generate a run identifier using the provider's language prefix.
