@@ -8,8 +8,10 @@ import org.openrewrite.SourceFile;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -37,50 +39,7 @@ public class OpenRewriteRunner {
         Objects.requireNonNull(ctx, "ctx");
         Objects.requireNonNull(sourceFiles, "sourceFiles");
 
-        try {
-            return runRecipeWithLargeSourceSet(recipe, ctx, sourceFiles);
-        } catch (ClassNotFoundException | NoSuchMethodException e) {
-            try {
-                return runRecipeWithLegacyIterable(recipe, ctx, sourceFiles);
-            } catch (InvocationTargetException legacyInvocation) {
-                throw propagateInvocationException(legacyInvocation);
-            } catch (IllegalAccessException | NoSuchMethodException reflectionFailure) {
-                throw new RuntimeException(reflectionFailure);
-            }
-        } catch (InvocationTargetException ex) {
-            throw propagateInvocationException(ex);
-        } catch (IllegalAccessException ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Result> runRecipeWithLargeSourceSet(Recipe recipe,
-                                                     ExecutionContext ctx,
-                                                     List<SourceFile> sourceFiles)
-        throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Class<?> largeSourceSetClass = Class.forName("org.openrewrite.LargeSourceSet");
-        Object largeSourceSet = createLargeSourceSet(largeSourceSetClass, sourceFiles);
-        Method runMethod = Recipe.class.getMethod("run", largeSourceSetClass, ExecutionContext.class);
-        Object recipeRun = runMethod.invoke(recipe, largeSourceSet, ctx);
-        return extractResultsFromRecipeRun(recipeRun);
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Result> runRecipeWithLegacyIterable(Recipe recipe,
-                                                     ExecutionContext ctx,
-                                                     List<SourceFile> sourceFiles)
-        throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method runMethod = findLegacyRunMethod(sourceFiles);
-        Object argument = adaptLegacyArgument(runMethod.getParameterTypes()[0], sourceFiles);
-        Object recipeRun = runMethod.invoke(recipe, argument, ctx);
-        if (recipeRun instanceof List<?>) {
-            return (List<Result>) recipeRun;
-        }
-        return extractResultsFromRecipeRun(recipeRun);
-    }
-
-    private Method findLegacyRunMethod(List<SourceFile> sourceFiles) throws NoSuchMethodException {
+        List<Method> candidates = new ArrayList<>();
         for (Method method : Recipe.class.getMethods()) {
             if (!"run".equals(method.getName()) || method.getParameterCount() != 2) {
                 continue;
@@ -89,25 +48,59 @@ public class OpenRewriteRunner {
             if (!ExecutionContext.class.isAssignableFrom(parameterTypes[1])) {
                 continue;
             }
-            Class<?> firstParam = parameterTypes[0];
-            if (isLegacyIterableCompatible(firstParam, sourceFiles)) {
-                return method;
+            candidates.add(method);
+        }
+
+        candidates.sort(Comparator.comparingInt(m -> requiresSpecializedSourceSet(m.getParameterTypes()[0]) ? 0 : 1));
+
+        ReflectiveOperationException lastReflectionFailure = null;
+        for (Method method : candidates) {
+            Class<?> parameterType = method.getParameterTypes()[0];
+            try {
+                Object argument = adaptRunArgument(parameterType, sourceFiles);
+                Object recipeRun = method.invoke(recipe, argument, ctx);
+                if (recipeRun instanceof List<?>) {
+                    return castResults(recipeRun);
+                }
+                return extractResultsFromRecipeRun(recipeRun);
+            } catch (InvocationTargetException invocationTargetException) {
+                throw propagateInvocationException(invocationTargetException);
+            } catch (IllegalAccessException illegalAccessException) {
+                throw new RuntimeException(illegalAccessException);
+            } catch (ReflectiveOperationException reflectionFailure) {
+                lastReflectionFailure = reflectionFailure;
             }
         }
-        throw new NoSuchMethodException("No compatible Recipe.run signature for Iterable SourceFile inputs");
+
+        if (lastReflectionFailure != null) {
+            throw new RuntimeException(lastReflectionFailure);
+        }
+        throw new RuntimeException(new NoSuchMethodException("No compatible Recipe.run signature found"));
     }
 
-    private boolean isLegacyIterableCompatible(Class<?> parameterType, List<SourceFile> sourceFiles) {
-        return parameterType.isAssignableFrom(sourceFiles.getClass())
-            || parameterType.isAssignableFrom(List.class)
+    @SuppressWarnings("unchecked")
+    private List<Result> castResults(Object recipeRun) {
+        return (List<Result>) recipeRun;
+    }
+
+    private boolean requiresSpecializedSourceSet(Class<?> parameterType) {
+        if (parameterType.isArray()
+            && parameterType.getComponentType() != null
+            && parameterType.getComponentType().isAssignableFrom(SourceFile.class)) {
+            return false;
+        }
+        if (parameterType.isAssignableFrom(List.class)
             || parameterType.isAssignableFrom(Collection.class)
-            || parameterType.isAssignableFrom(Iterable.class)
-            || (parameterType.isArray()
-                && parameterType.getComponentType() != null
-                && parameterType.getComponentType().isAssignableFrom(SourceFile.class));
+            || parameterType.isAssignableFrom(Iterable.class)) {
+            return false;
+        }
+        return !(List.class.isAssignableFrom(parameterType)
+            || Collection.class.isAssignableFrom(parameterType)
+            || Iterable.class.isAssignableFrom(parameterType));
     }
 
-    private Object adaptLegacyArgument(Class<?> parameterType, List<SourceFile> sourceFiles) {
+    private Object adaptRunArgument(Class<?> parameterType, List<SourceFile> sourceFiles)
+        throws ReflectiveOperationException {
         if (parameterType.isAssignableFrom(sourceFiles.getClass())
             || parameterType.isAssignableFrom(List.class)
             || parameterType.isAssignableFrom(Collection.class)
@@ -119,7 +112,7 @@ public class OpenRewriteRunner {
             && parameterType.getComponentType().isAssignableFrom(SourceFile.class)) {
             return sourceFiles.toArray(new SourceFile[0]);
         }
-        throw new IllegalArgumentException("Unsupported Recipe.run parameter type: " + parameterType.getName());
+        return createSpecializedSourceSet(parameterType, sourceFiles);
     }
 
     private RuntimeException propagateInvocationException(InvocationTargetException ex) {
@@ -130,20 +123,20 @@ public class OpenRewriteRunner {
         return new RuntimeException(cause != null ? cause : ex);
     }
 
-    private Object createLargeSourceSet(Class<?> largeSourceSetClass,
-                                        List<SourceFile> sourceFiles)
+    private Object createSpecializedSourceSet(Class<?> parameterType,
+                                              List<SourceFile> sourceFiles)
         throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
-        for (Method method : largeSourceSetClass.getMethods()) {
+        for (Method method : parameterType.getMethods()) {
             if (Modifier.isStatic(method.getModifiers())
-                && largeSourceSetClass.isAssignableFrom(method.getReturnType())
+                && parameterType.isAssignableFrom(method.getReturnType())
                 && method.getParameterCount() == 1
-                && method.getParameterTypes()[0].isAssignableFrom(sourceFiles.getClass())) {
+                && isCollectionCompatible(method.getParameterTypes()[0], sourceFiles)) {
                 return method.invoke(null, sourceFiles);
             }
         }
 
         Method builderMethod = null;
-        for (Method candidate : largeSourceSetClass.getMethods()) {
+        for (Method candidate : parameterType.getMethods()) {
             if (Modifier.isStatic(candidate.getModifiers())
                 && candidate.getParameterCount() == 0
                 && candidate.getReturnType() != null
@@ -153,7 +146,7 @@ public class OpenRewriteRunner {
             }
         }
         if (builderMethod == null) {
-            throw new NoSuchMethodException("No factory method found to create LargeSourceSet");
+            throw new NoSuchMethodException("No factory method found to create " + parameterType.getName());
         }
 
         Object builder = builderMethod.invoke(null);
@@ -173,16 +166,20 @@ public class OpenRewriteRunner {
         for (Method method : builder.getClass().getMethods()) {
             if ("addAll".equals(method.getName()) && method.getParameterCount() == 1) {
                 Class<?> paramType = method.getParameterTypes()[0];
-                if (paramType.isAssignableFrom(sourceFiles.getClass())
-                    || paramType.isAssignableFrom(List.class)
-                    || paramType.isAssignableFrom(Collection.class)
-                    || paramType.isAssignableFrom(Iterable.class)) {
+                if (isCollectionCompatible(paramType, sourceFiles)) {
                     method.invoke(builder, sourceFiles);
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    private boolean isCollectionCompatible(Class<?> parameterType, List<SourceFile> sourceFiles) {
+        return parameterType.isAssignableFrom(sourceFiles.getClass())
+            || parameterType.isAssignableFrom(List.class)
+            || parameterType.isAssignableFrom(Collection.class)
+            || parameterType.isAssignableFrom(Iterable.class);
     }
 
     @SuppressWarnings("unchecked")
