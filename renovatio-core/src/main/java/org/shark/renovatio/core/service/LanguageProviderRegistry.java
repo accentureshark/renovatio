@@ -164,47 +164,53 @@ public class LanguageProviderRegistry {
             String language = toolName.substring(0, separator);
             String capabilitySection = toolName.substring(separator + 1);
 
-            String capability = capabilitySection;
-            String recipeId = null;
-
-            int dotInCapability = capabilitySection.indexOf('.');
-            int underscoreInCapability = capabilitySection.indexOf('_');
-            int recipeSeparator = -1;
-
-            if (dotInCapability >= 0 && underscoreInCapability >= 0) {
-                recipeSeparator = Math.min(dotInCapability, underscoreInCapability);
-            } else if (dotInCapability >= 0) {
-                recipeSeparator = dotInCapability;
-            } else if (underscoreInCapability >= 0) {
-                recipeSeparator = underscoreInCapability;
-            }
-
-            if (recipeSeparator > 0) {
-                capability = capabilitySection.substring(0, recipeSeparator);
-                recipeId = capabilitySection.substring(recipeSeparator + 1);
-                if (!recipeId.isEmpty()) {
-                    safeArguments.putIfAbsent("recipeId", recipeId);
-                    if (arguments != null) {
-                        arguments.putIfAbsent("recipeId", recipeId);
-                    }
-                }
-            }
-
-            String capabilityKey = capability.toLowerCase();
+            String normalizedCapability = capabilitySection.replace('.', '_').toLowerCase(Locale.ROOT);
 
             List<LanguageProvider> languageProviders = providersByLanguage.get(language);
             if (languageProviders == null || languageProviders.isEmpty()) {
                 return createErrorResult("No provider found for language: " + language);
             }
 
-            LanguageProvider provider = resolveProvider(languageProviders, toolName, capabilityKey);
+            LanguageProvider provider = resolveProvider(languageProviders, toolName, normalizedCapability);
             if (provider == null) {
-                return createErrorResult("Unsupported capability '" + capability + "' for language: " + language);
+                return createErrorResult("Unsupported capability '" + capabilitySection + "' for language: " + language);
             }
 
             logger.info("Found provider for language: {}", language);
             logger.info("Provider class: {}", provider.getClass().getName());
             logger.info("Provider capabilities: {}", provider.capabilities());
+
+            if (provider instanceof org.shark.renovatio.shared.spi.ExtendedLanguageProvider extendedProvider) {
+                Map<String, Object> extendedResult = extendedProvider.executeExtendedTool(normalizedCapability, safeArguments);
+                if (extendedResult != null) {
+                    return extendedResult;
+                }
+            }
+
+            String capability = capabilitySection;
+            String recipeId = null;
+
+            int dotInCapability = capability.indexOf('.');
+            if (dotInCapability > 0) {
+                recipeId = capability.substring(dotInCapability + 1);
+                capability = capability.substring(0, dotInCapability);
+            } else {
+                int underscoreInCapability = capability.indexOf('_');
+                if (underscoreInCapability > 0
+                    && shouldSplitRecipeIdentifier(capability.substring(0, underscoreInCapability))) {
+                    recipeId = capability.substring(underscoreInCapability + 1);
+                    capability = capability.substring(0, underscoreInCapability);
+                }
+            }
+
+            if (recipeId != null && !recipeId.isEmpty()) {
+                safeArguments.putIfAbsent("recipeId", recipeId);
+                if (arguments != null) {
+                    arguments.putIfAbsent("recipeId", recipeId);
+                }
+            }
+
+            String capabilityKey = capability.toLowerCase(Locale.ROOT);
 
             // Create workspace and query objects
             Workspace workspace = createWorkspace(safeArguments);
@@ -286,7 +292,12 @@ public class LanguageProviderRegistry {
 
         LanguageProvider.Capabilities capability = toCapability(capabilityKey);
         if (capability == null) {
-            return null;
+            for (LanguageProvider provider : candidates) {
+                if (provider instanceof org.shark.renovatio.shared.spi.ExtendedLanguageProvider) {
+                    return provider;
+                }
+            }
+            return candidates.get(0);
         }
 
         for (LanguageProvider provider : candidates) {
@@ -302,6 +313,14 @@ public class LanguageProviderRegistry {
         }
 
         return null;
+    }
+
+    private boolean shouldSplitRecipeIdentifier(String capabilityPrefix) {
+        if (capabilityPrefix == null || capabilityPrefix.isBlank()) {
+            return false;
+        }
+        String normalized = capabilityPrefix.toLowerCase(Locale.ROOT);
+        return normalized.equals("apply") || normalized.equals("plan") || normalized.equals("analyze");
     }
 
     private LanguageProvider.Capabilities toCapability(String capabilityKey) {
