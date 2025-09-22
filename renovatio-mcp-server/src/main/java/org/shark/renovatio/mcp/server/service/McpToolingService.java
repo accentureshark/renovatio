@@ -1,6 +1,5 @@
 package org.shark.renovatio.mcp.server.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.shark.renovatio.mcp.server.model.McpPrompt;
 import org.shark.renovatio.mcp.server.model.McpResource;
@@ -8,7 +7,6 @@ import org.shark.renovatio.mcp.server.model.McpTool;
 import org.shark.renovatio.mcp.server.model.ToolCallResult;
 import org.shark.renovatio.core.service.LanguageProviderRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.context.event.EventListener;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -29,6 +27,7 @@ import java.util.Map;
 public class McpToolingService {
     private static final Logger logger = LoggerFactory.getLogger(McpToolingService.class);
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
+    private static final String DEFAULT_SPEC = "2024-11-05";
     private final String spec;
     private final LanguageProviderRegistry providerRegistry;
     private final McpToolAdapter toolAdapter;
@@ -37,18 +36,15 @@ public class McpToolingService {
 
     @Autowired
     public McpToolingService(LanguageProviderRegistry providerRegistry, McpToolAdapter toolAdapter) {
+        this(providerRegistry, toolAdapter, DEFAULT_SPEC);
+    }
+
+    McpToolingService(LanguageProviderRegistry providerRegistry, McpToolAdapter toolAdapter, String protocolSpec) {
         this.providerRegistry = providerRegistry;
         this.toolAdapter = toolAdapter;
-        try {
-            var resource = new ClassPathResource("mcp-tooling.json", McpToolingService.class.getClassLoader());
-            JsonNode root = JSON_MAPPER.readTree(resource.getInputStream());
-            this.spec = root.path("spec").asText();
-            
-            this.prompts = createPrompts();
-            this.resources = createResources();
-        } catch (IOException e) {
-            throw new RuntimeException("No se pudo leer mcp-tooling.json", e);
-        }
+        this.spec = protocolSpec;
+        this.prompts = createPrompts();
+        this.resources = createResources();
     }
 
     /**
