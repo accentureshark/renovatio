@@ -663,8 +663,9 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
                 if (option.getDescription() != null && !option.getDescription().isBlank()) {
                     optionSchema.put("description", option.getDescription());
                 }
-                if (option.getExample() != null) {
-                    optionSchema.put("example", option.getExample());
+                List<Object> examples = buildExamples(option.getExample());
+                if (!examples.isEmpty()) {
+                    optionSchema.put("examples", examples);
                 }
                 if (optionSchema.get("type").equals("array")) {
                     optionSchema.putIfAbsent("items", Map.of("type", "string"));
@@ -682,6 +683,24 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
         }
         schema.put("additionalProperties", false);
         return schema;
+    }
+
+    private List<Object> buildExamples(Object example) {
+        if (example == null) {
+            return Collections.emptyList();
+        }
+        if (example instanceof Collection<?> collection) {
+            return new ArrayList<>(collection);
+        }
+        if (example.getClass().isArray()) {
+            int length = java.lang.reflect.Array.getLength(example);
+            List<Object> examples = new ArrayList<>(length);
+            for (int i = 0; i < length; i++) {
+                examples.add(java.lang.reflect.Array.get(example, i));
+            }
+            return examples;
+        }
+        return List.of(example);
     }
 
     private String mapOptionType(String optionType) {
