@@ -1,6 +1,5 @@
 package org.shark.renovatio.provider.java;
 
-import org.openrewrite.LargeSourceSet;
 import org.openrewrite.config.Environment;
 import org.openrewrite.config.OptionDescriptor;
 import org.openrewrite.config.RecipeDescriptor;
@@ -19,9 +18,6 @@ import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.shared.spi.BaseLanguageProvider;
 import java.io.File;
 import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +27,9 @@ import java.util.stream.Collectors;
 import org.shark.renovatio.shared.domain.PlanResult;
 
 public class JavaLanguageProvider extends BaseLanguageProvider {
+
+    private final OpenRewriteRunner openRewriteRunner = new OpenRewriteRunner();
+
     @Override
     public String language() {
         return "java";
@@ -260,7 +259,7 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
                 sources.add(Files.readString(p));
             }
             List<org.openrewrite.SourceFile> sourceFileList = parser.parse(ctx, sources.toArray(new String[0])).collect(Collectors.toList());
-            List<org.openrewrite.Result> results = executeRecipeWithCompatibility(recipe, ctx, sourceFileList);
+            List<org.openrewrite.Result> results = openRewriteRunner.runRecipe(recipe, ctx, sourceFileList);
 
             if (apply) {
                 for (org.openrewrite.Result r : results) {
@@ -334,94 +333,6 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
         return result;
     }
 
-    private List<org.openrewrite.Result> executeRecipeWithCompatibility(org.openrewrite.Recipe recipe,
-                                                                        org.openrewrite.ExecutionContext ctx,
-                                                                        List<org.openrewrite.SourceFile> sourceFiles) {
-        try {
-            return runRecipeWithLargeSourceSet(recipe, ctx, sourceFiles);
-        } catch (ClassNotFoundException | NoSuchMethodException ex) {
-            try {
-                return runRecipeWithLegacyIterable(recipe, ctx, sourceFiles);
-            } catch (InvocationTargetException legacyInvocation) {
-                throw propagateInvocationException(legacyInvocation);
-            } catch (IllegalAccessException | NoSuchMethodException reflectionFailure) {
-                throw new RuntimeException(reflectionFailure);
-            }
-        } catch (InvocationTargetException ex) {
-            throw propagateInvocationException(ex);
-        } catch (IllegalAccessException ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<org.openrewrite.Result> runRecipeWithLargeSourceSet(org.openrewrite.Recipe recipe,
-                                                                     org.openrewrite.ExecutionContext ctx,
-                                                                     List<org.openrewrite.SourceFile> sourceFiles)
-        throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Class<?> largeSourceSetClass = Class.forName("org.openrewrite.LargeSourceSet");
-        Object largeSourceSet = createLargeSourceSet(largeSourceSetClass, sourceFiles);
-        Method runMethod = org.openrewrite.Recipe.class.getMethod("run", largeSourceSetClass, org.openrewrite.ExecutionContext.class);
-        Object recipeRun = runMethod.invoke(recipe, largeSourceSet, ctx);
-        return extractResultsFromRecipeRun(recipeRun);
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<org.openrewrite.Result> runRecipeWithLegacyIterable(org.openrewrite.Recipe recipe,
-                                                                     org.openrewrite.ExecutionContext ctx,
-                                                                     List<org.openrewrite.SourceFile> sourceFiles)
-        throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method runMethod = findLegacyRunMethod(sourceFiles);
-        Object argument = adaptLegacyArgument(runMethod.getParameterTypes()[0], sourceFiles);
-        Object recipeRun = runMethod.invoke(recipe, argument, ctx);
-        if (recipeRun instanceof List<?>) {
-            return (List<org.openrewrite.Result>) recipeRun;
-        }
-        return extractResultsFromRecipeRun(recipeRun);
-    }
-
-    private Method findLegacyRunMethod(List<org.openrewrite.SourceFile> sourceFiles) throws NoSuchMethodException {
-        for (Method method : org.openrewrite.Recipe.class.getMethods()) {
-            if (!"run".equals(method.getName()) || method.getParameterCount() != 2) {
-                continue;
-            }
-            Class<?>[] parameterTypes = method.getParameterTypes();
-            if (!org.openrewrite.ExecutionContext.class.isAssignableFrom(parameterTypes[1])) {
-                continue;
-            }
-            Class<?> firstParam = parameterTypes[0];
-            if (isLegacyIterableCompatible(firstParam, sourceFiles)) {
-                return method;
-            }
-        }
-        throw new NoSuchMethodException("No compatible Recipe.run signature for Iterable SourceFile inputs");
-    }
-
-    private boolean isLegacyIterableCompatible(Class<?> parameterType, List<org.openrewrite.SourceFile> sourceFiles) {
-        return parameterType.isAssignableFrom(sourceFiles.getClass())
-            || parameterType.isAssignableFrom(List.class)
-            || parameterType.isAssignableFrom(Collection.class)
-            || parameterType.isAssignableFrom(Iterable.class)
-            || (parameterType.isArray()
-                && parameterType.getComponentType() != null
-                && parameterType.getComponentType().isAssignableFrom(org.openrewrite.SourceFile.class));
-    }
-
-    private Object adaptLegacyArgument(Class<?> parameterType, List<org.openrewrite.SourceFile> sourceFiles) {
-        if (parameterType.isAssignableFrom(sourceFiles.getClass())
-            || parameterType.isAssignableFrom(List.class)
-            || parameterType.isAssignableFrom(Collection.class)
-            || parameterType.isAssignableFrom(Iterable.class)) {
-            return sourceFiles;
-        }
-        if (parameterType.isArray()
-            && parameterType.getComponentType() != null
-            && parameterType.getComponentType().isAssignableFrom(org.openrewrite.SourceFile.class)) {
-            return sourceFiles.toArray(new org.openrewrite.SourceFile[0]);
-        }
-        throw new IllegalArgumentException("Unsupported Recipe.run parameter type: " + parameterType.getName());
-    }
-
     private String relativizePath(Path workspacePath, Path filePath) {
         if (filePath == null) {
             return "";
@@ -438,104 +349,6 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
             // Fall back to absolute representation below
         }
         return filePath.toString();
-    }
-
-    private RuntimeException propagateInvocationException(InvocationTargetException ex) {
-        Throwable cause = ex.getCause();
-        if (cause instanceof RuntimeException runtimeException) {
-            return runtimeException;
-        }
-        return new RuntimeException(cause != null ? cause : ex);
-    }
-
-    private Object createLargeSourceSet(Class<?> largeSourceSetClass,
-                                        List<org.openrewrite.SourceFile> sourceFiles)
-        throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
-        for (Method method : largeSourceSetClass.getMethods()) {
-            if (Modifier.isStatic(method.getModifiers())
-                && largeSourceSetClass.isAssignableFrom(method.getReturnType())
-                && method.getParameterCount() == 1
-                && method.getParameterTypes()[0].isAssignableFrom(sourceFiles.getClass())) {
-                return method.invoke(null, sourceFiles);
-            }
-        }
-
-        Method builderMethod = null;
-        for (Method candidate : largeSourceSetClass.getMethods()) {
-            if (Modifier.isStatic(candidate.getModifiers())
-                && candidate.getParameterCount() == 0
-                && candidate.getReturnType() != null
-                && candidate.getReturnType().getSimpleName().toLowerCase(Locale.ROOT).contains("builder")) {
-                builderMethod = candidate;
-                break;
-            }
-        }
-        if (builderMethod == null) {
-            throw new NoSuchMethodException("No factory method found to create LargeSourceSet");
-        }
-
-        Object builder = builderMethod.invoke(null);
-        boolean added = tryInvokeBuilderAddAll(builder, sourceFiles);
-        if (!added) {
-            Method addMethod = builder.getClass().getMethod("add", org.openrewrite.SourceFile.class);
-            for (org.openrewrite.SourceFile sourceFile : sourceFiles) {
-                addMethod.invoke(builder, sourceFile);
-            }
-        }
-        Method buildMethod = builder.getClass().getMethod("build");
-        return buildMethod.invoke(builder);
-    }
-
-    private boolean tryInvokeBuilderAddAll(Object builder, List<org.openrewrite.SourceFile> sourceFiles)
-        throws InvocationTargetException, IllegalAccessException {
-        for (Method method : builder.getClass().getMethods()) {
-            if ("addAll".equals(method.getName()) && method.getParameterCount() == 1) {
-                Class<?> paramType = method.getParameterTypes()[0];
-                if (paramType.isAssignableFrom(sourceFiles.getClass())
-                    || paramType.isAssignableFrom(List.class)
-                    || paramType.isAssignableFrom(Collection.class)
-                    || paramType.isAssignableFrom(Iterable.class)) {
-                    method.invoke(builder, sourceFiles);
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<org.openrewrite.Result> extractResultsFromRecipeRun(Object recipeRun)
-        throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
-        if (recipeRun == null) {
-            return Collections.emptyList();
-        }
-
-        Class<?> runClass = recipeRun.getClass();
-        try {
-            Method getResults = runClass.getMethod("getResults");
-            Object value = getResults.invoke(recipeRun);
-            if (value instanceof List<?>) {
-                return (List<org.openrewrite.Result>) value;
-            }
-        } catch (NoSuchMethodException ignored) {
-            // Continue to alternate access pattern
-        }
-
-        try {
-            Method getChangeset = runClass.getMethod("getChangeset");
-            Object changeSet = getChangeset.invoke(recipeRun);
-            if (changeSet != null) {
-                Method getResults = changeSet.getClass().getMethod("getResults");
-                Object value = getResults.invoke(changeSet);
-                if (value instanceof List<?>) {
-                    return (List<org.openrewrite.Result>) value;
-                }
-            }
-        } catch (NoSuchMethodException ignored) {
-            // No alternate representation available
-        }
-
-        throw new NoSuchMethodException("Unable to extract results from RecipeRun type: " + runClass.getName());
     }
 
     // Clase interna para encapsular el resultado de ejecución de receta
