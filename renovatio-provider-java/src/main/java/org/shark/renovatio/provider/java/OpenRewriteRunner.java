@@ -14,7 +14,9 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.util.Collection;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Objects;
+import java.util.function.UnaryOperator;
 
 /**
  * Helper that executes OpenRewrite {@link Recipe recipes} while remaining compatible with
@@ -187,6 +189,10 @@ public class OpenRewriteRunner {
                 return delegate;
             }
 
+            if ("edit".equals(name) && method.getParameterCount() == 1) {
+                return handleEdit(proxy, actualArgs[0]);
+            }
+
             if ("toString".equals(name) && method.getParameterCount() == 0) {
                 return "LargeSourceSet" + delegate;
             }
@@ -200,6 +206,28 @@ public class OpenRewriteRunner {
             }
 
             throw new UnsupportedOperationException("Unsupported LargeSourceSet method: " + method);
+        }
+
+        private Object handleEdit(Object proxy, Object unaryOperator) {
+            if (!(unaryOperator instanceof UnaryOperator)) {
+                throw new UnsupportedOperationException("Unsupported LargeSourceSet#edit argument type: " + unaryOperator);
+            }
+
+            @SuppressWarnings("unchecked")
+            UnaryOperator<SourceFile> operator = (UnaryOperator<SourceFile>) unaryOperator;
+
+            ListIterator<SourceFile> iterator = delegate.listIterator();
+            while (iterator.hasNext()) {
+                SourceFile current = iterator.next();
+                SourceFile updated = operator.apply(current);
+                if (updated == null) {
+                    iterator.remove();
+                } else if (updated != current) {
+                    iterator.set(updated);
+                }
+            }
+
+            return proxy;
         }
 
         private Object tryInvokeOn(Class<?> targetClass, String methodName, Class<?>[] parameterTypes, Object[] args) throws Throwable {
