@@ -89,6 +89,16 @@
                 <version>${openrewrite.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.openrewrite</groupId>
+                <artifactId>rewrite-yaml</artifactId>
+                <version>${openrewrite.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openrewrite</groupId>
+                <artifactId>rewrite-java-17</artifactId>
+                <version>${openrewrite.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc.version}</version>
