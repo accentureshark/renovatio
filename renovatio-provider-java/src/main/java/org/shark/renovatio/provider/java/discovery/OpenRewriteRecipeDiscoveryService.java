@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -148,11 +149,26 @@ public class OpenRewriteRecipeDiscoveryService {
                     option.getName(),
                     normalizeType(option.getType()),
                     option.getDescription(),
-                    option.getDefaultValue()
+                    extractDefaultValue(option)
                 ));
             }
         }
         return new RecipeInfo(name, displayName, description, List.copyOf(tags), List.copyOf(options));
+    }
+
+    private Object extractDefaultValue(OptionDescriptor option) {
+        if (option == null) {
+            return null;
+        }
+        for (String methodName : List.of("getDefaultValue", "getExample", "getDefault")) {
+            try {
+                Method method = option.getClass().getMethod(methodName);
+                return method.invoke(option);
+            } catch (ReflectiveOperationException | SecurityException ignored) {
+                // Fall through to try the next accessor name
+            }
+        }
+        return null;
     }
 
     private Set<String> inferTags(RecipeDescriptor descriptor) {
