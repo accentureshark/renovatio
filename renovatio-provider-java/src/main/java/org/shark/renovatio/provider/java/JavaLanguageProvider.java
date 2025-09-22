@@ -361,8 +361,17 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
         throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         Class<?> largeSourceSetClass = Class.forName("org.openrewrite.LargeSourceSet");
         Object largeSourceSet = createLargeSourceSet(largeSourceSetClass, sourceFiles);
-        Method runMethod = org.openrewrite.Recipe.class.getMethod("run", largeSourceSetClass, org.openrewrite.ExecutionContext.class);
-        Object recipeRun = runMethod.invoke(recipe, largeSourceSet, ctx);
+        Method runMethod;
+        boolean contextFirst = false;
+        try {
+            runMethod = org.openrewrite.Recipe.class.getMethod("run", largeSourceSetClass, org.openrewrite.ExecutionContext.class);
+        } catch (NoSuchMethodException ex) {
+            runMethod = org.openrewrite.Recipe.class.getMethod("run", org.openrewrite.ExecutionContext.class, largeSourceSetClass);
+            contextFirst = true;
+        }
+        Object recipeRun = contextFirst
+            ? runMethod.invoke(recipe, ctx, largeSourceSet)
+            : runMethod.invoke(recipe, largeSourceSet, ctx);
         return extractResultsFromRecipeRun(recipeRun);
     }
 
@@ -372,8 +381,13 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
                                                                      List<org.openrewrite.SourceFile> sourceFiles)
         throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         Method runMethod = findLegacyRunMethod(sourceFiles);
-        Object argument = adaptLegacyArgument(runMethod.getParameterTypes()[0], sourceFiles);
-        Object recipeRun = runMethod.invoke(recipe, argument, ctx);
+        Class<?>[] parameterTypes = runMethod.getParameterTypes();
+        boolean contextFirst = org.openrewrite.ExecutionContext.class.isAssignableFrom(parameterTypes[0]);
+        Class<?> sourceParamType = contextFirst ? parameterTypes[1] : parameterTypes[0];
+        Object argument = adaptLegacyArgument(sourceParamType, sourceFiles);
+        Object recipeRun = contextFirst
+            ? runMethod.invoke(recipe, ctx, argument)
+            : runMethod.invoke(recipe, argument, ctx);
         if (recipeRun instanceof List<?>) {
             return (List<org.openrewrite.Result>) recipeRun;
         }
@@ -386,15 +400,17 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
                 continue;
             }
             Class<?>[] parameterTypes = method.getParameterTypes();
-            if (!org.openrewrite.ExecutionContext.class.isAssignableFrom(parameterTypes[1])) {
+            boolean firstIsContext = org.openrewrite.ExecutionContext.class.isAssignableFrom(parameterTypes[0]);
+            boolean secondIsContext = org.openrewrite.ExecutionContext.class.isAssignableFrom(parameterTypes[1]);
+            if (firstIsContext == secondIsContext) {
                 continue;
             }
-            Class<?> firstParam = parameterTypes[0];
-            if (isLegacyIterableCompatible(firstParam, sourceFiles)) {
+            Class<?> sourceParam = firstIsContext ? parameterTypes[1] : parameterTypes[0];
+            if (isLegacyIterableCompatible(sourceParam, sourceFiles)) {
                 return method;
             }
         }
-        throw new NoSuchMethodException("No compatible Recipe.run signature for Iterable SourceFile inputs");
+        throw new NoSuchMethodException("No compatible Recipe.run signature for SourceFile inputs");
     }
 
     private boolean isLegacyIterableCompatible(Class<?> parameterType, List<org.openrewrite.SourceFile> sourceFiles) {

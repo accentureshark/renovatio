@@ -45,20 +45,32 @@ public class OpenRewriteRunner {
                 continue;
             }
             Class<?>[] parameterTypes = method.getParameterTypes();
-            if (!ExecutionContext.class.isAssignableFrom(parameterTypes[1])) {
+            boolean firstIsContext = ExecutionContext.class.isAssignableFrom(parameterTypes[0]);
+            boolean secondIsContext = ExecutionContext.class.isAssignableFrom(parameterTypes[1]);
+            if (firstIsContext == secondIsContext) {
                 continue;
             }
             candidates.add(method);
         }
 
-        candidates.sort(Comparator.comparingInt(m -> requiresSpecializedSourceSet(m.getParameterTypes()[0]) ? 0 : 1));
+        candidates.sort(Comparator.comparingInt(method -> {
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            Class<?> sourceParam = ExecutionContext.class.isAssignableFrom(parameterTypes[0])
+                ? parameterTypes[1]
+                : parameterTypes[0];
+            return requiresSpecializedSourceSet(sourceParam) ? 0 : 1;
+        }));
 
         ReflectiveOperationException lastReflectionFailure = null;
         for (Method method : candidates) {
-            Class<?> parameterType = method.getParameterTypes()[0];
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            boolean contextFirst = ExecutionContext.class.isAssignableFrom(parameterTypes[0]);
+            Class<?> parameterType = contextFirst ? parameterTypes[1] : parameterTypes[0];
             try {
                 Object argument = adaptRunArgument(parameterType, sourceFiles);
-                Object recipeRun = method.invoke(recipe, argument, ctx);
+                Object recipeRun = contextFirst
+                    ? method.invoke(recipe, ctx, argument)
+                    : method.invoke(recipe, argument, ctx);
                 if (recipeRun instanceof List<?>) {
                     return castResults(recipeRun);
                 }
