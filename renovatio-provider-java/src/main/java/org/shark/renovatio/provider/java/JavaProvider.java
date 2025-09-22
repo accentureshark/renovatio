@@ -685,6 +685,26 @@ public class JavaProvider extends BaseLanguageProvider {
         });
     }
 
+    private Map<String, Object> discoverOutputSchema() {
+        Map<String, Object> dependency = new LinkedHashMap<>();
+        dependency.put("type", "object");
+        dependency.put("properties", Map.of(
+            "groupId", Map.of("type", "string"),
+            "artifactId", Map.of("type", "string"),
+            "version", Map.of("type", "string")
+        ));
+
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", Map.of(
+            "modules", Map.of("type", "array", "items", Map.of("type", "string")),
+            "dependencies", Map.of("type", "array", "items", dependency),
+            "files", Map.of("type", "array", "items", Map.of("type", "string")),
+            "message", Map.of("type", "string")
+        ));
+        return schema;
+    }
+
     private Map<String, Object> analyzeOutputSchema() {
         Map<String, Object> issue = new LinkedHashMap<>();
         issue.put("type", "object");
