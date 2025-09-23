@@ -225,48 +225,36 @@ public class OpenRewriteRunner {
                 return proxy;
             }
             
-            // Check if it's a UnaryOperator - might be a lambda or method reference
+            List<SourceFile> newList = new java.util.ArrayList<>();
             if (unaryOperator instanceof UnaryOperator) {
                 @SuppressWarnings("unchecked")
                 UnaryOperator<SourceFile> operator = (UnaryOperator<SourceFile>) unaryOperator;
-
-                ListIterator<SourceFile> iterator = delegate.listIterator();
-                while (iterator.hasNext()) {
-                    SourceFile current = iterator.next();
+                for (SourceFile current : delegate) {
                     SourceFile updated = operator.apply(current);
-                    if (updated == null) {
-                        iterator.remove();
-                    } else if (updated != current) {
-                        iterator.set(updated);
+                    if (updated != null) {
+                        newList.add(updated);
                     }
                 }
-                return proxy;
-            }
-            
-            // If it's not a UnaryOperator, try to handle it as a generic function
-            // This might be needed for lambda expressions or method references
-            try {
-                // Try to use reflection to call apply method if available
-                Method applyMethod = unaryOperator.getClass().getMethod("apply", Object.class);
-                if (applyMethod != null) {
-                    ListIterator<SourceFile> iterator = delegate.listIterator();
-                    while (iterator.hasNext()) {
-                        SourceFile current = iterator.next();
+            } else {
+                try {
+                    Method applyMethod = unaryOperator.getClass().getMethod("apply", Object.class);
+                    for (SourceFile current : delegate) {
                         @SuppressWarnings("unchecked")
                         SourceFile updated = (SourceFile) applyMethod.invoke(unaryOperator, current);
-                        if (updated == null) {
-                            iterator.remove();
-                        } else if (updated != current) {
-                            iterator.set(updated);
+                        if (updated != null) {
+                            newList.add(updated);
                         }
                     }
-                    return proxy;
+                } catch (ReflectiveOperationException ignored) {
+                    throw new UnsupportedOperationException("Unsupported LargeSourceSet#edit argument type: " + unaryOperator);
                 }
-            } catch (ReflectiveOperationException ignored) {
-                // Fall through to error
             }
-            
-            throw new UnsupportedOperationException("Unsupported LargeSourceSet#edit argument type: " + unaryOperator);
+            // Return a new proxy with the updated list
+            return Proxy.newProxyInstance(
+                LARGE_SOURCE_SET_CLASS.getClassLoader(),
+                new Class<?>[]{LARGE_SOURCE_SET_CLASS},
+                new LargeSourceSetInvocationHandler(newList)
+            );
         }
 
         private Object tryInvokeOn(Class<?> targetClass, String methodName, Class<?>[] parameterTypes, Object[] args) throws Throwable {
