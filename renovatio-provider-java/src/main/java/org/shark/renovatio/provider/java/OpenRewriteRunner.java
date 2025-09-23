@@ -191,9 +191,17 @@ public class OpenRewriteRunner {
 
             if ("edit".equals(name)) {
                 // Handle all variations of edit method
-                if (method.getParameterCount() == 1 && actualArgs.length == 1) {
+                if (actualArgs.length >= 1) {
                     return handleEdit(proxy, actualArgs[0]);
+                } else {
+                    return proxy; // Return the proxy itself
                 }
+            }
+
+            if ("setRecipe".equals(name)) {
+                // Handle setRecipe method - this is called during recipe execution
+                // We don't need to actually store the recipe list, just return successfully
+                return null; // setRecipe returns void
             }
 
             if ("toString".equals(name) && method.getParameterCount() == 0) {
