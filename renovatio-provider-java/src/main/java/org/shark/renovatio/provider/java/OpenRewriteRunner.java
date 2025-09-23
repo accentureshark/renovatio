@@ -189,8 +189,19 @@ public class OpenRewriteRunner {
                 return delegate;
             }
 
-            if ("edit".equals(name) && method.getParameterCount() == 1) {
-                return handleEdit(proxy, actualArgs[0]);
+            if ("edit".equals(name)) {
+                // Handle all variations of edit method
+                if (actualArgs.length >= 1) {
+                    return handleEdit(proxy, actualArgs[0]);
+                } else {
+                    return proxy; // Return the proxy itself
+                }
+            }
+
+            if ("setRecipe".equals(name)) {
+                // Handle setRecipe method - this is called during recipe execution
+                // We don't need to actually store the recipe list, just return successfully
+                return null; // setRecipe returns void
             }
 
             if ("toString".equals(name) && method.getParameterCount() == 0) {
@@ -209,25 +220,53 @@ public class OpenRewriteRunner {
         }
 
         private Object handleEdit(Object proxy, Object unaryOperator) {
-            if (!(unaryOperator instanceof UnaryOperator)) {
-                throw new UnsupportedOperationException("Unsupported LargeSourceSet#edit argument type: " + unaryOperator);
+            // Handle null case
+            if (unaryOperator == null) {
+                return proxy;
             }
+            
+            // Check if it's a UnaryOperator - might be a lambda or method reference
+            if (unaryOperator instanceof UnaryOperator) {
+                @SuppressWarnings("unchecked")
+                UnaryOperator<SourceFile> operator = (UnaryOperator<SourceFile>) unaryOperator;
 
-            @SuppressWarnings("unchecked")
-            UnaryOperator<SourceFile> operator = (UnaryOperator<SourceFile>) unaryOperator;
-
-            ListIterator<SourceFile> iterator = delegate.listIterator();
-            while (iterator.hasNext()) {
-                SourceFile current = iterator.next();
-                SourceFile updated = operator.apply(current);
-                if (updated == null) {
-                    iterator.remove();
-                } else if (updated != current) {
-                    iterator.set(updated);
+                ListIterator<SourceFile> iterator = delegate.listIterator();
+                while (iterator.hasNext()) {
+                    SourceFile current = iterator.next();
+                    SourceFile updated = operator.apply(current);
+                    if (updated == null) {
+                        iterator.remove();
+                    } else if (updated != current) {
+                        iterator.set(updated);
+                    }
                 }
+                return proxy;
             }
-
-            return proxy;
+            
+            // If it's not a UnaryOperator, try to handle it as a generic function
+            // This might be needed for lambda expressions or method references
+            try {
+                // Try to use reflection to call apply method if available
+                Method applyMethod = unaryOperator.getClass().getMethod("apply", Object.class);
+                if (applyMethod != null) {
+                    ListIterator<SourceFile> iterator = delegate.listIterator();
+                    while (iterator.hasNext()) {
+                        SourceFile current = iterator.next();
+                        @SuppressWarnings("unchecked")
+                        SourceFile updated = (SourceFile) applyMethod.invoke(unaryOperator, current);
+                        if (updated == null) {
+                            iterator.remove();
+                        } else if (updated != current) {
+                            iterator.set(updated);
+                        }
+                    }
+                    return proxy;
+                }
+            } catch (ReflectiveOperationException ignored) {
+                // Fall through to error
+            }
+            
+            throw new UnsupportedOperationException("Unsupported LargeSourceSet#edit argument type: " + unaryOperator);
         }
 
         private Object tryInvokeOn(Class<?> targetClass, String methodName, Class<?>[] parameterTypes, Object[] args) throws Throwable {
