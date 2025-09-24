@@ -43,8 +43,8 @@ public class AgentGatewayApplication {
                 System.out.printf("- %s: %s\n", language, provider.capabilities());
             }
             
-            System.out.println("\nGenerated MCP Tools:");
-            var tools = registry.generateMcpTools();
+            System.out.println("\nGenerated Tools:");
+            var tools = registry.generateTools();
             for (var tool : tools) {
                 System.out.printf("- %s: %s\n", tool.getName(), tool.getDescription());
             }

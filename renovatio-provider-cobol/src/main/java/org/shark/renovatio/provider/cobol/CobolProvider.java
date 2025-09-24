@@ -1,6 +1,6 @@
 package org.shark.renovatio.provider.cobol;
 
-import org.shark.renovatio.shared.spi.LanguageProvider;
+import org.shark.renovatio.shared.spi.BaseLanguageProvider;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.provider.cobol.service.CobolParsingService;
@@ -15,7 +15,7 @@ import java.util.*;
  * COBOL language provider implementation using real COBOL file analysis
  */
 @Component
-public class CobolProvider implements LanguageProvider {
+public class CobolProvider extends BaseLanguageProvider {
     
     private final CobolParsingService parsingService;
 
@@ -89,7 +89,7 @@ public class CobolProvider implements LanguageProvider {
         result.setRunId(runId);
         
         // Would use GumTree for semantic diffs as mentioned in requirements
-        String unifiedDiff = createSampleCobolDiff();
+        String unifiedDiff = createSampleDiff();
         result.setUnifiedDiff(unifiedDiff);
         
         Map<String, Object> semanticDiff = new HashMap<>();
@@ -144,6 +144,157 @@ public class CobolProvider implements LanguageProvider {
         return result;
     }
 
+    @Override
+    public java.util.List<Tool> getTools() {
+        List<Tool> tools = new ArrayList<>();
+
+        // Analyze tool
+        BasicTool analyzeTool = new BasicTool(
+            "cobol.analyze",
+            "Analyze COBOL source code",
+            Map.of(
+                "type", "object",
+                "properties", Map.of(
+                    "workspacePath", Map.of(
+                        "description", "Path to the workspace directory to analyze",
+                        "type", "string"
+                    )
+                ),
+                "required", List.of("workspacePath"),
+                "example", Map.of("workspacePath", "/path/to/cobol/workspace")
+            )
+        );
+        analyzeTool.getMetadata().put("parameters", List.of(
+            Map.of(
+                "name", "workspacePath",
+                "description", "Path to the workspace directory to analyze",
+                "type", "string",
+                "required", true
+            )
+        ));
+        analyzeTool.getMetadata().put("example", Map.of("workspacePath", "/path/to/cobol/workspace"));
+        analyzeTool.getMetadata().put("capability", "analyze");
+        analyzeTool.getMetadata().put("workflowPhase", "analysis");
+        analyzeTool.getMetadata().put("language", language());
+        analyzeTool.getMetadata().put("displayName", "Analyze COBOL code");
+        tools.add(analyzeTool);
+
+        // Metrics tool
+        BasicTool metricsTool = new BasicTool(
+            "cobol.metrics",
+            "Calculate COBOL code metrics",
+            Map.of(
+                "type", "object",
+                "properties", Map.of(
+                    "workspacePath", Map.of(
+                        "description", "Path to the workspace directory to analyze",
+                        "type", "string"
+                    )
+                ),
+                "required", List.of("workspacePath"),
+                "example", Map.of("workspacePath", "/path/to/cobol/workspace")
+            )
+        );
+        metricsTool.getMetadata().put("parameters", List.of(
+            Map.of(
+                "name", "workspacePath",
+                "description", "Path to the workspace directory to analyze",
+                "type", "string",
+                "required", true
+            )
+        ));
+        metricsTool.getMetadata().put("example", Map.of("workspacePath", "/path/to/cobol/workspace"));
+        metricsTool.getMetadata().put("capability", "metrics");
+        metricsTool.getMetadata().put("workflowPhase", "baseline");
+        metricsTool.getMetadata().put("language", language());
+        metricsTool.getMetadata().put("displayName", "Collect COBOL metrics");
+        tools.add(metricsTool);
+
+        // Diff tool
+        BasicTool diffTool = new BasicTool(
+            "cobol.diff",
+            "Generate semantic diff for COBOL code",
+            Map.of(
+                "type", "object",
+                "properties", Map.of(
+                    "runId", Map.of(
+                        "description", "Run ID to generate diff for",
+                        "type", "string"
+                    ),
+                    "workspacePath", Map.of(
+                        "description", "Path to the workspace directory",
+                        "type", "string"
+                    )
+                ),
+                "required", List.of("runId", "workspacePath"),
+                "example", Map.of("runId", "run-123", "workspacePath", "/path/to/cobol/workspace")
+            )
+        );
+        diffTool.getMetadata().put("parameters", List.of(
+            Map.of(
+                "name", "runId",
+                "description", "Run ID to generate diff for",
+                "type", "string",
+                "required", true
+            ),
+            Map.of(
+                "name", "workspacePath",
+                "description", "Path to the workspace directory",
+                "type", "string",
+                "required", true
+            )
+        ));
+        diffTool.getMetadata().put("example", Map.of("runId", "run-123", "workspacePath", "/path/to/cobol/workspace"));
+        diffTool.getMetadata().put("capability", "diff");
+        diffTool.getMetadata().put("workflowPhase", "review");
+        diffTool.getMetadata().put("language", language());
+        diffTool.getMetadata().put("displayName", "Review COBOL changes");
+        tools.add(diffTool);
+
+        // Generate stubs tool
+        BasicTool stubsTool = new BasicTool(
+            "cobol.stubs_generate",
+            "Generate Java stubs/adapters for COBOL interfaces",
+            Map.of(
+                "type", "object",
+                "properties", Map.of(
+                    "workspacePath", Map.of(
+                        "description", "Path to the workspace directory",
+                        "type", "string"
+                    ),
+                    "targetLanguage", Map.of(
+                        "description", "Target language for stubs (e.g., java)",
+                        "type", "string"
+                    )
+                ),
+                "required", List.of("workspacePath", "targetLanguage"),
+                "example", Map.of("workspacePath", "/path/to/cobol/workspace", "targetLanguage", "java")
+            )
+        );
+        stubsTool.getMetadata().put("parameters", List.of(
+            Map.of(
+                "name", "workspacePath",
+                "description", "Path to the workspace directory",
+                "type", "string",
+                "required", true
+            ),
+            Map.of(
+                "name", "targetLanguage",
+                "description", "Target language for stubs (e.g., java)",
+                "type", "string",
+                "required", true
+            )
+        ));
+        stubsTool.getMetadata().put("example", Map.of("workspacePath", "/path/to/cobol/workspace", "targetLanguage", "java"));
+        stubsTool.getMetadata().put("capability", "stubs");
+        stubsTool.getMetadata().put("workflowPhase", "refactor");
+        stubsTool.getMetadata().put("language", language());
+        stubsTool.getMetadata().put("displayName", "Generate COBOL interface stubs");
+        tools.add(stubsTool);
+
+        return tools;
+    }
+
     private Dialect resolveDialect(NqlQuery query, Workspace workspace) {
         String value = null;
         if (query != null && query.getParameters() != null) {
@@ -164,25 +315,6 @@ public class CobolProvider implements LanguageProvider {
         return Dialect.fromString(value);
     }
     
-    private String generateRunId() {
-        return "cobol-run-" + System.currentTimeMillis();
-    }
-    
-    private String createSampleCobolDiff() {
-        return """
-            --- a/CUSTOMER-PROG.cbl
-            +++ b/CUSTOMER-PROG.cbl
-            @@ -15,6 +15,8 @@
-                 01  WS-CUSTOMER-RECORD.
-                     05  WS-CUSTOMER-ID      PIC 9(6).
-                     05  WS-CUSTOMER-NAME    PIC X(30).
-            +        05  WS-CUSTOMER-EMAIL   PIC X(50).
-            +        05  WS-CUSTOMER-PHONE   PIC X(15).
-                 
-                 PROCEDURE DIVISION.
-                 MAIN-PARA.
-            """;
-    }
     
     private String generateCustomerRecordStub() {
         return """

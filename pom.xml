@@ -31,11 +31,9 @@
         <lucene.version>9.8.0</lucene.version>
         <jgit.version>6.7.0.202309050840-r</jgit.version>
         <langchain4j.version>0.25.0</langchain4j.version>
-        <antlr4.version>4.13.1</antlr4.version>
+        <antlr4.version>4.11.1</antlr4.version>
         <resilience4j.version>2.1.0</resilience4j.version>
         <micrometer.version>1.12.1</micrometer.version>
-        <cb2xml.version>1.0.1</cb2xml.version>
-        <jrecord.version>0.98.65</jrecord.version>
         <mustache.version>0.9.10</mustache.version>
     </properties>
     
@@ -45,8 +43,8 @@
           <module>renovatio-provider-java</module>
           <module>renovatio-provider-cobol</module>
           <module>renovatio-provider-jcl</module>
+          <module>renovatio-mcp-server</module>
           <module>renovatio-agent</module>
-          <module>renovatio-web</module>
           <module>renovatio-client</module>
       </modules>
     
@@ -73,16 +71,31 @@
                   <artifactId>renovatio-provider-cobol</artifactId>
                   <version>${project.version}</version>
               </dependency>
-              <dependency>
-                  <groupId>org.shark.renovatio</groupId>
-                  <artifactId>renovatio-provider-jcl</artifactId>
-                  <version>${project.version}</version>
-              </dependency>
+            <dependency>
+                <groupId>org.shark.renovatio</groupId>
+                <artifactId>renovatio-provider-jcl</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.shark.renovatio</groupId>
+                <artifactId>renovatio-mcp-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             
             <!-- External dependencies -->
             <dependency>
                 <groupId>org.openrewrite</groupId>
                 <artifactId>rewrite-java</artifactId>
+                <version>${openrewrite.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openrewrite</groupId>
+                <artifactId>rewrite-yaml</artifactId>
+                <version>${openrewrite.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openrewrite</groupId>
+                <artifactId>rewrite-java-17</artifactId>
                 <version>${openrewrite.version}</version>
             </dependency>
             <dependency>
@@ -131,18 +144,6 @@
                 <groupId>org.freemarker</groupId>
                 <artifactId>freemarker</artifactId>
                 <version>${freemarker.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>net.sf.cb2xml</groupId>
-                <artifactId>cb2xml</artifactId>
-                <version>${cb2xml.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>net.sf.jrecord</groupId>
-                <artifactId>jrecord</artifactId>
-                <version>${jrecord.version}</version>
             </dependency>
 
             <dependency>

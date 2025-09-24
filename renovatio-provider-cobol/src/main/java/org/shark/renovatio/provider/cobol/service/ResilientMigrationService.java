@@ -17,12 +17,12 @@ public class ResilientMigrationService {
     
     private final CobolParsingService parsingService;
     private final JavaGenerationService javaGenerationService;
-    private final RecipeBasedMigrationPlanService migrationPlanService;
+    private final MigrationPlanService migrationPlanService;
     
     public ResilientMigrationService(
             CobolParsingService parsingService,
             JavaGenerationService javaGenerationService,
-            RecipeBasedMigrationPlanService migrationPlanService) {
+            MigrationPlanService migrationPlanService) {
         this.parsingService = parsingService;
         this.javaGenerationService = javaGenerationService;
         this.migrationPlanService = migrationPlanService;
@@ -35,7 +35,13 @@ public class ResilientMigrationService {
     @Retry(name = "cobol-analysis")
     @TimeLimiter(name = "cobol-analysis")
     public CompletableFuture<AnalyzeResult> analyzeAsync(NqlQuery query, Workspace workspace) {
-        return CompletableFuture.supplyAsync(() -> parsingService.analyzeCOBOL(query, workspace));
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return parsingService.analyzeCOBOL(query, workspace);
+            } catch (Exception e) {
+                return new AnalyzeResult(false, "COBOL analysis failed: " + e.getMessage());
+            }
+        });
     }
     
     /**

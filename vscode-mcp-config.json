@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "renovatio": {
+      "command": "/home/faguero/accenture/renovatio/run_mcp_stdio_server.sh",
+      "args": [],
+      "env": {
+        "PATH": "/usr/bin:/bin:/usr/local/bin"
+      }
+    }
+  }
+}
+

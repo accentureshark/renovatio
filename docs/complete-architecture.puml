@@ -1,0 +1,117 @@
+@startuml
+' Renovatio Complete Architecture Overview
+
+title Renovatio Platform - Complete Architecture Overview
+
+' Top level - Client Layer
+package "Client Layer" {
+  [MCP Clients] #LightBlue
+  [CLI Tools] #LightYellow
+  [IDEs & Libraries] #LightGray
+}
+
+' Application Layer
+package "Application Layer" {
+  [renovatio-mcp-server] as mcp #LightBlue
+  [renovatio-agent] as agent #LightYellow
+  [renovatio-client] as client #LightGray
+}
+
+' Core Layer
+package "Core Layer (Protocol-Agnostic)" {
+  [renovatio-core] as core #Orange
+  [renovatio-shared] as shared #LightCyan
+}
+
+' Provider Layer
+package "Provider Layer (Language-Specific)" {
+  [renovatio-provider-java] as java #LightPink
+  [renovatio-provider-cobol] as cobol #LightPink
+  [renovatio-provider-jcl] as jcl #LightPink
+}
+
+' External Dependencies
+package "External Dependencies" {
+  [OpenRewrite SDK] as openrewrite #Orange
+  [ANTLR4 Runtime] as antlr #Orange
+  [Spring Boot] as spring #LightGreen
+  [Apache Lucene] as lucene #LightBlue
+  [Freemarker] as freemarker #LightGreen
+}
+
+' Client connections
+[MCP Clients] --> mcp : JSON-RPC 2.0\n(Root Path /)
+[CLI Tools] --> client : Command Line
+[IDEs & Libraries] --> core : Direct Library\nUsage
+
+' Application layer connections
+mcp --> core : Pure Engine\nAccess
+agent --> core : Orchestration\n& Batch
+client --> core : Library Mode
+
+' Core layer structure
+core --> shared : Uses Contracts\n& Models
+core --> java : Language\nProvider
+core --> cobol : Language\nProvider
+core --> jcl : Language\nProvider
+
+' Provider implementations
+java --> shared : Implements\nInterfaces
+cobol --> shared : Implements\nInterfaces
+jcl --> shared : Implements\nInterfaces
+
+' External dependencies
+java --> openrewrite : Java\nRefactoring
+cobol --> antlr : COBOL\nParsing
+jcl --> antlr : JCL\nParsing
+mcp --> spring : Spring Boot\nApplication
+agent --> spring : Spring Boot\nApplication
+cobol --> lucene : Code\nIndexing
+cobol --> freemarker : Template\nGeneration
+jcl --> freemarker : Template\nGeneration
+
+' Key capabilities
+note top of mcp
+  **MCP Server**
+  ✅ Full MCP 2025-06-18 compliance
+  ✅ JSON-RPC 2.0 protocol
+  ✅ Zero business logic
+  ✅ Pure protocol translation
+end note
+
+note top of core
+  **Core Engine**
+  ✅ Protocol-agnostic
+  ✅ Zero MCP dependencies
+  ✅ Language provider registry
+  ✅ Can be used as library
+end note
+
+note bottom of java
+  **Java Provider**
+  ✅ 200+ OpenRewrite recipes
+  ✅ Java 8-21 migration
+  ✅ Security fixes
+  ✅ Code formatting
+end note
+
+note bottom of cobol
+  **COBOL Provider**
+  ✅ ANTLR4/ProLeap parsing
+  ✅ Java generation
+  ✅ Migration planning
+  ✅ Template-based output
+end note
+
+' Deployment information
+package "Deployment Options" {
+  cloud "Standalone\nMCP Server" as deploy1
+  cloud "Library\nIntegration" as deploy3
+  cloud "Agent\nOrchestration" as deploy4
+}
+
+mcp --> deploy1 : Port 8080
+core --> deploy3 : Maven Dependency
+agent --> deploy4 : Batch Processing
+
+@enduml

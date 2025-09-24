@@ -2,6 +2,7 @@ package org.shark.renovatio.core.service;
 
 import org.junit.jupiter.api.Test;
 import org.shark.renovatio.shared.domain.*;
+import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.shared.spi.LanguageProvider;
 import org.shark.renovatio.shared.nql.NqlQuery;
 
@@ -61,6 +62,18 @@ class MigrationReportServiceTest {
             MetricsResult r = new MetricsResult(true, "ok");
             r.setMetrics(Map.of("linesOfCode", 10));
             return r;
+        }
+
+        @Override
+        public java.util.List<org.shark.renovatio.shared.domain.Tool> getTools() {
+            // Return a mock MCP-compliant tool for metrics
+            Map<String, Object> inputSchema = new java.util.HashMap<>();
+            inputSchema.put("type", "object");
+            inputSchema.put("properties", java.util.Map.of("workspacePath", java.util.Map.of("type", "string")));
+            inputSchema.put("required", java.util.List.of("workspacePath"));
+            return java.util.List.of(
+                new org.shark.renovatio.shared.domain.BasicTool("stub.metrics", "Stub metrics tool", inputSchema)
+            );
         }
     }
 }

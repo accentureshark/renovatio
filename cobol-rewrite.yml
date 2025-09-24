@@ -1,7 +1,0 @@
-# OpenRewrite configuration for COBOL processing
-type: specs.openrewrite.org/v1beta/recipe
-name: org.shark.renovatio.cobol.RewriteRecipes
-recipeList:
-  - org.openrewrite.cobol.ParseCobol
-  - org.openrewrite.cobol.GenerateJavaDtos
-  - org.openrewrite.cobol.GenerateMigrationPlan

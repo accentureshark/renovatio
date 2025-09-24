@@ -1,15 +1,12 @@
 package org.shark.renovatio.provider.cobol;
 
-import org.shark.renovatio.shared.spi.LanguageProvider;
+import org.shark.renovatio.shared.spi.BaseLanguageProvider;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.provider.cobol.service.*;
 import org.springframework.stereotype.Component;
 
-import java.util.Optional;
-import java.util.Set;
-import java.util.EnumSet;
-import java.util.List;
+import java.util.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -18,11 +15,11 @@ import java.nio.file.Paths;
  * Implements parsing, analysis, code generation and migration capabilities
  */
 @Component
-public class CobolLanguageProvider implements LanguageProvider {
+public class CobolLanguageProvider extends BaseLanguageProvider {
     
     private final CobolParsingService parsingService;
     private final JavaGenerationService javaGenerationService;
-    private final RecipeBasedMigrationPlanService migrationPlanService;
+    private final MigrationPlanService migrationPlanService;
     private final IndexingService indexingService;
     private final MetricsService metricsService;
     private final TemplateCodeGenerationService templateCodeGenerationService;
@@ -31,7 +28,7 @@ public class CobolLanguageProvider implements LanguageProvider {
     public CobolLanguageProvider(
             CobolParsingService parsingService,
             JavaGenerationService javaGenerationService,
-            RecipeBasedMigrationPlanService migrationPlanService,
+            MigrationPlanService migrationPlanService,
             IndexingService indexingService,
             MetricsService metricsService,
             TemplateCodeGenerationService templateCodeGenerationService,
@@ -133,11 +130,11 @@ public class CobolLanguageProvider implements LanguageProvider {
             if (copybookName == null) {
                 return new StubResult(false, "No copybook specified");
             }
-
+            final String finalCopybookName = copybookName;
             Path root = Paths.get(workspace.getPath());
             List<Path> copybooks = parsingService.findCopybooks(root);
             Optional<Path> copybookPath = copybooks.stream()
-                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(copybookName))
+                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(finalCopybookName))
                     .findFirst();
             if (copybookPath.isEmpty()) {
                 return new StubResult(false, "Copybook not found: " + copybookName);
@@ -174,11 +171,11 @@ public class CobolLanguageProvider implements LanguageProvider {
             if (programName == null) {
                 return new StubResult(false, "No COBOL program specified");
             }
-
+            final String finalProgramName = programName;
             Path root = Paths.get(workspace.getPath());
             List<Path> cobolFiles = parsingService.findCobolFiles(root);
             Optional<Path> programPath = cobolFiles.stream()
-                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(programName))
+                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(finalProgramName))
                     .findFirst();
             if (programPath.isEmpty()) {
                 return new StubResult(false, "COBOL program not found: " + programName);
@@ -193,5 +190,10 @@ public class CobolLanguageProvider implements LanguageProvider {
         } catch (Exception e) {
             return new StubResult(false, "DB2 migration failed: " + e.getMessage());
         }
+    }
+
+    @Override
+    public java.util.List<Tool> getTools() {
+        return java.util.Collections.emptyList();
     }
 }

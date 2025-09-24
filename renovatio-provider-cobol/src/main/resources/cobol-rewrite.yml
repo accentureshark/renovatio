@@ -1,2 +1,0 @@
-recipes:
-  noop: org.shark.renovatio.provider.cobol.recipe.NoOpCobolRecipe

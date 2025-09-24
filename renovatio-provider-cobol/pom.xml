@@ -12,7 +12,7 @@
     
     <artifactId>renovatio-provider-cobol</artifactId>
     <name>Renovatio COBOL Provider</name>
-    <description>COBOL language provider using ProLeap/Koopa parsers</description>
+    <description>COBOL language provider</description>
     
     <dependencies>
         <dependency>
@@ -22,12 +22,12 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
-        </dependency>
-
-        <!-- YAML loader -->
-        <dependency>
-            <groupId>org.yaml</groupId>
-            <artifactId>snakeyaml</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         
         <!-- Java code generation -->
@@ -40,6 +40,12 @@
         <dependency>
             <groupId>org.freemarker</groupId>
             <artifactId>freemarker</artifactId>
+        </dependency>
+
+        <!-- Additional templating engine -->
+        <dependency>
+            <groupId>com.github.spullara.mustache.java</groupId>
+            <artifactId>compiler</artifactId>
         </dependency>
         
         <!-- Object mapping -->
@@ -79,19 +85,6 @@
             <artifactId>langchain4j</artifactId>
         </dependency>
         
-        <!-- ANTLR for COBOL parsing and NQL validation -->
-        <dependency>
-            <groupId>org.antlr</groupId>
-            <artifactId>antlr4-runtime</artifactId>
-        </dependency>
-
-        <!-- ProLeap COBOL parser for AST generation -->
-        <dependency>
-            <groupId>io.proleap</groupId>
-            <artifactId>proleap-cobol-parser</artifactId>
-            <version>2.3.0</version>
-        </dependency>
-        
         <!-- Resilience -->
         <dependency>
             <groupId>io.github.resilience4j</groupId>
@@ -103,6 +96,14 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
+
+
     </dependencies>
 </project>

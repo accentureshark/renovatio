@@ -28,8 +28,8 @@ class JavaGenerationServiceTest {
     @BeforeEach
     void setUp() {
         parsingService = new CobolParsingService();
-        javaGenerationService = new JavaGenerationService(parsingService);
-        
+        TemplateCodeGenerationService templateService = new TemplateCodeGenerationService();
+        javaGenerationService = new JavaGenerationService(parsingService, templateService);
         workspace = new Workspace();
         workspace.setId("test");
         workspace.setPath(tempDir.toString());
@@ -71,14 +71,14 @@ class JavaGenerationServiceTest {
         assertFalse(result.getGeneratedCode().isEmpty());
         
         // Check that Java files were generated
-        assertTrue(result.getGeneratedCode().containsKey("sample.cobDTO.java"));
-        assertTrue(result.getGeneratedCode().containsKey("sample.cobService.java"));
-        assertTrue(result.getGeneratedCode().containsKey("sample.cobServiceImpl.java"));
-        
+        assertTrue(result.getGeneratedCode().containsKey("SampleDTO.java"));
+        assertTrue(result.getGeneratedCode().containsKey("SampleService.java"));
+        assertTrue(result.getGeneratedCode().containsKey("SampleServiceImpl.java"));
+
         // Verify DTO contains expected fields
-        String dtoCode = result.getGeneratedCode().get("sample.cobDTO.java");
+        String dtoCode = result.getGeneratedCode().get("SampleDTO.java");
         System.out.println("DTO generado:\n" + dtoCode);
-        assertTrue(dtoCode.contains("class SamplecobDTO")); // Cambiado a minúscula para coincidir con el DTO generado
+        assertTrue(dtoCode.contains("class SampleDTO"));
         assertTrue(dtoCode.contains("String wsName"));
         assertTrue(dtoCode.contains("Integer wsAge"));
         assertTrue(dtoCode.contains("BigDecimal wsSalary"));
