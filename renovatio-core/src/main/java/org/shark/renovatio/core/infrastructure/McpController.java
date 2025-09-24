@@ -2,7 +2,6 @@ package org.shark.renovatio.core.infrastructure;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.shark.renovatio.core.application.McpToolingService;
 import org.shark.renovatio.core.mcp.McpPrompt;
 import org.shark.renovatio.core.mcp.McpResource;
 import org.shark.renovatio.core.mcp.McpTool;

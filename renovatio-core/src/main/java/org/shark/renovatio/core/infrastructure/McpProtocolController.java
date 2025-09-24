@@ -2,7 +2,6 @@ package org.shark.renovatio.core.infrastructure;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.shark.renovatio.core.application.McpToolingService;
 import org.shark.renovatio.core.mcp.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
