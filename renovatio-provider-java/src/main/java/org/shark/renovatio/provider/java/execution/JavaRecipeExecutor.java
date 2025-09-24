@@ -87,31 +87,34 @@ public class JavaRecipeExecutor {
                 .filter(name -> !name.isBlank())
                 .collect(Collectors.toList()) : List.of();
 
-            List<String> recipeList = requestedRecipes.stream()
+            // Filter for safety first (discoveryService.isRecipeSafe) and also ensure present & activable
+            List<String> safeRequested = requestedRecipes.stream()
                 .filter(name -> {
                     if (discoveryService.isRecipeSafe(name)) {
                         return true;
                     }
-                    LOGGER.warn("Skipping recipe '{}' - requires specific configuration parameters that are not provided", name);
+                    LOGGER.warn("Skipping unsafe recipe '{}' - requires specific configuration parameters", name);
                     return false;
                 })
                 .distinct()
                 .collect(Collectors.toList());
 
+            List<String> activableRecipes = discoveryService.resolveActivableRecipeNames(safeRequested);
+
             ExecutionContext ctx = new InMemoryExecutionContext(Throwable::printStackTrace);
             List<SourceFile> sourceFiles = parseSources(javaFiles, ctx);
 
-            if (recipeList.isEmpty()) {
-                Map<String, Object> metrics = buildMetrics(javaFiles, List.of(), false, start, recipeList);
+            if (activableRecipes.isEmpty()) {
+                Map<String, Object> metrics = buildMetrics(javaFiles, List.of(), false, start, activableRecipes);
                 return new JavaRecipeExecutionResult(true, false, List.of(), List.of(), metrics,
                     relativize(workspace, javaFiles),
                     Duration.between(start, Instant.now()).toMillis(),
-                    recipeList,
+                    activableRecipes,
                     "No recipes selected");
             }
 
             List<Result> results = runner.runRecipe(
-                discoveryService.buildCompositeRecipe(recipeList),
+                discoveryService.buildCompositeRecipe(activableRecipes),
                 ctx,
                 sourceFiles
             );
@@ -126,7 +129,7 @@ public class JavaRecipeExecutor {
                 String sourcePath = resolveSourcePath(result, workspace);
                 touchedFiles.add(sourcePath);
                 changes.add(new JavaChange(sourcePath, buildDiff(sourcePath, before, after)));
-                issues.add(buildIssue(sourcePath, recipeList, dryRun));
+                issues.add(buildIssue(sourcePath, activableRecipes, dryRun));
 
                 if (!dryRun && result.getAfter() != null) {
                     Path file = workspace.resolve(result.getAfter().getSourcePath());
@@ -135,19 +138,19 @@ public class JavaRecipeExecutor {
                 }
             }
 
-            Map<String, Object> metrics = buildMetrics(javaFiles, changes, !dryRun, start, recipeList);
+            Map<String, Object> metrics = buildMetrics(javaFiles, changes, !dryRun, start, activableRecipes);
             long duration = Duration.between(start, Instant.now()).toMillis();
             String summary = String.format(Locale.ROOT,
                 "%s %d recipe(s), %d file(s) analysed, %d change(s)",
                 dryRun ? "Previewed" : "Applied",
-                recipeList.size(),
+                activableRecipes.size(),
                 javaFiles.size(),
                 changes.size());
 
             return new JavaRecipeExecutionResult(true, !dryRun, List.copyOf(changes), List.copyOf(issues), metrics,
                 new ArrayList<>(touchedFiles.isEmpty() ? relativize(workspace, javaFiles) : new ArrayList<>(touchedFiles)),
                 duration,
-                recipeList,
+                activableRecipes,
                 summary);
         } catch (Exception ex) {
             LOGGER.warn("OpenRewrite execution failed: {}", ex.getMessage(), ex);

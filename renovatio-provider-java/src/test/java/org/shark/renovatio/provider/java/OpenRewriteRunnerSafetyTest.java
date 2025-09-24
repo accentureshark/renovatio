@@ -1,88 +1,88 @@
 package org.shark.renovatio.provider.java;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.openrewrite.ExecutionContext;
+import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.Recipe;
+import org.openrewrite.Result;
+import org.openrewrite.SourceFile;
 import org.openrewrite.TreeVisitor;
-import org.openrewrite.tree.Tree;
+import org.openrewrite.java.JavaParser;
 
-import java.lang.reflect.Method;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 
 class OpenRewriteRunnerSafetyTest {
 
-    @Test
-    void detectsMissingParametersForScopedCreateEmptyJavaClass() throws Exception {
-        OpenRewriteRunner runner = new OpenRewriteRunner();
-        Method method = OpenRewriteRunner.class.getDeclaredMethod("isRecipeMissingRequiredParameters", Recipe.class);
-        method.setAccessible(true);
+    @TempDir
+    Path tempDir;
 
-        Recipe scopedRecipe = new ScopedCreateEmptyJavaClassStub();
-        boolean missingParameters = (boolean) method.invoke(runner, scopedRecipe);
-
-        assertTrue(missingParameters, "Scoped CreateEmptyJavaClass instances should be flagged as missing required parameters");
+    private List<SourceFile> parseHelloWorld(ExecutionContext ctx) throws IOException {
+        Path src = tempDir.resolve("Hello.java");
+        Files.writeString(src, "public class Hello { void hi() {} }", StandardCharsets.UTF_8);
+        JavaParser parser = JavaParser.fromJavaVersion().build();
+        return parser.parse(ctx, Files.readString(src)).toList();
     }
 
     @Test
-    void detectsOptionalParametersWhenEmpty() throws Exception {
+    void blocksCreateEmptyJavaClassWithMissingParams() throws IOException {
+        ExecutionContext ctx = new InMemoryExecutionContext(Throwable::printStackTrace);
+        List<SourceFile> sources = parseHelloWorld(ctx);
         OpenRewriteRunner runner = new OpenRewriteRunner();
-        Method method = OpenRewriteRunner.class.getDeclaredMethod("isRecipeMissingRequiredParameters", Recipe.class);
-        method.setAccessible(true);
 
-        Recipe optionalRecipe = new OptionalBackedCreateEmptyJavaClassStub(Optional.empty(), Optional.of("Demo"));
-        boolean missingParameters = (boolean) method.invoke(runner, optionalRecipe);
+        // Intentionally misconfigured stub mimicking CreateEmptyJavaClass (missing packageName)
+        Recipe unsafe = new OptionalBackedCreateEmptyJavaClassStub(Optional.empty(), Optional.of("Demo"));
 
-        assertTrue(missingParameters, "Recipes exposing Optional.empty() should be treated as missing required parameters");
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
+            runner.runRecipe(unsafe, ctx, sources);
+        });
+        String msg = ex.getMessage();
+        assertNotNull(msg);
+        assertTrue(msg.toLowerCase().contains("requires parameters"));
     }
 
     @Test
-    void acceptsConfiguredOptionalParameters() throws Exception {
+    void blocksCompositeRecipeContainingUnsafeChild() throws IOException {
+        ExecutionContext ctx = new InMemoryExecutionContext(Throwable::printStackTrace);
+        List<SourceFile> sources = parseHelloWorld(ctx);
         OpenRewriteRunner runner = new OpenRewriteRunner();
-        Method method = OpenRewriteRunner.class.getDeclaredMethod("isRecipeMissingRequiredParameters", Recipe.class);
-        method.setAccessible(true);
 
-        Recipe optionalRecipe = new OptionalBackedCreateEmptyJavaClassStub(Optional.of("com.example"), Optional.of("Demo"));
-        boolean missingParameters = (boolean) method.invoke(runner, optionalRecipe);
+        Recipe unsafe = new OptionalBackedCreateEmptyJavaClassStub(Optional.empty(), Optional.of("Demo"));
+        Recipe composite = new Recipe() {
+            @Override
+            public String getDisplayName() {
+                return "TestComposite";
+            }
 
-        assertFalse(missingParameters, "Configured Optional parameters should not be flagged as missing");
-    }
+            @Override
+            public String getDescription() {
+                return "Composite for testing";
+            }
 
-    @Test
-    void detectsMissingPathForAppendToTextFile() throws Exception {
-        OpenRewriteRunner runner = new OpenRewriteRunner();
-        Method method = OpenRewriteRunner.class.getDeclaredMethod("isRecipeMissingRequiredParameters", Recipe.class);
-        method.setAccessible(true);
+            @Override
+            public String getName() {
+                return "TestComposite";
+            }
 
-        Recipe appendRecipe = new AppendToTextFileStub();
-        boolean missingParameters = (boolean) method.invoke(runner, appendRecipe);
+            @Override
+            public List<Recipe> getRecipeList() {
+                return List.of(unsafe);
+            }
+        };
 
-        assertTrue(missingParameters, "AppendToTextFile without a path should be treated as unsafe");
-    }
-
-    private static final class ScopedCreateEmptyJavaClassStub extends Recipe {
-
-        @Override
-        public String getDisplayName() {
-            return "Scoped CreateEmptyJavaClass Stub";
-        }
-
-        @Override
-        public String getDescription() {
-            return "Stub used to verify parameter safety checks";
-        }
-
-        @Override
-        public String getName() {
-            return "org.openrewrite.java.CreateEmptyJavaClass$Scoped";
-        }
-
-        @Override
-        protected TreeVisitor<?, ExecutionContext> getVisitor() {
-            return new TreeVisitor<Tree, ExecutionContext>() { };
-        }
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
+            runner.runRecipe(composite, ctx, sources);
+        });
+        String msg = ex.getMessage();
+        assertNotNull(msg);
+        assertTrue(msg.toLowerCase().contains("requires parameters"));
     }
 
     private static final class OptionalBackedCreateEmptyJavaClassStub extends Recipe {
@@ -106,6 +106,7 @@ class OpenRewriteRunnerSafetyTest {
 
         @Override
         public String getName() {
+            // Return the canonical name so safety checks match
             return "org.openrewrite.java.CreateEmptyJavaClass";
         }
 
@@ -120,36 +121,8 @@ class OpenRewriteRunnerSafetyTest {
         }
 
         @Override
-        protected TreeVisitor<?, ExecutionContext> getVisitor() {
-            return new TreeVisitor<Tree, ExecutionContext>() { };
-        }
-    }
-
-    private static final class AppendToTextFileStub extends Recipe {
-
-        @Override
-        public String getName() {
-            return "org.openrewrite.text.AppendToTextFile";
-        }
-
-        @Override
-        public String getDisplayName() {
-            return "AppendToTextFile Stub";
-        }
-
-        @Override
-        public String getDescription() {
-            return "Stub used to verify path safety checks";
-        }
-
-        @Override
-        public String toString() {
-            return "AppendToTextFile{path=null}";
-        }
-
-        @Override
-        protected TreeVisitor<?, ExecutionContext> getVisitor() {
-            return new TreeVisitor<Tree, ExecutionContext>() { };
+        public TreeVisitor<?, ExecutionContext> getVisitor() {
+            return new TreeVisitor<SourceFile, ExecutionContext>() { };
         }
     }
 }

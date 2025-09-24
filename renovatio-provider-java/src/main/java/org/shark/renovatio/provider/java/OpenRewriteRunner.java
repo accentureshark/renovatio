@@ -4,6 +4,7 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
 import org.openrewrite.Result;
 import org.openrewrite.SourceFile;
+import org.shark.renovatio.provider.java.util.RecipeSafetyUtils;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -98,13 +99,11 @@ public class OpenRewriteRunner {
     /**
      * Checks if the recipe is known to require parameters and is not configured.
      * Returns true if the recipe should be filtered out to avoid runtime errors.
+     * This version is more robust and checks for common required parameter getters.
      */
     private boolean isRecipeMissingRequiredParameters(Recipe recipe) {
-        if (recipe == null) {
-            return false;
-        }
-        Set<Recipe> visited = Collections.newSetFromMap(new IdentityHashMap<>());
-        return isRecipeMissingRequiredParameters(recipe, visited);
+        // Use recursive traversal to catch missing parameters in nested recipes as well
+        return isRecipeMissingRequiredParameters(recipe, Collections.newSetFromMap(new IdentityHashMap<>()));
     }
 
     private boolean isRecipeMissingRequiredParameters(Recipe recipe, Set<Recipe> visited) {
@@ -118,12 +117,13 @@ public class OpenRewriteRunner {
 
         try {
             Collection<Recipe> nested = recipe.getRecipeList();
-            if (nested != null) {
+            if (nested != null && !nested.isEmpty()) {
                 for (Recipe nestedRecipe : nested) {
                     if (isRecipeMissingRequiredParameters(nestedRecipe, visited)) {
                         return true;
                     }
                 }
+                return false;
             }
         } catch (UnsupportedOperationException ignored) {
             // Some Recipe implementations may not support getRecipeList; ignore and continue.
@@ -132,7 +132,22 @@ public class OpenRewriteRunner {
             return true;
         }
 
+        // If there are no accessible nested recipes, inspect the string representation
+        String rep = safeRecipeToString(recipe).toLowerCase(java.util.Locale.ROOT);
+        if (containsUnsafeSignature(rep)) {
+            return true;
+        }
+
         return false;
+    }
+
+    private boolean containsUnsafeSignature(String lowerRep) {
+        if (lowerRep == null || lowerRep.isBlank()) return false;
+        return lowerRep.contains("org.openrewrite.java.createemptyjavaclass")
+            || lowerRep.contains("org.openrewrite.text.appendtotextfile")
+            || lowerRep.contains("org.openrewrite.text.createtextfile")
+            || lowerRep.contains("org.openrewrite.yaml.createyamlfile")
+            || lowerRep.contains("org.openrewrite.xml.createxmlfile");
     }
 
     private boolean isSingleRecipeMissingRequiredParameters(Recipe recipe) {
@@ -266,10 +281,7 @@ public class OpenRewriteRunner {
             return sequence.toString().trim().isEmpty();
         }
         if (value instanceof Optional<?> optional) {
-            if (optional.isEmpty()) {
-                return true;
-            }
-            return isValueMissing(optional.orElse(null));
+            return optional.isEmpty() || isValueMissing(optional.orElse(null));
         }
         if (value instanceof Collection<?> collection) {
             return collection.isEmpty();
@@ -354,17 +366,28 @@ public class OpenRewriteRunner {
         Objects.requireNonNull(ctx, "ctx");
         Objects.requireNonNull(sourceFiles, "sourceFiles");
 
-        // === FILTER recipes with missing required parameters ===
+        // === FILTER recipes with missing required parameters (MCP-compliant) ===
+        if (RecipeSafetyUtils.hasMissingRequiredParameters(recipe)) {
+            throw new IllegalArgumentException(
+                "OpenRewrite recipe '" + recipe.getClass().getName() + "' requires parameters that are not set. " +
+                "Please configure all required parameters before execution, or use a different recipe. (MCP-compliant error)"
+            );
+        }
+
+        // === FILTER recipes with missing required parameters (recursive) ===
         if (isRecipeMissingRequiredParameters(recipe)) {
             throw new IllegalStateException("OpenRewrite recipe '" + recipe.getClass().getName() + "' requires parameters that are not set. " +
                 "Please configure all required parameters before execution, or use a different recipe.");
         }
 
+        // Sanitize composite recipes by removing unsafe children before execution
+        Recipe safeRecipe = sanitizeRecipe(recipe);
+
         try {
             if (RUN_WITH_LARGE_SOURCE_SET != null && LARGE_SOURCE_SET_CLASS != null) {
                 Object largeSourceSet = createLargeSourceSet(sourceFiles);
-                Object result = RUN_WITH_LARGE_SOURCE_SET.invoke(recipe, largeSourceSet, ctx);
-                
+                Object result = RUN_WITH_LARGE_SOURCE_SET.invoke(safeRecipe, largeSourceSet, ctx);
+
                 // Handle different return types from different OpenRewrite versions
                 if (result instanceof List) {
                     return (List<Result>) result;
@@ -393,7 +416,7 @@ public class OpenRewriteRunner {
             }
 
             if (RUN_WITH_ITERABLE != null) {
-                Object result = RUN_WITH_ITERABLE.invoke(recipe, sourceFiles, ctx);
+                Object result = RUN_WITH_ITERABLE.invoke(safeRecipe, sourceFiles, ctx);
                 if (result instanceof List) {
                     return (List<Result>) result;
                 } else {
@@ -707,5 +730,69 @@ public class OpenRewriteRunner {
 
     private enum InvocationResult {
         NOT_HANDLED
+    }
+
+    private Recipe sanitizeRecipe(Recipe root) {
+        try {
+            List<Recipe> children = null;
+            try {
+                children = root.getRecipeList();
+            } catch (UnsupportedOperationException ignored) { }
+            if (children == null || children.isEmpty()) {
+                // Leaf recipe or opaque composite: if unsafe (by direct checks or signature), throw; else return as-is
+                if (isSingleRecipeMissingRequiredParameters(root) || containsUnsafeSignature(safeRecipeToString(root).toLowerCase(java.util.Locale.ROOT))) {
+                    throw new IllegalArgumentException("Recipe '" + safeRecipeName(root) + "' requires parameters that are not set.");
+                }
+                return root;
+            }
+            List<Recipe> safeChildren = new ArrayList<>();
+            for (Recipe child : children) {
+                if (child == null) continue;
+                if (isRecipeMissingRequiredParameters(child)) {
+                    // skip unsafe child
+                    continue;
+                }
+                safeChildren.add(sanitizeRecipe(child));
+            }
+            if (safeChildren.isEmpty()) {
+                throw new IllegalArgumentException("Composite recipe '" + safeRecipeName(root) + "' has no safe children after sanitization.");
+            }
+            return new SafeCompositeRecipe(safeRecipeName(root), root.getDisplayName(), safeChildren);
+        } catch (Exception e) {
+            // If anything goes wrong during sanitization, be conservative
+            throw new IllegalStateException("Failed to sanitize recipe '" + safeRecipeName(root) + "': " + e.getMessage(), e);
+        }
+    }
+
+    private static final class SafeCompositeRecipe extends Recipe {
+        private final String name;
+        private final String displayName;
+        private final List<Recipe> recipeList;
+
+        private SafeCompositeRecipe(String name, String displayName, List<Recipe> recipeList) {
+            this.name = name != null && !name.isBlank() ? name : "SanitizedComposite";
+            this.displayName = displayName != null && !displayName.isBlank() ? displayName : this.name;
+            this.recipeList = List.copyOf(recipeList);
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        @Override
+        public String getDescription() {
+            return "Sanitized composite recipe with unsafe children removed";
+        }
+
+        @Override
+        public List<Recipe> getRecipeList() {
+            return recipeList;
+        }
     }
 }
