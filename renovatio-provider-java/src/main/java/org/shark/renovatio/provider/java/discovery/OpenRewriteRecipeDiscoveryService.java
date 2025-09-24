@@ -208,31 +208,50 @@ public class OpenRewriteRecipeDiscoveryService {
 
     private Map<String, List<String>> buildProfiles(Map<String, RecipeInfo> recipes) {
         Map<String, List<String>> mapping = new LinkedHashMap<>();
-        mapping.put("modernize_java17", filterByTags(recipes, List.of("modernize", "java17")));
-        mapping.put("cleanup_style", filterByTags(recipes, List.of("style")));
-        mapping.put("remove_deprecations", filterByTags(recipes, List.of("deprecations")));
-        mapping.put("security", filterByTags(recipes, List.of("security")));
-        mapping.put("testing_support", filterByTags(recipes, List.of("testing")));
-        mapping.put("quality", filterByTags(recipes, List.of("quality")));
-        mapping.put("all", new ArrayList<>(recipes.keySet()));
+        mapping.put("modernize_java17", filterByTagsAndSafety(recipes, List.of("modernize", "java17")));
+        mapping.put("cleanup_style", filterByTagsAndSafety(recipes, List.of("style")));
+        mapping.put("remove_deprecations", filterByTagsAndSafety(recipes, List.of("deprecations")));
+        mapping.put("security", filterByTagsAndSafety(recipes, List.of("security")));
+        mapping.put("testing_support", filterByTagsAndSafety(recipes, List.of("testing")));
+        mapping.put("quality", filterByTagsAndSafety(recipes, List.of("quality")));
+        // For "all" profile, only include safe recipes
+        List<String> allSafeRecipes = new ArrayList<>();
+        for (String recipeName : recipes.keySet()) {
+            if (isRecipeSafeToExecute(recipeName)) {
+                allSafeRecipes.add(recipeName);
+            }
+        }
+        mapping.put("all", allSafeRecipes);
         return mapping;
     }
 
     private List<String> filterByTags(Map<String, RecipeInfo> recipes, List<String> requiredTags) {
+        return filterByTagsAndSafety(recipes, requiredTags);
+    }
+
+    private List<String> filterByTagsAndSafety(Map<String, RecipeInfo> recipes, List<String> requiredTags) {
         if (requiredTags == null || requiredTags.isEmpty()) {
-            return new ArrayList<>(recipes.keySet());
+            List<String> safeRecipes = new ArrayList<>();
+            for (String recipeName : recipes.keySet()) {
+                if (isRecipeSafeToExecute(recipeName)) {
+                    safeRecipes.add(recipeName);
+                }
+            }
+            return safeRecipes;
         }
+        
         List<String> matches = new ArrayList<>();
         for (RecipeInfo info : recipes.values()) {
-            if (info.tags().containsAll(requiredTags)) {
+            if (info.tags().containsAll(requiredTags) && isRecipeSafeToExecute(info.name())) {
                 matches.add(info.name());
             }
         }
+        
         if (matches.isEmpty()) {
-            // fall back to partial matches
+            // fall back to partial matches, but still apply safety filter
             for (RecipeInfo info : recipes.values()) {
                 for (String tag : requiredTags) {
-                    if (info.tags().contains(tag)) {
+                    if (info.tags().contains(tag) && isRecipeSafeToExecute(info.name())) {
                         matches.add(info.name());
                         break;
                     }
