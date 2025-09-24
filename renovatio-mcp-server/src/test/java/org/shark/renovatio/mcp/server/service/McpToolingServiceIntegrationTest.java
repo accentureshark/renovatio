@@ -63,7 +63,7 @@ class McpToolingServiceIntegrationTest {
         assertFalse(result.isError());
         assertFalse(result.content().isEmpty());
         assertTrue(result.content().get(0).text().contains("discover"));
-        assertTrue(result.structuredContent() instanceof Map);
+        assertInstanceOf(Map.class, result.structuredContent());
         @SuppressWarnings("unchecked")
         Map<String, Object> structured = (Map<String, Object>) result.structuredContent();
         assertTrue(structured.containsKey("modules"));
