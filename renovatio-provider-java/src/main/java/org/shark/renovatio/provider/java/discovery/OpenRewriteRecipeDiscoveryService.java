@@ -60,8 +60,8 @@ public class OpenRewriteRecipeDiscoveryService {
         "org.openrewrite.java.dependencies.AddDependency",
         "org.openrewrite.java.dependencies.RemoveDependency",
         "org.openrewrite.java.dependencies.ChangeDependency",
-        "org.openrewrite.java.RecipeMarkupDemonstration",
-
+        "org.openrewrite.java.RecipeMarkupDemonstration"
+    );
 
     private static final List<String> UNSAFE_RECIPE_PREFIXES = List.of(
         // Example/demo recipes frequently spin up CreateEmptyJavaClass without configuration.

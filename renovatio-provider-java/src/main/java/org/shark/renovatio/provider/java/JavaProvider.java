@@ -937,7 +937,7 @@ public class JavaProvider extends BaseLanguageProvider {
             if (discoveryService.isRecipeSafe(trimmed)) {
                 safe.add(trimmed);
             } else {
-                LOGGER.warn("Skipping unsafe recipe '{}' requested by client", recipe);
+                // LOGGER.warn("Skipping unsafe recipe '{}' requested by client", recipe);
             }
         }
         return List.copyOf(safe);
