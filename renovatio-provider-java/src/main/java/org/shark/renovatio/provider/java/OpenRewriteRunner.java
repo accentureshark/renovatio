@@ -8,6 +8,7 @@ import org.openrewrite.SourceFile;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -19,6 +20,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 
@@ -137,44 +139,180 @@ public class OpenRewriteRunner {
         String recipeName = safeRecipeName(recipe);
 
         if (matchesRecipe(recipe, recipeName, "org.openrewrite.java.CreateEmptyJavaClass")) {
-            try {
-                Object packageName = recipe.getClass().getMethod("getPackageName").invoke(recipe);
-                Object className = recipe.getClass().getMethod("getClassName").invoke(recipe);
-                return packageName == null || String.valueOf(packageName).isEmpty() ||
-                    className == null || String.valueOf(className).isEmpty();
-            } catch (Exception e) {
-                return true; // If we can't check, assume it's missing
-            }
+            boolean missingPackage = isPropertyMissing(recipe, "getPackageName", "packageName");
+            boolean missingClass = isPropertyMissing(recipe, "getClassName", "className");
+            return missingPackage || missingClass;
         }
 
-        if (matchesRecipe(recipe, recipeName, "org.openrewrite.yaml.CreateYamlFile")) {
-            try {
-                Method getPath = recipe.getClass().getMethod("getPath");
-                Object path = getPath.invoke(recipe);
-                if (path == null || String.valueOf(path).isEmpty()) {
-                    return true;
-                }
-            } catch (Exception e) {
-                String asString = recipe.toString();
-                if (asString.contains("path=null") || asString.contains("path=''")) {
-                    return true;
-                }
-                return true;
-            }
+        if (matchesRecipe(recipe, recipeName, "org.openrewrite.text.AppendToTextFile")) {
+            return isPropertyMissing(recipe, "getPath", "path", "relativeFileName", "file", "fileName");
         }
 
-        if (matchesRecipe(recipe, recipeName, "org.openrewrite.text.CreateTextFile") ||
+        if (matchesRecipe(recipe, recipeName, "org.openrewrite.yaml.CreateYamlFile") ||
+            matchesRecipe(recipe, recipeName, "org.openrewrite.text.CreateTextFile") ||
             matchesRecipe(recipe, recipeName, "org.openrewrite.xml.CreateXmlFile")) {
-            try {
-                Method getPath = recipe.getClass().getMethod("getPath");
-                Object path = getPath.invoke(recipe);
-                return path == null || String.valueOf(path).isEmpty();
-            } catch (Exception e) {
-                return true;
-            }
+            return isPropertyMissing(recipe, "getPath", "path", "relativeFileName", "file", "fileName");
         }
 
         return false;
+    }
+
+    private boolean isPropertyMissing(Recipe recipe, String getterName, String... fieldNames) {
+        if (getterName != null) {
+            PropertyAccess methodValue = invokeGetter(recipe, getterName);
+            if (methodValue.found()) {
+                return isValueMissing(methodValue.value());
+            }
+        }
+
+        for (String fieldName : fieldNames) {
+            PropertyAccess fieldValue = readField(recipe, fieldName);
+            if (fieldValue.found()) {
+                return isValueMissing(fieldValue.value());
+            }
+        }
+
+        String representation = safeRecipeToString(recipe).toLowerCase(java.util.Locale.ROOT);
+        for (String name : fieldNames) {
+            if (representation.contains(name.toLowerCase(java.util.Locale.ROOT) + "=null") ||
+                representation.contains(name.toLowerCase(java.util.Locale.ROOT) + "=''") ||
+                representation.contains(name.toLowerCase(java.util.Locale.ROOT) + "=optional.empty")) {
+                return true;
+            }
+        }
+
+        if (getterName != null) {
+            String lowerGetter = getterName.toLowerCase(java.util.Locale.ROOT).replace("get", "");
+            if (representation.contains(lowerGetter + "=null") ||
+                representation.contains(lowerGetter + "=''") ||
+                representation.contains(lowerGetter + "=optional.empty")) {
+                return true;
+            }
+        }
+
+        // If we cannot determine the value, assume the property is missing for safety.
+        return true;
+    }
+
+    private PropertyAccess invokeGetter(Recipe recipe, String getterName) {
+        Method method = findMethod(recipe.getClass(), getterName);
+        if (method == null) {
+            return PropertyAccess.notFound();
+        }
+        try {
+            if (!method.canAccess(recipe)) {
+                method.setAccessible(true);
+            }
+            Object value = method.invoke(recipe);
+            return PropertyAccess.found(value);
+        } catch (Exception ex) {
+            return PropertyAccess.notFound();
+        }
+    }
+
+    private Method findMethod(Class<?> type, String methodName) {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                return current.getDeclaredMethod(methodName);
+            } catch (NoSuchMethodException ignored) {
+                // continue search in superclass
+                try {
+                    return current.getMethod(methodName);
+                } catch (NoSuchMethodException ignoredPublic) {
+                    current = current.getSuperclass();
+                }
+            }
+        }
+        return null;
+    }
+
+    private PropertyAccess readField(Recipe recipe, String fieldName) {
+        if (fieldName == null || fieldName.isBlank()) {
+            return PropertyAccess.notFound();
+        }
+        Field field = findField(recipe.getClass(), fieldName);
+        if (field == null) {
+            return PropertyAccess.notFound();
+        }
+        try {
+            if (!field.canAccess(recipe)) {
+                field.setAccessible(true);
+            }
+            Object value = field.get(recipe);
+            return PropertyAccess.found(value);
+        } catch (Exception ex) {
+            return PropertyAccess.notFound();
+        }
+    }
+
+    private Field findField(Class<?> type, String fieldName) {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                return current.getDeclaredField(fieldName);
+            } catch (NoSuchFieldException ignored) {
+                current = current.getSuperclass();
+            }
+        }
+        return null;
+    }
+
+    private boolean isValueMissing(Object value) {
+        if (value == null) {
+            return true;
+        }
+        if (value instanceof CharSequence sequence) {
+            return sequence.toString().trim().isEmpty();
+        }
+        if (value instanceof Optional<?> optional) {
+            if (optional.isEmpty()) {
+                return true;
+            }
+            return isValueMissing(optional.orElse(null));
+        }
+        if (value instanceof Collection<?> collection) {
+            return collection.isEmpty();
+        }
+        if (value.getClass().isArray()) {
+            return java.lang.reflect.Array.getLength(value) == 0;
+        }
+        return false;
+    }
+
+    private String safeRecipeToString(Recipe recipe) {
+        try {
+            String representation = recipe.toString();
+            return representation != null ? representation : "";
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private static final class PropertyAccess {
+        private final boolean found;
+        private final Object value;
+
+        private PropertyAccess(boolean found, Object value) {
+            this.found = found;
+            this.value = value;
+        }
+
+        static PropertyAccess found(Object value) {
+            return new PropertyAccess(true, value);
+        }
+
+        static PropertyAccess notFound() {
+            return new PropertyAccess(false, null);
+        }
+
+        boolean found() {
+            return found;
+        }
+
+        Object value() {
+            return value;
+        }
     }
 
     private String safeRecipeName(Recipe recipe) {
