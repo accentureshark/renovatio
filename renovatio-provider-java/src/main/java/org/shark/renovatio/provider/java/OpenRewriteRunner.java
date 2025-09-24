@@ -154,7 +154,23 @@ public class OpenRewriteRunner {
                 }
             }
         } catch (ReflectiveOperationException ex) {
+            // Enhanced error handling - check for known problematic recipes
+            String errorMessage = ex.getMessage();
+            if (errorMessage != null && (errorMessage.contains("packageName") || errorMessage.contains("Cannot invoke \"String.replace"))) {
+                throw new IllegalStateException("Failed to execute OpenRewrite recipe - likely due to misconfigured recipe parameters. " +
+                    "Some recipes require specific configuration (e.g., packageName for CreateEmptyJavaClass). " +
+                    "Original error: " + errorMessage, ex);
+            }
             throw new IllegalStateException("Failed to execute OpenRewrite recipe", ex);
+        } catch (Exception ex) {
+            // Catch any other exceptions that might occur during recipe execution
+            String errorMessage = ex.getMessage();
+            if (errorMessage != null && errorMessage.contains("packageName")) {
+                throw new IllegalStateException("Recipe execution failed due to missing required parameters. " +
+                    "This typically happens with recipes like CreateEmptyJavaClass that require packageName configuration. " +
+                    "Original error: " + errorMessage, ex);
+            }
+            throw new IllegalStateException("Unexpected error during recipe execution: " + errorMessage, ex);
         }
 
         throw new IllegalStateException("No compatible OpenRewrite Recipe#run overload found");

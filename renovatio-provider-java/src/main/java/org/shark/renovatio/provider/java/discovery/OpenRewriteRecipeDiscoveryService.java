@@ -76,6 +76,7 @@ public class OpenRewriteRecipeDiscoveryService {
         List<String> filtered = recipeNames.stream()
             .filter(Objects::nonNull)
             .filter(name -> !name.isBlank())
+            .filter(this::isRecipeSafeToExecute)
             .distinct()
             .collect(Collectors.toList());
         if (filtered.isEmpty()) {
@@ -262,6 +263,69 @@ public class OpenRewriteRecipeDiscoveryService {
             return "array";
         }
         return "string";
+    }
+
+    /**
+     * Check if a recipe is safe to execute without additional configuration.
+     * Some recipes require specific parameters that may not be set and can cause NPE.
+     */
+    private boolean isRecipeSafeToExecute(String recipeName) {
+        if (recipeName == null || recipeName.isBlank()) {
+            return false;
+        }
+        
+        // Filter out recipes that typically require specific configuration
+        // These recipes often fail with NPE when required parameters are not set
+        Set<String> problematicRecipes = Set.of(
+            "org.openrewrite.java.CreateEmptyJavaClass",
+            "org.openrewrite.yaml.CreateYamlFile",
+            "org.openrewrite.text.CreateTextFile",
+            "org.openrewrite.xml.CreateXmlFile",
+            "org.openrewrite.RenameFile",
+            "org.openrewrite.java.ChangePackage"
+        );
+        
+        if (problematicRecipes.contains(recipeName)) {
+            LOGGER.debug("Filtering out recipe {} - requires specific configuration", recipeName);
+            return false;
+        }
+        
+        // Also filter recipes that are known to require parameters
+        RecipeInfo info = recipes.get(recipeName);
+        if (info != null && hasRequiredOptions(info)) {
+            LOGGER.debug("Filtering out recipe {} - has required options that may not be configured", recipeName);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Check if a recipe has options that are typically required for execution.
+     */
+    private boolean hasRequiredOptions(RecipeInfo info) {
+        if (info.options() == null || info.options().isEmpty()) {
+            return false;
+        }
+        
+        // Check for common parameter patterns that usually indicate required configuration
+        for (RecipeOption option : info.options()) {
+            if (option.name() == null) {
+                continue;
+            }
+            
+            String optionName = option.name().toLowerCase(Locale.ROOT);
+            // These are typically required parameters that cause NPE if null
+            if (optionName.contains("packagename") || 
+                optionName.contains("classname") ||
+                optionName.contains("filepath") ||
+                optionName.contains("filename") ||
+                optionName.contains("path")) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**
