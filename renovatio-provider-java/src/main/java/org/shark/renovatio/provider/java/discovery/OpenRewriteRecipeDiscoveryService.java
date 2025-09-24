@@ -61,9 +61,7 @@ public class OpenRewriteRecipeDiscoveryService {
         "org.openrewrite.java.dependencies.RemoveDependency",
         "org.openrewrite.java.dependencies.ChangeDependency",
         "org.openrewrite.java.RecipeMarkupDemonstration",
-        // Recipes that act as generic containers require explicit configuration.
-        "org.openrewrite.config.CompositeRecipe"
-    );
+
 
     private static final List<String> UNSAFE_RECIPE_PREFIXES = List.of(
         // Example/demo recipes frequently spin up CreateEmptyJavaClass without configuration.
