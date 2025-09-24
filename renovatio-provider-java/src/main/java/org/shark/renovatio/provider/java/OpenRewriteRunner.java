@@ -91,6 +91,45 @@ public class OpenRewriteRunner {
     }
 
     /**
+     * Checks if the recipe is known to require parameters and is not configured.
+     * Returns true if the recipe should be filtered out to avoid runtime errors.
+     */
+    private boolean isRecipeMissingRequiredParameters(Recipe recipe) {
+        String recipeName = recipe.getClass().getName();
+        // Add more recipes as needed
+        if (recipeName.equals("org.openrewrite.java.CreateEmptyJavaClass")) {
+            try {
+                Object packageName = recipe.getClass().getMethod("getPackageName").invoke(recipe);
+                Object className = recipe.getClass().getMethod("getClassName").invoke(recipe);
+                return packageName == null || String.valueOf(packageName).isEmpty() ||
+                       className == null || String.valueOf(className).isEmpty();
+            } catch (Exception e) {
+                return true; // If we can't check, assume it's missing
+            }
+        }
+        if (recipeName.equals("org.openrewrite.yaml.CreateYamlFile")) {
+            // Defensive: try both reflection and fallback to toString
+            try {
+                Method getPath = recipe.getClass().getMethod("getPath");
+                Object path = getPath.invoke(recipe);
+                if (path == null || String.valueOf(path).isEmpty()) {
+                    return true;
+                }
+            } catch (Exception e) {
+                // Fallback: check if toString or fields mention path=null
+                String asString = recipe.toString();
+                if (asString.contains("path=null") || asString.contains("path=''")) {
+                    return true;
+                }
+                // If we can't check, assume it's missing
+                return true;
+            }
+        }
+        // Add more recipes with required parameters as needed
+        return false;
+    }
+
+    /**
      * Execute the provided recipe for the given source files.
      *
      * @param recipe      the recipe to execute
@@ -103,6 +142,12 @@ public class OpenRewriteRunner {
         Objects.requireNonNull(recipe, "recipe");
         Objects.requireNonNull(ctx, "ctx");
         Objects.requireNonNull(sourceFiles, "sourceFiles");
+
+        // === FILTER recipes with missing required parameters ===
+        if (isRecipeMissingRequiredParameters(recipe)) {
+            throw new IllegalStateException("OpenRewrite recipe '" + recipe.getClass().getName() + "' requires parameters that are not set. " +
+                "Please configure all required parameters before execution, or use a different recipe.");
+        }
 
         try {
             if (RUN_WITH_LARGE_SOURCE_SET != null && LARGE_SOURCE_SET_CLASS != null) {
