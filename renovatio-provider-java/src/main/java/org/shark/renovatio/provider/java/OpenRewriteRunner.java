@@ -167,7 +167,9 @@ public class OpenRewriteRunner {
                         currentMessage.contains("Cannot invoke \"String.replace")) {
                         throw new IllegalStateException("Failed to execute OpenRewrite recipe - Recipe requires specific configuration parameters that are not set. " +
                             "Recipes like CreateEmptyJavaClass need parameters such as 'packageName'. " +
-                            "Consider using a different recipe or providing the required configuration. " +
+                            "These recipes have been filtered out in newer versions to prevent this error. " +
+                            "Consider using safe alternatives like: 'org.openrewrite.java.format.AutoFormat', " +
+                            "'org.openrewrite.java.cleanup.UnnecessaryParentheses', or browse recipes with the 'java_recipe_list' tool. " +
                             "Original error: " + currentMessage, ex);
                     }
                     
@@ -176,7 +178,8 @@ public class OpenRewriteRunner {
                         currentMessage.contains("fieldName") ||
                         currentMessage.contains("type") && current instanceof NullPointerException) {
                         throw new IllegalStateException("Failed to execute OpenRewrite recipe - Recipe requires specific configuration parameters that are not set. " +
-                            "Please check that all required parameters are provided for the recipe. " +
+                            "These types of recipes have been filtered out in newer versions to prevent this error. " +
+                            "Please use the 'java_recipe_list' tool to find safe recipes, or browse by profile using 'quality', 'modernize', 'security', etc. " +
                             "Original error: " + currentMessage, ex);
                     }
                 }
