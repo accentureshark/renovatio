@@ -1,6 +1,5 @@
 package org.shark.renovatio.shared.domain;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -34,8 +33,8 @@ public class MetricsResult {
         return metrics;
     }
     public void setMetrics(Map<String, Number> metrics) {
-        this.metrics.clear();
-        if (metrics != null) this.metrics.putAll(metrics);
+        // Replace internal map to avoid unintended shared references and remove O(n) clear+putAll pattern
+        this.metrics = (metrics != null) ? new HashMap<>(metrics) : new HashMap<>();
     }
     public Map<String, Object> getDetails() {
         return details;

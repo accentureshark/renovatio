@@ -39,10 +39,15 @@ class McpToolingServiceIntegrationTest {
     void toolsListContainsCuratedCatalog() {
         List<McpTool> tools = toolingService.getMcpTools();
         assertFalse(tools.isEmpty());
-        assertTrue(tools.size() <= 15, "Tool catalog should be limited");
+        // Updated upper bound after enabling additional language providers (Java + COBOL (+ optional JCL))
+        assertTrue(tools.size() <= 25, "Tool catalog unexpectedly large (" + tools.size() + ")");
         Set<String> names = tools.stream().map(McpTool::getName).collect(Collectors.toSet());
         assertTrue(names.contains("java_discover"));
         assertTrue(names.contains("java_analyze"));
+        // If COBOL provider is present ensure its core analyze tool is exposed
+        if (names.stream().anyMatch(n -> n.startsWith("cobol_"))) {
+            assertTrue(names.contains("cobol_analyze"), "Expected cobol_analyze tool when COBOL provider active");
+        }
         assertFalse(names.stream().anyMatch(name -> name.startsWith("java_apply_")), "Recipes should not be exposed individually");
 
         McpTool analyze = tools.stream().filter(tool -> tool.getName().equals("java_analyze")).findFirst().orElseThrow();

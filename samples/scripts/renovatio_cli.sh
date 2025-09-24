@@ -47,7 +47,8 @@ if [ "$PARAMS" != "[]" ]; then
     PNAME=$(echo "$PARAMS" | jq -r ".[$j].name")
     PTYPE=$(echo "$PARAMS" | jq -r ".[$j].type // \"string\"")
     PDESC=$(echo "$PARAMS" | jq -r ".[$j].description? // \"\"")
-    PEXAMPLE=$(echo "$EXAMPLE" | jq -r ".${PNAME} // \"\"")
+    # Safe dynamic lookup using --arg
+    PEXAMPLE=$(echo "$EXAMPLE" | jq -r --arg k "$PNAME" '.[$k] // ""')
     PROMPT="Argumento '$PNAME' ($PTYPE): $PDESC"
     if [ -n "$PEXAMPLE" ]; then
       PROMPT+=" [Ejemplo: $PEXAMPLE]"

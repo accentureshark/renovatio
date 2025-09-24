@@ -15,9 +15,11 @@ import org.springframework.context.annotation.ComponentScan;
 @SpringBootApplication
 @ComponentScan(basePackages = {
     "org.shark.renovatio.mcp.server",
-    "org.shark.renovatio.core.service",
+    "org.shark.renovatio.core",
     "org.shark.renovatio.shared",
-    "org.shark.renovatio.provider.java"
+    "org.shark.renovatio.provider.java",
+    "org.shark.renovatio.provider.cobol",
+    "org.shark.renovatio.provider.jcl"
 })
 public class McpServerApplication {
 

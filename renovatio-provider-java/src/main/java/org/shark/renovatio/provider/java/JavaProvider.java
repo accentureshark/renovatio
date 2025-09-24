@@ -927,17 +927,14 @@ public class JavaProvider extends BaseLanguageProvider {
 
         LinkedHashSet<String> safe = new LinkedHashSet<>();
         for (String recipe : recipes) {
-            if (recipe == null) {
+            if (recipe == null || recipe.isBlank()) {
                 continue;
             }
             String trimmed = recipe.trim();
-            if (trimmed.isEmpty()) {
-                continue;
-            }
             if (discoveryService.isRecipeSafe(trimmed)) {
                 safe.add(trimmed);
             } else {
-                // LOGGER.warn("Skipping unsafe recipe '{}' requested by client", recipe);
+                // Skipped unsafe recipe
             }
         }
         return List.copyOf(safe);

@@ -17,48 +17,10 @@ public class RecipeSafetyUtils {
         // Special logic for CreateEmptyJavaClass and subclasses: both methods must exist and return valid values
         if (recipeName != null && recipeName.startsWith("org.openrewrite.java.CreateEmptyJavaClass")) {
             // Both methods must exist and return valid, non-blank values
-            try {
-                Method getPackage = recipe.getClass().getMethod("getPackageName");
-                getPackage.setAccessible(true); // Fix IllegalAccessException
-                Object packageValue = getPackage.invoke(recipe);
-                if (packageValue == null) {
-                    return true;
-                }
-                if (packageValue instanceof Optional<?> opt) {
-                    if (opt.isEmpty()) {
-                        return true;
-                    }
-                    Object inner = opt.get();
-                    if (inner instanceof String s && s.isBlank()) {
-                        return true;
-                    }
-                } else if (packageValue instanceof String s && s.isBlank()) {
-                    return true;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+            if (isBlankish(safeInvoke(recipe, "getPackageName"))) {
                 return true;
             }
-            try {
-                Method getClassName = recipe.getClass().getMethod("getClassName");
-                getClassName.setAccessible(true); // Fix IllegalAccessException
-                Object classValue = getClassName.invoke(recipe);
-                if (classValue == null) {
-                    return true;
-                }
-                if (classValue instanceof Optional<?> opt) {
-                    if (opt.isEmpty()) {
-                        return true;
-                    }
-                    Object inner = opt.get();
-                    if (inner instanceof String s && s.isBlank()) {
-                        return true;
-                    }
-                } else if (classValue instanceof String s && s.isBlank()) {
-                    return true;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+            if (isBlankish(safeInvoke(recipe, "getClassName"))) {
                 return true;
             }
             // If both parameters are present and non-blank, it's safe
@@ -71,6 +33,10 @@ public class RecipeSafetyUtils {
         for (String getter : requiredGetters) {
             try {
                 Method m = recipe.getClass().getMethod(getter);
+                if (!m.canAccess(recipe)) {
+                    // If we cannot access, treat as missing
+                    return true;
+                }
                 Object value = m.invoke(recipe);
                 if (isValueMissing(value)) {
                     return true;
@@ -93,6 +59,30 @@ public class RecipeSafetyUtils {
             "org.openrewrite.text.AppendToTextFile".equals(recipeName)) {
             return true;
         }
+        return false;
+    }
+
+    private static Object safeInvoke(Recipe recipe, String method) {
+        try {
+            Method m = recipe.getClass().getMethod(method);
+            if (!m.canAccess(recipe)) {
+                return null; // Don't force accessible; treat as missing
+            }
+            return m.invoke(recipe);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static boolean isBlankish(Object value) {
+        if (value == null) return true;
+        if (value instanceof Optional<?> opt) {
+            if (opt.isEmpty()) return true;
+            Object inner = opt.get();
+            if (inner instanceof String s) return s.isBlank();
+            return inner == null; // treat null optional content as blankish
+        }
+        if (value instanceof String s) return s.isBlank();
         return false;
     }
 
