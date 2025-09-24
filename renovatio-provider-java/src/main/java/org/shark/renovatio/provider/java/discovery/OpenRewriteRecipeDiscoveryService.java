@@ -60,8 +60,12 @@ public class OpenRewriteRecipeDiscoveryService {
         "org.openrewrite.java.dependencies.AddDependency",
         "org.openrewrite.java.dependencies.RemoveDependency",
         "org.openrewrite.java.dependencies.ChangeDependency",
-        // Recipes that act as generic containers require explicit configuration.
-        "org.openrewrite.config.CompositeRecipe"
+        "org.openrewrite.java.RecipeMarkupDemonstration",
+
+
+    private static final List<String> UNSAFE_RECIPE_PREFIXES = List.of(
+        // Example/demo recipes frequently spin up CreateEmptyJavaClass without configuration.
+        "org.openrewrite.java.recipes."
     );
 
     private static final Set<String> REQUIRED_OPTION_KEYWORDS = Set.of(
@@ -349,6 +353,13 @@ public class OpenRewriteRecipeDiscoveryService {
         if (UNSAFE_RECIPES.contains(recipeName)) {
             LOGGER.debug("Filtering out recipe {} - requires specific configuration", recipeName);
             return false;
+        }
+
+        for (String prefix : UNSAFE_RECIPE_PREFIXES) {
+            if (recipeName.startsWith(prefix)) {
+                LOGGER.debug("Filtering out recipe {} - recipes under {} require explicit configuration", recipeName, prefix);
+                return false;
+            }
         }
 
         // Check for recipe patterns that typically require configuration

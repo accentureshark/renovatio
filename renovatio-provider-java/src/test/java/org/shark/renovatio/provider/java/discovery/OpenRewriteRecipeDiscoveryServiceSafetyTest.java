@@ -38,5 +38,15 @@ class OpenRewriteRecipeDiscoveryServiceSafetyTest {
             "Quality profile should not include recipes that require additional configuration");
         assertFalse(qualityProfile.contains("org.openrewrite.java.CreateEmptyJavaClass"),
             "Quality profile should exclude CreateEmptyJavaClass to avoid NPEs");
+        assertFalse(qualityProfile.contains("org.openrewrite.java.recipes.SelectRecipeExamples"),
+            "Quality profile should exclude demonstration recipes that create new files");
+    }
+
+    @Test
+    void recipeExamplesNamespaceIsTreatedAsUnsafe() {
+        assertFalse(DISCOVERY_SERVICE.isRecipeSafe("org.openrewrite.java.recipes.SelectRecipeExamples"),
+            "Recipes in the examples namespace should be treated as unsafe by default");
+        assertFalse(DISCOVERY_SERVICE.isRecipeSafe("org.openrewrite.java.RecipeMarkupDemonstration"),
+            "Recipe markup demonstrations spawn CreateEmptyJavaClass and must be blocked");
     }
 }

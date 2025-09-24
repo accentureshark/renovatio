@@ -71,10 +71,18 @@ public class JavaRefactorPlanner {
             selected.addAll(profiles.getOrDefault("quality", List.of()));
         }
 
+        selected.removeIf(recipe -> {
+            boolean safe = discoveryService.isRecipeSafe(recipe);
+            if (!safe) {
+                LOGGER.warn("Removing unsafe recipe '{}' from plan", recipe);
+            }
+            return !safe;
+        });
+
         if (excludeRecipes != null) {
             for (String recipe : excludeRecipes) {
                 if (recipe != null) {
-                    selected.remove(recipe);
+                    selected.remove(recipe.trim());
                 }
             }
         }
