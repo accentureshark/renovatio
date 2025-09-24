@@ -104,7 +104,7 @@ public class JavaProvider extends BaseLanguageProvider {
         List<String> exclude = combineLists(listParam(params, "exclude"), listParam(params, "excludeRecipes"));
         int maxFindings = intParam(params, "maxFindings", 200);
 
-        List<String> recipes = planner.resolveRecipes(goals, include, exclude);
+        List<String> recipes = sanitizeRecipes(planner.resolveRecipes(goals, include, exclude));
         List<String> scopePatterns = listParam(params, "scope");
         if (scopePatterns.isEmpty()) {
             scopePatterns = DEFAULT_SCOPE;
@@ -291,7 +291,12 @@ public class JavaProvider extends BaseLanguageProvider {
             scope = DEFAULT_SCOPE;
         }
 
-        JavaRecipeExecutionResult execution = executor.apply(workspace.toString(), recipes, scope, dryRun);
+        List<String> sanitizedRecipes = sanitizeRecipes(recipes);
+        if (sanitizedRecipes.isEmpty()) {
+            return error(result, "All requested recipes require configuration. Provide safe recipes or a curated profile");
+        }
+
+        JavaRecipeExecutionResult execution = executor.apply(workspace.toString(), sanitizedRecipes, scope, dryRun);
         String runId = planId != null ? planId + "-run" : generateRunId();
         executions.put(runId, execution);
         result.put("runId", runId);
@@ -913,6 +918,29 @@ public class JavaProvider extends BaseLanguageProvider {
         } catch (NumberFormatException ex) {
             return defaultValue;
         }
+    }
+
+    private List<String> sanitizeRecipes(List<String> recipes) {
+        if (recipes == null || recipes.isEmpty()) {
+            return List.of();
+        }
+
+        LinkedHashSet<String> safe = new LinkedHashSet<>();
+        for (String recipe : recipes) {
+            if (recipe == null) {
+                continue;
+            }
+            String trimmed = recipe.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (discoveryService.isRecipeSafe(trimmed)) {
+                safe.add(trimmed);
+            } else {
+                LOGGER.warn("Skipping unsafe recipe '{}' requested by client", recipe);
+            }
+        }
+        return List.copyOf(safe);
     }
 
     private List<String> combineLists(List<String> first, List<String> second) {
