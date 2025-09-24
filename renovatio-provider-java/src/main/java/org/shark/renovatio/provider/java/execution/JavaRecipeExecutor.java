@@ -81,11 +81,22 @@ public class JavaRecipeExecutor {
                     "No Java files found in workspace");
             }
 
-            List<String> recipeList = recipes != null ? recipes.stream()
+            List<String> requestedRecipes = recipes != null ? recipes.stream()
                 .filter(Objects::nonNull)
+                .map(String::trim)
                 .filter(name -> !name.isBlank())
-                .distinct()
                 .collect(Collectors.toList()) : List.of();
+
+            List<String> recipeList = requestedRecipes.stream()
+                .filter(name -> {
+                    if (discoveryService.isRecipeSafe(name)) {
+                        return true;
+                    }
+                    LOGGER.warn("Skipping recipe '{}' - requires specific configuration parameters that are not provided", name);
+                    return false;
+                })
+                .distinct()
+                .collect(Collectors.toList());
 
             ExecutionContext ctx = new InMemoryExecutionContext(Throwable::printStackTrace);
             List<SourceFile> sourceFiles = parseSources(javaFiles, ctx);
