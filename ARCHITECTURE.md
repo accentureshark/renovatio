@@ -49,7 +49,7 @@ Este documento describe la arquitectura modular de Renovatio, donde la lógica M
 **Propósito**: Motor de refactorización y migración agnóstico de protocolo.
 
 **Características Clave**:
-- ✅ Sin dependencias MCP
+- ✅ Sin dependencias MCP (protocol-agnostic)
 - ✅ Abstracciones de Tool y Recipe independientes de protocolo
 - ✅ Registro de proveedores de lenguaje con generación dinámica de herramientas
 - ✅ Usable como dependencia Maven o librería standalone
@@ -92,7 +92,7 @@ Map<String, Object> result = registry.routeToolCall("java.analyze", arguments);
 cd renovatio-mcp-server
 mvn spring-boot:run
 ```
-El servidor inicia en el puerto 8080 y atiende solicitudes MCP en `http://localhost:8080/`.
+El servidor inicia en el puerto 8080 por defecto y atiende solicitudes MCP en `http://localhost:8080/`.
 
 ### 🔗 renovatio-shared (Abstracciones Comunes)
 
