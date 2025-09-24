@@ -156,6 +156,33 @@ public class OpenRewriteRunner {
         } catch (ReflectiveOperationException ex) {
             // Enhanced error handling - check for known problematic recipes
             String errorMessage = ex.getMessage();
+            Throwable cause = ex.getCause();
+            
+            // Check the full exception chain for NPE related to recipe parameters
+            Throwable current = ex;
+            while (current != null) {
+                String currentMessage = current.getMessage();
+                if (currentMessage != null) {
+                    if (currentMessage.contains("packageName") || 
+                        currentMessage.contains("Cannot invoke \"String.replace")) {
+                        throw new IllegalStateException("Failed to execute OpenRewrite recipe - Recipe requires specific configuration parameters that are not set. " +
+                            "Recipes like CreateEmptyJavaClass need parameters such as 'packageName'. " +
+                            "Consider using a different recipe or providing the required configuration. " +
+                            "Original error: " + currentMessage, ex);
+                    }
+                    
+                    if (currentMessage.contains("className") || 
+                        currentMessage.contains("methodName") ||
+                        currentMessage.contains("fieldName") ||
+                        currentMessage.contains("type") && current instanceof NullPointerException) {
+                        throw new IllegalStateException("Failed to execute OpenRewrite recipe - Recipe requires specific configuration parameters that are not set. " +
+                            "Please check that all required parameters are provided for the recipe. " +
+                            "Original error: " + currentMessage, ex);
+                    }
+                }
+                current = current.getCause();
+            }
+            
             if (errorMessage != null && (errorMessage.contains("packageName") || errorMessage.contains("Cannot invoke \"String.replace"))) {
                 throw new IllegalStateException("Failed to execute OpenRewrite recipe - likely due to misconfigured recipe parameters. " +
                     "Some recipes require specific configuration (e.g., packageName for CreateEmptyJavaClass). " +
@@ -165,6 +192,17 @@ public class OpenRewriteRunner {
         } catch (Exception ex) {
             // Catch any other exceptions that might occur during recipe execution
             String errorMessage = ex.getMessage();
+            Throwable cause = ex.getCause();
+            
+            // Check for NullPointerException that might be related to missing parameters
+            if (ex instanceof NullPointerException || 
+                (cause instanceof NullPointerException)) {
+                throw new IllegalStateException("Recipe execution failed due to missing required parameters. " +
+                    "This typically happens with recipes that require specific configuration like packageName, className, etc. " +
+                    "Consider using recipes that don't require additional parameters or provide the necessary configuration. " +
+                    "Original error: " + (errorMessage != null ? errorMessage : ex.getClass().getSimpleName()), ex);
+            }
+            
             if (errorMessage != null && errorMessage.contains("packageName")) {
                 throw new IllegalStateException("Recipe execution failed due to missing required parameters. " +
                     "This typically happens with recipes like CreateEmptyJavaClass that require packageName configuration. " +

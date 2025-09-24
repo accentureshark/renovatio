@@ -278,15 +278,42 @@ public class OpenRewriteRecipeDiscoveryService {
         // These recipes often fail with NPE when required parameters are not set
         Set<String> problematicRecipes = Set.of(
             "org.openrewrite.java.CreateEmptyJavaClass",
-            "org.openrewrite.yaml.CreateYamlFile",
+            "org.openrewrite.yaml.CreateYamlFile", 
             "org.openrewrite.text.CreateTextFile",
             "org.openrewrite.xml.CreateXmlFile",
             "org.openrewrite.RenameFile",
-            "org.openrewrite.java.ChangePackage"
+            "org.openrewrite.java.ChangePackage",
+            "org.openrewrite.java.ChangeType",
+            "org.openrewrite.java.ChangeFieldType",
+            "org.openrewrite.java.ChangeFieldName",
+            "org.openrewrite.java.ChangeMethodName",
+            "org.openrewrite.java.ChangeStaticFieldToMethod",
+            "org.openrewrite.java.AddImport",
+            "org.openrewrite.java.RemoveImport",
+            "org.openrewrite.java.ReplaceStringLiteral",
+            "org.openrewrite.java.search.FindMethods",
+            "org.openrewrite.java.search.FindFields",
+            "org.openrewrite.java.search.FindTypes",
+            "org.openrewrite.java.dependencies.AddDependency",
+            "org.openrewrite.java.dependencies.RemoveDependency",
+            "org.openrewrite.java.dependencies.ChangeDependency"
         );
         
         if (problematicRecipes.contains(recipeName)) {
             LOGGER.debug("Filtering out recipe {} - requires specific configuration", recipeName);
+            return false;
+        }
+        
+        // Check for recipe patterns that typically require configuration
+        if (recipeName.toLowerCase(Locale.ROOT).contains("create") && 
+            (recipeName.contains("Class") || recipeName.contains("File"))) {
+            LOGGER.debug("Filtering out recipe {} - creation recipes typically require specific parameters", recipeName);
+            return false;
+        }
+        
+        if (recipeName.toLowerCase(Locale.ROOT).contains("change") &&
+            (recipeName.contains("Type") || recipeName.contains("Method") || recipeName.contains("Field"))) {
+            LOGGER.debug("Filtering out recipe {} - change recipes typically require specific parameters", recipeName);
             return false;
         }
         
@@ -320,8 +347,28 @@ public class OpenRewriteRecipeDiscoveryService {
                 optionName.contains("classname") ||
                 optionName.contains("filepath") ||
                 optionName.contains("filename") ||
-                optionName.contains("path")) {
-                return true;
+                optionName.contains("path") ||
+                optionName.contains("methodname") ||
+                optionName.contains("fieldname") ||
+                optionName.contains("typename") ||
+                optionName.contains("oldname") ||
+                optionName.contains("newname") ||
+                optionName.contains("oldtype") ||
+                optionName.contains("newtype") ||
+                optionName.contains("groupid") ||
+                optionName.contains("artifactid") ||
+                optionName.contains("version") ||
+                // Common OpenRewrite option patterns
+                optionName.equals("type") ||
+                optionName.equals("name") ||
+                optionName.equals("target") ||
+                optionName.equals("source")) {
+                
+                // Check if the option has a default value - if not, it's likely required
+                if (option.defaultValue() == null || 
+                    (option.defaultValue() instanceof String && ((String) option.defaultValue()).isEmpty())) {
+                    return true;
+                }
             }
         }
         
