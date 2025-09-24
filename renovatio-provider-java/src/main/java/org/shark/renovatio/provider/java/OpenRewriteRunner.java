@@ -190,10 +190,16 @@ public class OpenRewriteRunner {
     }
 
     private boolean matchesRecipe(Recipe recipe, String recipeName, String targetName) {
-        if (targetName.equals(recipe.getClass().getName())) {
+        String className = recipe.getClass().getName();
+        if (targetName.equals(className) || className.startsWith(targetName + "$")) {
             return true;
         }
-        return recipeName != null && targetName.equals(recipeName);
+
+        if (recipeName != null) {
+            return targetName.equals(recipeName) || recipeName.startsWith(targetName + "$");
+        }
+
+        return false;
     }
 
     /**

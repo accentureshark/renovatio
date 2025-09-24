@@ -58,6 +58,8 @@ dist/
 
 # Application specific
 renovatio
+!*/src/**/renovatio
+!*/src/**/renovatio/**
 *.class
 
 # Test coverage
