@@ -14,9 +14,12 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 
 /**
@@ -95,20 +98,56 @@ public class OpenRewriteRunner {
      * Returns true if the recipe should be filtered out to avoid runtime errors.
      */
     private boolean isRecipeMissingRequiredParameters(Recipe recipe) {
-        String recipeName = recipe.getClass().getName();
-        // Add more recipes as needed
-        if (recipeName.equals("org.openrewrite.java.CreateEmptyJavaClass")) {
+        if (recipe == null) {
+            return false;
+        }
+        Set<Recipe> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+        return isRecipeMissingRequiredParameters(recipe, visited);
+    }
+
+    private boolean isRecipeMissingRequiredParameters(Recipe recipe, Set<Recipe> visited) {
+        if (recipe == null || !visited.add(recipe)) {
+            return false;
+        }
+
+        if (isSingleRecipeMissingRequiredParameters(recipe)) {
+            return true;
+        }
+
+        try {
+            Collection<Recipe> nested = recipe.getRecipeList();
+            if (nested != null) {
+                for (Recipe nestedRecipe : nested) {
+                    if (isRecipeMissingRequiredParameters(nestedRecipe, visited)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (UnsupportedOperationException ignored) {
+            // Some Recipe implementations may not support getRecipeList; ignore and continue.
+        } catch (Exception ex) {
+            // If we cannot inspect nested recipes, be conservative and block execution.
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean isSingleRecipeMissingRequiredParameters(Recipe recipe) {
+        String recipeName = safeRecipeName(recipe);
+
+        if (matchesRecipe(recipe, recipeName, "org.openrewrite.java.CreateEmptyJavaClass")) {
             try {
                 Object packageName = recipe.getClass().getMethod("getPackageName").invoke(recipe);
                 Object className = recipe.getClass().getMethod("getClassName").invoke(recipe);
                 return packageName == null || String.valueOf(packageName).isEmpty() ||
-                       className == null || String.valueOf(className).isEmpty();
+                    className == null || String.valueOf(className).isEmpty();
             } catch (Exception e) {
                 return true; // If we can't check, assume it's missing
             }
         }
-        if (recipeName.equals("org.openrewrite.yaml.CreateYamlFile")) {
-            // Defensive: try both reflection and fallback to toString
+
+        if (matchesRecipe(recipe, recipeName, "org.openrewrite.yaml.CreateYamlFile")) {
             try {
                 Method getPath = recipe.getClass().getMethod("getPath");
                 Object path = getPath.invoke(recipe);
@@ -116,17 +155,45 @@ public class OpenRewriteRunner {
                     return true;
                 }
             } catch (Exception e) {
-                // Fallback: check if toString or fields mention path=null
                 String asString = recipe.toString();
                 if (asString.contains("path=null") || asString.contains("path=''")) {
                     return true;
                 }
-                // If we can't check, assume it's missing
                 return true;
             }
         }
-        // Add more recipes with required parameters as needed
+
+        if (matchesRecipe(recipe, recipeName, "org.openrewrite.text.CreateTextFile") ||
+            matchesRecipe(recipe, recipeName, "org.openrewrite.xml.CreateXmlFile")) {
+            try {
+                Method getPath = recipe.getClass().getMethod("getPath");
+                Object path = getPath.invoke(recipe);
+                return path == null || String.valueOf(path).isEmpty();
+            } catch (Exception e) {
+                return true;
+            }
+        }
+
         return false;
+    }
+
+    private String safeRecipeName(Recipe recipe) {
+        try {
+            String name = recipe.getName();
+            if (name != null && !name.isBlank()) {
+                return name;
+            }
+        } catch (Exception ignored) {
+            // Older versions may not expose getName; fall back to class name.
+        }
+        return recipe.getClass().getName();
+    }
+
+    private boolean matchesRecipe(Recipe recipe, String recipeName, String targetName) {
+        if (targetName.equals(recipe.getClass().getName())) {
+            return true;
+        }
+        return recipeName != null && targetName.equals(recipeName);
     }
 
     /**
