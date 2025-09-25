@@ -38,14 +38,14 @@
     </properties>
     
       <modules>
-          <module>renovatio-shared</module>
+
           <module>renovatio-core</module>
-          <module>renovatio-provider-java</module>
-          <module>renovatio-provider-cobol</module>
-          <module>renovatio-provider-jcl</module>
           <module>renovatio-mcp-server</module>
-          <module>renovatio-agent</module>
-          <module>renovatio-client</module>
+          <module>renovatio-provider-cobol</module>
+          <module>renovatio-provider-java</module>
+          <module>renovatio-provider-jcl</module>
+          <module>renovatio-shared</module>
+
       </modules>
     
     <dependencyManagement>
