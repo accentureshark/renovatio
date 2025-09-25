@@ -30,22 +30,16 @@
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <lucene.version>9.8.0</lucene.version>
         <jgit.version>6.7.0.202309050840-r</jgit.version>
-        <langchain4j.version>0.25.0</langchain4j.version>
         <antlr4.version>4.11.1</antlr4.version>
-        <resilience4j.version>2.1.0</resilience4j.version>
-        <micrometer.version>1.12.1</micrometer.version>
         <mustache.version>0.9.10</mustache.version>
     </properties>
     
       <modules>
-
-          <module>renovatio-core</module>
-          <module>renovatio-mcp-server</module>
-          <module>renovatio-provider-cobol</module>
-          <module>renovatio-provider-java</module>
-          <module>renovatio-provider-jcl</module>
           <module>renovatio-shared</module>
-
+          <module>renovatio-core</module>
+          <module>renovatio-provider-java</module>
+          <module>renovatio-provider-cobol</module>
+          <module>renovatio-mcp-server</module>
       </modules>
     
     <dependencyManagement>
@@ -71,11 +65,7 @@
                   <artifactId>renovatio-provider-cobol</artifactId>
                   <version>${project.version}</version>
               </dependency>
-            <dependency>
-                <groupId>org.shark.renovatio</groupId>
-                <artifactId>renovatio-provider-jcl</artifactId>
-                <version>${project.version}</version>
-            </dependency>
+
             <dependency>
                 <groupId>org.shark.renovatio</groupId>
                 <artifactId>renovatio-mcp-server</artifactId>
@@ -165,38 +155,12 @@
                 <scope>provided</scope>
             </dependency>
             
-            <!-- LLM integration -->
-            <dependency>
-                <groupId>dev.langchain4j</groupId>
-                <artifactId>langchain4j</artifactId>
-                <version>${langchain4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>dev.langchain4j</groupId>
-                <artifactId>langchain4j-open-ai</artifactId>
-                <version>${langchain4j.version}</version>
-            </dependency>
-            
-            <!-- ANTLR for NQL grammar validation -->
+            <!-- ANTLR for NQL grammar -->
             <dependency>
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr4-runtime</artifactId>
                 <version>${antlr4.version}</version>
             </dependency>
-            
-            <!-- Resilience and monitoring -->
-            <dependency>
-                <groupId>io.github.resilience4j</groupId>
-                <artifactId>resilience4j-spring-boot3</artifactId>
-                <version>${resilience4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-registry-prometheus</artifactId>
-                <version>${micrometer.version}</version>
-            </dependency>
-            
-            <!-- COBOL parsing (using available parser as placeholder) -->
             <dependency>
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr4</artifactId>
