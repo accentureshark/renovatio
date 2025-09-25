@@ -121,7 +121,7 @@ renovatio/
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "id": "1", "method": "initialize", "params": {}}' \
-  http://localhost:8181/
+  http://localhost:8080/
 ```
 
 ### Listar herramientas disponibles
@@ -129,7 +129,7 @@ curl -X POST -H "Content-Type: application/json" \
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "id": "2", "method": "tools/list", "params": {}}' \
-  http://localhost:8181/
+  http://localhost:8080/
 ```
 
 ### Ejecutar herramienta Java (OpenRewrite)
@@ -147,7 +147,7 @@ curl -X POST -H "Content-Type: application/json" \
       }
     }
   }' \
-  http://localhost:8181/
+  http://localhost:8080/
 ```
 
 ### Analizar programa COBOL
@@ -167,14 +167,14 @@ curl -X POST -H "Content-Type: application/json" \
       }
     }
   }' \
-  http://localhost:8181/
+  http://localhost:8080/
 ```
 
 ---
 
 ## Configuración y Variables de Entorno
 
-- `SERVER_PORT`: Puerto del servidor (por defecto 8181)
+- `SERVER_PORT`: Puerto del servidor MCP (por defecto 8080)
 - `SPRING_PROFILES_ACTIVE`: Perfil activo de Spring
 - `RENOVATIO_COBOL_PARSER_MAX_FILE_SIZE`: Tamaño máximo de archivo COBOL (por defecto 10MB)
 - `RENOVATIO_COBOL_GENERATION_TARGET_PACKAGE`: Paquete Java objetivo por defecto
@@ -184,7 +184,7 @@ curl -X POST -H "Content-Type: application/json" \
 
 ## Documentación y Recursos
 
-- **OpenAPI/Swagger UI**: [http://localhost:8181/swagger-ui/index.html](http://localhost:8181/swagger-ui/index.html)
+- **OpenAPI/Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 - **MCP Spec**: [Model Content Protocol](https://modelcontentprotocol.io/specification/2025-06-18/)
 - **Documentación modular**: Ver README y docs en cada módulo provider.
 
