@@ -1,4 +1,4 @@
-package org.renovatio.provider.java;
+package org.shark.renovatio.provider.java;
 
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;

@@ -11,14 +11,13 @@ Renovatio está organizado como un proyecto multi-módulo Maven, siguiendo una a
 ```
 renovatio/
 ├── renovatio-shared/         # Modelos, DTOs y utilidades compartidas
-├── renovatio-core/           # Núcleo de lógica de negocio y orquestación
+├── renovatio-core/           # Núcleo de lógica de negocio y orquestación (protocol-agnostic)
 ├── renovatio-provider-java/  # Proveedor Java (OpenRewrite)
 ├── renovatio-provider-cobol/ # Proveedor COBOL (parsing, migración)
 ├── renovatio-provider-jcl/   # Proveedor JCL (parsing, conversión)
-├── renovatio-web/            # Capa web REST/MCP
+├── renovatio-mcp-server/     # Servidor MCP (implementación de protocolo)
 ├── renovatio-agent/          # Agente de ejecución distribuida/batch
 ├── renovatio-client/         # Cliente MCP standalone
-├── renovatio-mcp-server/     # Servidor MCP (implementación de protocolo)
 └── ...
 ```
 
@@ -46,8 +45,8 @@ renovatio/
 - **Responsabilidad:** Parsing y traducción de scripts JCL a shell, GitHub Actions, Spring Batch o Airflow.
 - **Incluye:** Parser JCL, generación de AST, herramientas MCP para conversión de workflows batch.
 
-### renovatio-web
-- **Responsabilidad:** Exposición de APIs REST y MCP (JSON-RPC 2.0), documentación OpenAPI, controladores, manejo de errores y configuración Spring Boot.
+### renovatio-mcp-server
+- **Responsabilidad:** Exposición de APIs MCP (JSON-RPC 2.0), documentación OpenAPI, controladores, manejo de errores y configuración Spring Boot. Implementación completa del protocolo MCP que expone el motor core.
 
 ### renovatio-agent
 - **Responsabilidad:** Ejecución distribuida o en segundo plano de jobs de migración/refactorización, integración con JGit, monitoreo y reporting.
@@ -55,9 +54,7 @@ renovatio/
 ### renovatio-client
 - **Responsabilidad:** Cliente MCP standalone para invocación de herramientas y pruebas de integración.
 
-### renovatio-mcp-server
-- **Responsabilidad:** Implementación completa del protocolo MCP, exposición de todas las herramientas y métodos MCP, manejo de sesiones, workspace, prompts, recursos y errores.
-- **Incluye:** Servidor Spring Boot, controladores MCP, integración con renovatio-core y todos los providers.
+- **Incluye:** Servidor Spring Boot, controladores MCP, implementación de especificación MCP 2025-06-18, integración con renovatio-core y todos los providers.
 
 ---
 
@@ -96,14 +93,13 @@ renovatio/
 ```
 renovatio/
 ├── renovatio-shared/        # Modelos, DTOs, NQL, utilidades
-├── renovatio-core/          # Lógica de negocio, orquestación, registro de herramientas
+├── renovatio-core/          # Lógica de negocio, orquestación, registro de herramientas (protocol-agnostic)
 ├── renovatio-provider-java/ # Refactorización y análisis Java (OpenRewrite)
 ├── renovatio-provider-cobol/# Parsing, migración y generación desde COBOL
 ├── renovatio-provider-jcl/  # Parsing y conversión de JCL
-├── renovatio-web/           # API REST/MCP, documentación, controladores
+├── renovatio-mcp-server/    # Servidor MCP, integración de todos los módulos
 ├── renovatio-agent/         # Ejecución distribuida, integración JGit
 ├── renovatio-client/        # Cliente MCP standalone
-├── renovatio-mcp-server/    # Servidor MCP, integración de todos los módulos
 └── ...
 ```
 
@@ -125,7 +121,7 @@ renovatio/
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "id": "1", "method": "initialize", "params": {}}' \
-  http://localhost:8181/
+  http://localhost:8080/
 ```
 
 ### Listar herramientas disponibles
@@ -133,7 +129,7 @@ curl -X POST -H "Content-Type: application/json" \
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "id": "2", "method": "tools/list", "params": {}}' \
-  http://localhost:8181/
+  http://localhost:8080/
 ```
 
 ### Ejecutar herramienta Java (OpenRewrite)
@@ -151,7 +147,7 @@ curl -X POST -H "Content-Type: application/json" \
       }
     }
   }' \
-  http://localhost:8181/
+  http://localhost:8080/
 ```
 
 ### Analizar programa COBOL
@@ -171,14 +167,14 @@ curl -X POST -H "Content-Type: application/json" \
       }
     }
   }' \
-  http://localhost:8181/
+  http://localhost:8080/
 ```
 
 ---
 
 ## Configuración y Variables de Entorno
 
-- `SERVER_PORT`: Puerto del servidor (por defecto 8181)
+- `SERVER_PORT`: Puerto del servidor MCP (por defecto 8080)
 - `SPRING_PROFILES_ACTIVE`: Perfil activo de Spring
 - `RENOVATIO_COBOL_PARSER_MAX_FILE_SIZE`: Tamaño máximo de archivo COBOL (por defecto 10MB)
 - `RENOVATIO_COBOL_GENERATION_TARGET_PACKAGE`: Paquete Java objetivo por defecto
@@ -188,7 +184,7 @@ curl -X POST -H "Content-Type: application/json" \
 
 ## Documentación y Recursos
 
-- **OpenAPI/Swagger UI**: [http://localhost:8181/swagger-ui/index.html](http://localhost:8181/swagger-ui/index.html)
+- **OpenAPI/Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 - **MCP Spec**: [Model Content Protocol](https://modelcontentprotocol.io/specification/2025-06-18/)
 - **Documentación modular**: Ver README y docs en cada módulo provider.
 
