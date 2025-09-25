@@ -38,7 +38,7 @@ renovatio:
     cobol:
       enabled: true
       recipes-path: "classpath:recipes/cobol"
-    
+
   # Recipe Configuration
   recipes:
     format: "unified"  # Use unified recipe format across all languages

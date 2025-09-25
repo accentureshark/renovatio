@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  */
 @Component
 public class McpToolAdapter {
-    
+
     /**
      * Convert a generic Tool to an MCP-specific McpTool
      */
@@ -324,8 +324,8 @@ public class McpToolAdapter {
      */
     private boolean isProviderTool(String toolName) {
         return toolName.contains("_") &&
-               !toolName.startsWith("nql_") &&
-               !toolName.startsWith("common_");
+                !toolName.startsWith("nql_") &&
+                !toolName.startsWith("common_");
     }
 
     /**
@@ -336,7 +336,7 @@ public class McpToolAdapter {
                 .map(this::toMcpTool)
                 .collect(Collectors.toList());
     }
-    
+
     /**
      * Convert an MCP-specific McpTool to a generic Tool
      */
@@ -346,9 +346,9 @@ public class McpToolAdapter {
         // Removed automatic underscore to dot conversion
 
         org.shark.renovatio.shared.domain.BasicTool basicTool = new org.shark.renovatio.shared.domain.BasicTool(
-            internalToolName,
-            mcpTool.getDescription(),
-            mcpTool.getInputSchema()
+                internalToolName,
+                mcpTool.getDescription(),
+                mcpTool.getInputSchema()
         );
 
         Map<String, Object> metadata = mcpTool.getMetadata();
@@ -395,7 +395,7 @@ public class McpToolAdapter {
         }
         return toolName.substring(0, idx) + '.' + toolName.substring(idx + 1);
     }
-    
+
     /**
      * Convert a list of MCP-specific McpTools to generic Tools
      */

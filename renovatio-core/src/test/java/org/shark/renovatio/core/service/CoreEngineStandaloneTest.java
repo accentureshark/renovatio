@@ -1,10 +1,10 @@
 package org.shark.renovatio.core.service;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.shark.renovatio.shared.domain.*;
-import org.shark.renovatio.shared.spi.LanguageProvider;
 import org.shark.renovatio.shared.nql.NqlQuery;
+import org.shark.renovatio.shared.spi.LanguageProvider;
 
 import java.util.*;
 
@@ -31,7 +31,7 @@ public class CoreEngineStandaloneTest {
     void testCoreEngineAsStandaloneLibrary() {
         // Test that we can use the core engine without MCP
         assertNotNull(languageProviderRegistry);
-        
+
         // Get supported languages - should work without MCP
         Set<String> languages = languageProviderRegistry.getSupportedLanguages();
         assertNotNull(languages);
@@ -53,13 +53,13 @@ public class CoreEngineStandaloneTest {
     void testToolGeneration() {
         // Test that tools are generated correctly
         List<Tool> tools = languageProviderRegistry.generateTools();
-        
+
         // Should have tools from our mock provider (5 capabilities * 1 provider = 5 tools)
         assertTrue(tools.size() >= 5);
 
         // Check for expected tool patterns (language.capability)
         boolean hasAnalyze = tools.stream()
-            .anyMatch(tool -> tool.getName().endsWith(".analyze"));
+                .anyMatch(tool -> tool.getName().endsWith(".analyze"));
 
         assertTrue(hasAnalyze, "Should have analyze tool");
 
@@ -78,11 +78,11 @@ public class CoreEngineStandaloneTest {
     void testProtocolAgnosticDesign() {
         // Test that the core uses protocol-agnostic abstractions
         List<Tool> tools = languageProviderRegistry.generateTools();
-        
+
         for (Tool tool : tools) {
             // Verify that tools implement the generic Tool interface
             assertInstanceOf(org.shark.renovatio.shared.domain.Tool.class, tool);
-            
+
             // Verify required properties
             assertNotNull(tool.getName(), "Tool name should not be null");
             assertNotNull(tool.getDescription(), "Tool description should not be null");
@@ -95,7 +95,7 @@ public class CoreEngineStandaloneTest {
     void testCoreCanBeUsedAsMavenDependency() {
         // This test demonstrates that the core can be used as a Maven dependency
         // without requiring any MCP server infrastructure
-        
+
         // Create registry and register a provider manually
         LanguageProviderRegistry registry = new LanguageProviderRegistry();
         registry.registerProvider(new MockLanguageProvider());
@@ -103,7 +103,7 @@ public class CoreEngineStandaloneTest {
         // Use core functionality
         var tools = registry.generateTools();
         var languages = registry.getSupportedLanguages();
-        
+
         // Verify it works without Spring Boot or MCP server
         assertNotNull(tools);
         assertNotNull(languages);
@@ -130,11 +130,11 @@ public class CoreEngineStandaloneTest {
         @Override
         public Set<LanguageProvider.Capabilities> capabilities() {
             return Set.of(
-                LanguageProvider.Capabilities.ANALYZE,
-                LanguageProvider.Capabilities.METRICS,
-                LanguageProvider.Capabilities.PLAN,
-                LanguageProvider.Capabilities.APPLY,
-                LanguageProvider.Capabilities.DIFF
+                    LanguageProvider.Capabilities.ANALYZE,
+                    LanguageProvider.Capabilities.METRICS,
+                    LanguageProvider.Capabilities.PLAN,
+                    LanguageProvider.Capabilities.APPLY,
+                    LanguageProvider.Capabilities.DIFF
             );
         }
 
@@ -201,11 +201,11 @@ public class CoreEngineStandaloneTest {
             inputSchema.put("properties", Map.of("workspacePath", Map.of("type", "string")));
             inputSchema.put("required", List.of("workspacePath"));
             return List.of(
-                new org.shark.renovatio.shared.domain.BasicTool("mock.analyze", "Mock analyze tool", inputSchema),
-                new org.shark.renovatio.shared.domain.BasicTool("mock.metrics", "Mock metrics tool", inputSchema),
-                new org.shark.renovatio.shared.domain.BasicTool("mock.plan", "Mock plan tool", inputSchema),
-                new org.shark.renovatio.shared.domain.BasicTool("mock.apply", "Mock apply tool", inputSchema),
-                new org.shark.renovatio.shared.domain.BasicTool("mock.diff", "Mock diff tool", inputSchema)
+                    new org.shark.renovatio.shared.domain.BasicTool("mock.analyze", "Mock analyze tool", inputSchema),
+                    new org.shark.renovatio.shared.domain.BasicTool("mock.metrics", "Mock metrics tool", inputSchema),
+                    new org.shark.renovatio.shared.domain.BasicTool("mock.plan", "Mock plan tool", inputSchema),
+                    new org.shark.renovatio.shared.domain.BasicTool("mock.apply", "Mock apply tool", inputSchema),
+                    new org.shark.renovatio.shared.domain.BasicTool("mock.diff", "Mock diff tool", inputSchema)
             );
         }
     }

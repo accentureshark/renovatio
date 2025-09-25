@@ -58,6 +58,27 @@ public class McpToolingService {
         return mcpTools;
     }
 
+    /**
+     * Get available MCP tools filtered by language (e.g., "java", "cobol").
+     */
+    public List<McpTool> getMcpTools(String language) {
+        if (language == null || language.isBlank()) {
+            return getMcpTools();
+        }
+        String lang = language.toLowerCase(Locale.ROOT);
+        var tools = providerRegistry.generateTools();
+        List<org.shark.renovatio.shared.domain.Tool> filtered = new ArrayList<>();
+        for (org.shark.renovatio.shared.domain.Tool t : tools) {
+            String name = t != null ? t.getName() : null;
+            if (name != null && name.toLowerCase(Locale.ROOT).startsWith(lang + ".")) {
+                filtered.add(t);
+            }
+        }
+        var mcpTools = toolAdapter.toMcpTools(filtered);
+        logger.debug("Resolved {} MCP tool(s) for language '{}'", mcpTools.size(), lang);
+        return mcpTools;
+    }
+
     @EventListener(ApplicationReadyEvent.class)
     public void logRegisteredTools() {
         try {
@@ -192,7 +213,7 @@ public class McpToolingService {
         java.nio.file.Path root = java.nio.file.Paths.get("");
         try (var stream = java.nio.file.Files.list(root)) {
             stream.filter(java.nio.file.Files::isDirectory)
-                  .forEach(dir -> workspaces.add(dir.toString()));
+                    .forEach(dir -> workspaces.add(dir.toString()));
         } catch (IOException e) {
             // Log and return empty list
         }
@@ -210,8 +231,8 @@ public class McpToolingService {
         info.put("isDirectory", java.nio.file.Files.isDirectory(dir));
         try {
             info.put("files", java.nio.file.Files.list(dir)
-                .map(java.nio.file.Path::toString)
-                .toArray(String[]::new));
+                    .map(java.nio.file.Path::toString)
+                    .toArray(String[]::new));
         } catch (IOException e) {
             info.put("files", new String[0]);
         }
@@ -414,9 +435,9 @@ public class McpToolingService {
 
         StringBuilder summary = new StringBuilder();
         summary.append(toolName)
-            .append(": analyzed ")
-            .append(files)
-            .append(files == 1 ? " file" : " files");
+                .append(": analyzed ")
+                .append(files)
+                .append(files == 1 ? " file" : " files");
         if (!metrics.isEmpty()) {
             summary.append(" (").append(String.join(", ", metrics)).append(")");
         }
@@ -480,11 +501,11 @@ public class McpToolingService {
         String planId = stringValue(structured.get("planId"), "plan");
         List<?> steps = asList(structured.get("steps"));
         StringBuilder summary = new StringBuilder(toolName)
-            .append(": generated plan ")
-            .append(planId)
-            .append(" with ")
-            .append(steps.size())
-            .append(" steps");
+                .append(": generated plan ")
+                .append(planId)
+                .append(" with ")
+                .append(steps.size())
+                .append(" steps");
 
         String message = stringValue(structured.get("message"), "");
         if (!message.isEmpty()) {
@@ -502,11 +523,11 @@ public class McpToolingService {
         String action = dryRun ? "previewed" : "applied";
 
         StringBuilder summary = new StringBuilder(toolName)
-            .append(": ")
-            .append(action)
-            .append(' ')
-            .append(changes.size())
-            .append(" changes");
+                .append(": ")
+                .append(action)
+                .append(' ')
+                .append(changes.size())
+                .append(" changes");
 
         String message = stringValue(structured.get("message"), "");
         if (!message.isEmpty()) {
@@ -521,9 +542,9 @@ public class McpToolingService {
     private String buildDiffSummary(String toolName, Map<String, Object> structured) {
         List<?> hunks = asList(structured.get("changes"));
         StringBuilder summary = new StringBuilder(toolName)
-            .append(": produced diff with ")
-            .append(hunks.size())
-            .append(hunks.size() == 1 ? " hunk" : " hunks");
+                .append(": produced diff with ")
+                .append(hunks.size())
+                .append(hunks.size() == 1 ? " hunk" : " hunks");
 
         String message = stringValue(structured.get("message"), "");
         if (!message.isEmpty()) {
@@ -538,9 +559,9 @@ public class McpToolingService {
     private String buildDiscoverSummary(String toolName, Map<String, Object> structured) {
         List<?> modules = asList(structured.get("modules"));
         StringBuilder summary = new StringBuilder(toolName)
-            .append(": discovered ")
-            .append(modules.size())
-            .append(modules.size() == 1 ? " module" : " modules");
+                .append(": discovered ")
+                .append(modules.size())
+                .append(modules.size() == 1 ? " module" : " modules");
         String message = stringValue(structured.get("message"), "");
         if (!message.isEmpty()) {
             summary.append(". ").append(message);
@@ -607,9 +628,9 @@ public class McpToolingService {
         simplified.put("success", parseSuccess(structured));
 
         String summary = firstNonEmptyString(
-            structured.get("summary"),
-            data.get("summary"),
-            structured.get("message")
+                structured.get("summary"),
+                data.get("summary"),
+                structured.get("message")
         );
         if (!summary.isEmpty()) {
             simplified.put("summary", summary);
@@ -626,9 +647,9 @@ public class McpToolingService {
         }
 
         List<?> files = firstNonEmptyList(
-            structured.get("analyzedFiles"),
-            structured.get("files"),
-            data.get("analyzedFiles")
+                structured.get("analyzedFiles"),
+                structured.get("files"),
+                data.get("analyzedFiles")
         );
         simplified.put("analyzedFiles", new ArrayList<>(files));
 

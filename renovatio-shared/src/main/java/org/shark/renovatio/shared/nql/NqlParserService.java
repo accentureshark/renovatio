@@ -1,8 +1,5 @@
 package org.shark.renovatio.shared.nql;
 
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.RecognitionException;
 import org.springframework.stereotype.Service;
 // TODO: Temporarily commented out until ANTLR generation is fixed
 // import org.shark.renovatio.shared.nql.antlr.NqlLexer;
@@ -19,7 +16,7 @@ public class NqlParserService {
         // TODO: Temporary implementation - replace with ANTLR parser once generated
         NqlQuery query = new NqlQuery();
         query.setOriginalQuery(queryString);
-        
+
         // Simple parsing logic for basic queries
         String upper = queryString.toUpperCase();
         if (upper.startsWith("FIND")) {

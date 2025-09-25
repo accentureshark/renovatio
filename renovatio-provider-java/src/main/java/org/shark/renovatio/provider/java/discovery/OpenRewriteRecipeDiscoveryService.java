@@ -5,31 +5,19 @@ import org.openrewrite.config.Environment;
 import org.openrewrite.config.OptionDescriptor;
 import org.openrewrite.config.RecipeDescriptor;
 import org.openrewrite.config.YamlResourceLoader;
+import org.shark.renovatio.provider.java.util.RecipeSafetyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.lang.reflect.Method;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import org.shark.renovatio.provider.java.util.RecipeSafetyUtils;
 
 /**
  * Service responsible for discovering OpenRewrite recipes available on the
@@ -41,59 +29,59 @@ public class OpenRewriteRecipeDiscoveryService {
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenRewriteRecipeDiscoveryService.class);
 
     private static final Set<String> UNSAFE_RECIPES = Set.of(
-        "org.openrewrite.java.CreateEmptyJavaClass",
-        "org.openrewrite.yaml.CreateYamlFile",
-        "org.openrewrite.text.CreateTextFile",
-        "org.openrewrite.xml.CreateXmlFile",
-        "org.openrewrite.RenameFile",
-        "org.openrewrite.java.ChangePackage",
-        "org.openrewrite.java.ChangeType",
-        "org.openrewrite.java.ChangeFieldType",
-        "org.openrewrite.java.ChangeFieldName",
-        "org.openrewrite.java.ChangeMethodName",
-        "org.openrewrite.java.ChangeStaticFieldToMethod",
-        "org.openrewrite.java.AddImport",
-        "org.openrewrite.java.RemoveImport",
-        "org.openrewrite.java.ReplaceStringLiteral",
-        "org.openrewrite.java.search.FindMethods",
-        "org.openrewrite.java.search.FindFields",
-        "org.openrewrite.java.search.FindTypes",
-        "org.openrewrite.java.dependencies.AddDependency",
-        "org.openrewrite.java.dependencies.RemoveDependency",
-        "org.openrewrite.java.dependencies.ChangeDependency",
-        "org.openrewrite.java.RecipeMarkupDemonstration"
+            "org.openrewrite.java.CreateEmptyJavaClass",
+            "org.openrewrite.yaml.CreateYamlFile",
+            "org.openrewrite.text.CreateTextFile",
+            "org.openrewrite.xml.CreateXmlFile",
+            "org.openrewrite.RenameFile",
+            "org.openrewrite.java.ChangePackage",
+            "org.openrewrite.java.ChangeType",
+            "org.openrewrite.java.ChangeFieldType",
+            "org.openrewrite.java.ChangeFieldName",
+            "org.openrewrite.java.ChangeMethodName",
+            "org.openrewrite.java.ChangeStaticFieldToMethod",
+            "org.openrewrite.java.AddImport",
+            "org.openrewrite.java.RemoveImport",
+            "org.openrewrite.java.ReplaceStringLiteral",
+            "org.openrewrite.java.search.FindMethods",
+            "org.openrewrite.java.search.FindFields",
+            "org.openrewrite.java.search.FindTypes",
+            "org.openrewrite.java.dependencies.AddDependency",
+            "org.openrewrite.java.dependencies.RemoveDependency",
+            "org.openrewrite.java.dependencies.ChangeDependency",
+            "org.openrewrite.java.RecipeMarkupDemonstration"
     );
 
     private static final List<String> UNSAFE_RECIPE_PREFIXES = List.of(
-        // Example/demo recipes frequently spin up CreateEmptyJavaClass without configuration.
-        "org.openrewrite.java.recipes."
+            // Example/demo recipes frequently spin up CreateEmptyJavaClass without configuration.
+            "org.openrewrite.java.recipes."
     );
 
     private static final Set<String> REQUIRED_OPTION_KEYWORDS = Set.of(
-        "packagename",
-        "classname",
-        "filepath",
-        "filename",
-        "path",
-        "methodname",
-        "fieldname",
-        "typename",
-        "oldname",
-        "newname",
-        "oldtype",
-        "newtype",
-        "groupid",
-        "artifactid",
-        "version",
-        "type",
-        "name",
-        "target",
-        "source",
-        // Recipes that compose other recipes almost always require explicit configuration
-        "recipe",
-        "recipelist",
-        "template",
-        "contents"
+            "packagename",
+            "classname",
+            "filepath",
+            "filename",
+            "path",
+            "methodname",
+            "fieldname",
+            "typename",
+            "oldname",
+            "newname",
+            "oldtype",
+            "newtype",
+            "groupid",
+            "artifactid",
+            "version",
+            "type",
+            "name",
+            "target",
+            "source",
+            // Recipes that compose other recipes almost always require explicit configuration
+            "recipe",
+            "recipelist",
+            "template",
+            "contents"
     );
 
     private final Environment environment;
@@ -131,12 +119,12 @@ public class OpenRewriteRecipeDiscoveryService {
             return Recipe.noop();
         }
         List<String> filtered = recipeNames.stream()
-            .filter(Objects::nonNull)
-            .map(String::trim)
-            .filter(name -> !name.isBlank())
-            .filter(this::isRecipeSafe)
-            .distinct()
-            .collect(Collectors.toList());
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(name -> !name.isBlank())
+                .filter(this::isRecipeSafe)
+                .distinct()
+                .collect(Collectors.toList());
         if (filtered.isEmpty()) {
             return Recipe.noop();
         }
@@ -188,12 +176,12 @@ public class OpenRewriteRecipeDiscoveryService {
             return List.of();
         }
         List<String> filtered = recipeNames.stream()
-            .filter(Objects::nonNull)
-            .map(String::trim)
-            .filter(name -> !name.isBlank())
-            .filter(this::isRecipeSafe)
-            .distinct()
-            .collect(Collectors.toList());
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(name -> !name.isBlank())
+                .filter(this::isRecipeSafe)
+                .distinct()
+                .collect(Collectors.toList());
         if (filtered.isEmpty()) {
             return List.of();
         }
@@ -224,13 +212,13 @@ public class OpenRewriteRecipeDiscoveryService {
         try {
             Properties properties = new Properties();
             Environment.Builder builder = Environment.builder(properties)
-                .scanRuntimeClasspath();
+                    .scanRuntimeClasspath();
 
             Path rewriteConfig = Path.of("rewrite.yml");
             if (Files.exists(rewriteConfig)) {
                 try (InputStream inputStream = Files.newInputStream(rewriteConfig)) {
                     builder.load(new YamlResourceLoader(inputStream, rewriteConfig.toUri(), properties,
-                        Thread.currentThread().getContextClassLoader()));
+                            Thread.currentThread().getContextClassLoader()));
                 }
             }
             return builder.build();
@@ -267,8 +255,8 @@ public class OpenRewriteRecipeDiscoveryService {
     private RecipeInfo toRecipeInfo(RecipeDescriptor descriptor) {
         String name = descriptor.getName();
         String displayName = descriptor.getDisplayName() != null && !descriptor.getDisplayName().isBlank()
-            ? descriptor.getDisplayName()
-            : name;
+                ? descriptor.getDisplayName()
+                : name;
         String description = descriptor.getDescription() != null ? descriptor.getDescription() : "";
 
         Set<String> tags = new LinkedHashSet<>();
@@ -282,10 +270,10 @@ public class OpenRewriteRecipeDiscoveryService {
         if (optionDescriptors != null) {
             for (OptionDescriptor option : optionDescriptors) {
                 options.add(new RecipeOption(
-                    option.getName(),
-                    normalizeType(option.getType()),
-                    option.getDescription(),
-                    extractDefaultValue(option)
+                        option.getName(),
+                        normalizeType(option.getType()),
+                        option.getDescription(),
+                        extractDefaultValue(option)
                 ));
             }
         }
@@ -323,7 +311,7 @@ public class OpenRewriteRecipeDiscoveryService {
             inferred.add("modernize");
         }
         if (haystack.contains("staticanalysis") || haystack.contains("cleanup") || haystack.contains("style")
-            || haystack.contains("format") || haystack.contains("normalize")) {
+                || haystack.contains("format") || haystack.contains("normalize")) {
             inferred.add("style");
         }
         if (haystack.contains("deprecat")) {
@@ -374,14 +362,14 @@ public class OpenRewriteRecipeDiscoveryService {
             }
             return safeRecipes;
         }
-        
+
         List<String> matches = new ArrayList<>();
         for (RecipeInfo info : recipes.values()) {
             if (info.tags().containsAll(requiredTags) && isRecipeSafe(info.name())) {
                 matches.add(info.name());
             }
         }
-        
+
         if (matches.isEmpty()) {
             // fall back to partial matches, but still apply safety filter
             for (RecipeInfo info : recipes.values()) {
@@ -405,15 +393,15 @@ public class OpenRewriteRecipeDiscoveryService {
             return "boolean";
         }
         if (normalized.contains("int") || normalized.contains("long") || normalized.contains("short")
-            || normalized.contains("byte")) {
+                || normalized.contains("byte")) {
             return "integer";
         }
         if (normalized.contains("double") || normalized.contains("float") || normalized.contains("bigdecimal")
-            || normalized.contains("number")) {
+                || normalized.contains("number")) {
             return "number";
         }
         if (normalized.contains("list") || normalized.contains("set") || normalized.contains("collection")
-            || normalized.contains("array")) {
+                || normalized.contains("array")) {
             return "array";
         }
         return "string";
@@ -440,12 +428,14 @@ public class OpenRewriteRecipeDiscoveryService {
                     Method getPackage = clazz.getMethod("getPackageName");
                     hasPackage = true;
                     packageValue = getPackage.invoke(clazz.getDeclaredConstructor().newInstance());
-                } catch (Exception e) {}
+                } catch (Exception e) {
+                }
                 try {
                     Method getClassName = clazz.getMethod("getClassName");
                     hasClass = true;
                     classValue = getClassName.invoke(clazz.getDeclaredConstructor().newInstance());
-                } catch (Exception e) {}
+                } catch (Exception e) {
+                }
                 if (!hasPackage || !hasClass) {
                     return false;
                 }
@@ -472,14 +462,14 @@ public class OpenRewriteRecipeDiscoveryService {
         }
 
         // Check for recipe patterns that typically require configuration
-        if (recipeName.toLowerCase(Locale.ROOT).contains("create") && 
-            (recipeName.contains("Class") || recipeName.contains("File"))) {
+        if (recipeName.toLowerCase(Locale.ROOT).contains("create") &&
+                (recipeName.contains("Class") || recipeName.contains("File"))) {
             LOGGER.debug("Filtering out recipe {} - creation recipes typically require specific parameters", recipeName);
             return false;
         }
-        
+
         if (recipeName.toLowerCase(Locale.ROOT).contains("change") &&
-            (recipeName.contains("Type") || recipeName.contains("Method") || recipeName.contains("Field"))) {
+                (recipeName.contains("Type") || recipeName.contains("Method") || recipeName.contains("Field"))) {
             LOGGER.debug("Filtering out recipe {} - change recipes typically require specific parameters", recipeName);
             return false;
         }
@@ -508,7 +498,7 @@ public class OpenRewriteRecipeDiscoveryService {
                 return false;
             }
         }
-        
+
         return true;
     }
 

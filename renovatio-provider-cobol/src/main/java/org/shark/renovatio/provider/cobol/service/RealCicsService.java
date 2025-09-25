@@ -25,7 +25,9 @@ public class RealCicsService implements CicsService {
         }
     }
 
-    /** Register a mapping between a CICS transaction and a REST endpoint path. */
+    /**
+     * Register a mapping between a CICS transaction and a REST endpoint path.
+     */
     public void registerTransaction(String transaction, String endpoint) {
         transactionEndpoints.put(transaction, endpoint);
     }

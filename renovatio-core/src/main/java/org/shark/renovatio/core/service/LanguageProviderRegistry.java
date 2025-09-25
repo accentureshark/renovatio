@@ -1,15 +1,15 @@
 package org.shark.renovatio.core.service;
 
-import org.shark.renovatio.shared.spi.LanguageProvider;
+import jakarta.annotation.PostConstruct;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
-import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
+import org.shark.renovatio.shared.spi.LanguageProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -31,12 +31,10 @@ public class LanguageProviderRegistry {
             "language",
             "nql"
     );
-
-    @Autowired
-    private ApplicationContext applicationContext;
-
     private final Map<String, List<LanguageProvider>> providersByLanguage = new LinkedHashMap<>();
     private final Map<String, LanguageProvider> toolProviders = new ConcurrentHashMap<>();
+    @Autowired
+    private ApplicationContext applicationContext;
 
     /**
      * Auto-register all LanguageProvider beans after Spring context initialization
@@ -197,7 +195,7 @@ public class LanguageProviderRegistry {
             } else {
                 int underscoreInCapability = capability.indexOf('_');
                 if (underscoreInCapability > 0
-                    && shouldSplitRecipeIdentifier(capability.substring(0, underscoreInCapability))) {
+                        && shouldSplitRecipeIdentifier(capability.substring(0, underscoreInCapability))) {
                     recipeId = capability.substring(underscoreInCapability + 1);
                     capability = capability.substring(0, underscoreInCapability);
                 }
@@ -396,8 +394,8 @@ public class LanguageProviderRegistry {
             map.put("runId", ar.getRunId());
 
             Map<String, Object> data = ar.getData() != null
-                ? new LinkedHashMap<>(ar.getData())
-                : new LinkedHashMap<>();
+                    ? new LinkedHashMap<>(ar.getData())
+                    : new LinkedHashMap<>();
             map.put("data", data);
 
             map.put("ast", ar.getAst());

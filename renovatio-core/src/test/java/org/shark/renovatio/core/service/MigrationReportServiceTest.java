@@ -4,14 +4,14 @@ import org.junit.jupiter.api.Test;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.shared.spi.LanguageProvider;
-import org.shark.renovatio.shared.nql.NqlQuery;
 
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MigrationReportServiceTest {
 
@@ -35,7 +35,9 @@ class MigrationReportServiceTest {
 
     static class StubProvider implements LanguageProvider {
         @Override
-        public String language() { return "stub"; }
+        public String language() {
+            return "stub";
+        }
 
         @Override
         public Set<Capabilities> capabilities() {
@@ -43,19 +45,29 @@ class MigrationReportServiceTest {
         }
 
         @Override
-        public AnalyzeResult analyze(NqlQuery query, Workspace workspace) { return new AnalyzeResult(true, ""); }
+        public AnalyzeResult analyze(NqlQuery query, Workspace workspace) {
+            return new AnalyzeResult(true, "");
+        }
 
         @Override
-        public PlanResult plan(NqlQuery query, Scope scope, Workspace workspace) { return new PlanResult(true, ""); }
+        public PlanResult plan(NqlQuery query, Scope scope, Workspace workspace) {
+            return new PlanResult(true, "");
+        }
 
         @Override
-        public ApplyResult apply(String planId, boolean dryRun, Workspace workspace) { return new ApplyResult(true, ""); }
+        public ApplyResult apply(String planId, boolean dryRun, Workspace workspace) {
+            return new ApplyResult(true, "");
+        }
 
         @Override
-        public DiffResult diff(String runId, Workspace workspace) { return new DiffResult(true, ""); }
+        public DiffResult diff(String runId, Workspace workspace) {
+            return new DiffResult(true, "");
+        }
 
         @Override
-        public Optional<StubResult> generateStubs(NqlQuery query, Workspace workspace) { return Optional.empty(); }
+        public Optional<StubResult> generateStubs(NqlQuery query, Workspace workspace) {
+            return Optional.empty();
+        }
 
         @Override
         public MetricsResult metrics(Scope scope, Workspace workspace) {
@@ -72,7 +84,7 @@ class MigrationReportServiceTest {
             inputSchema.put("properties", java.util.Map.of("workspacePath", java.util.Map.of("type", "string")));
             inputSchema.put("required", java.util.List.of("workspacePath"));
             return java.util.List.of(
-                new org.shark.renovatio.shared.domain.BasicTool("stub.metrics", "Stub metrics tool", inputSchema)
+                    new org.shark.renovatio.shared.domain.BasicTool("stub.metrics", "Stub metrics tool", inputSchema)
             );
         }
     }

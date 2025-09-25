@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -69,18 +68,18 @@ public class Db2MigrationService {
 
     private String generateEntity(Map<String, Object> data) throws IOException, TemplateException {
         String templateContent = """
-        package org.shark.renovatio.generated.cobol;
-
-        import jakarta.persistence.Entity;
-        import jakarta.persistence.Id;
-
-        @Entity
-        public class ${entity} {
-            @Id
-            private Long id;
-            // TODO: map columns from ${table}
-        }
-        """;
+                package org.shark.renovatio.generated.cobol;
+                
+                import jakarta.persistence.Entity;
+                import jakarta.persistence.Id;
+                
+                @Entity
+                public class ${entity} {
+                    @Id
+                    private Long id;
+                    // TODO: map columns from ${table}
+                }
+                """;
         Template template = new Template("entity", new StringReader(templateContent), freemarkerConfig);
         StringWriter writer = new StringWriter();
         template.process(data, writer);
@@ -89,14 +88,14 @@ public class Db2MigrationService {
 
     private String generateRepository(Map<String, Object> data) throws IOException, TemplateException {
         String templateContent = """
-        package org.shark.renovatio.generated.cobol;
-
-        import org.springframework.data.jpa.repository.JpaRepository;
-
-        public interface ${entity}Repository extends JpaRepository<${entity}, Long> {
-            // TODO: customise queries for ${table}
-        }
-        """;
+                package org.shark.renovatio.generated.cobol;
+                
+                import org.springframework.data.jpa.repository.JpaRepository;
+                
+                public interface ${entity}Repository extends JpaRepository<${entity}, Long> {
+                    // TODO: customise queries for ${table}
+                }
+                """;
         Template template = new Template("repository", new StringReader(templateContent), freemarkerConfig);
         StringWriter writer = new StringWriter();
         template.process(data, writer);

@@ -10,8 +10,8 @@ import java.util.Objects;
 
 /**
  * @deprecated Preserved for backwards compatibility with legacy package names.
- *             Prefer {@link org.shark.renovatio.provider.java.OpenRewriteRunner} and
- *             associated services from the {@code org.shark.renovatio} namespace.
+ * Prefer {@link org.shark.renovatio.provider.java.OpenRewriteRunner} and
+ * associated services from the {@code org.shark.renovatio} namespace.
  */
 @Deprecated(forRemoval = false)
 public class JavaRefactoringService {

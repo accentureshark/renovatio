@@ -11,15 +11,15 @@ import org.springframework.context.annotation.FilterType;
 @Configuration
 @ConditionalOnProperty(name = "spring.main.web-application-type", havingValue = "none")
 @ComponentScan(
-    basePackages = {
-        "org.shark.renovatio.mcp.server",
-        "org.shark.renovatio.core.service",
-        "org.shark.renovatio.core.application",
-        "org.shark.renovatio.shared"
-    },
-    excludeFilters = {
-        @ComponentScan.Filter(type = FilterType.REGEX, pattern = "org\\.shark\\.renovatio\\.core\\.api\\..*")
-    }
+        basePackages = {
+                "org.shark.renovatio.mcp.server",
+                "org.shark.renovatio.core.service",
+                "org.shark.renovatio.core.application",
+                "org.shark.renovatio.shared"
+        },
+        excludeFilters = {
+                @ComponentScan.Filter(type = FilterType.REGEX, pattern = "org\\.shark\\.renovatio\\.core\\.api\\..*")
+        }
 )
 public class StdioModeConfiguration {
 }

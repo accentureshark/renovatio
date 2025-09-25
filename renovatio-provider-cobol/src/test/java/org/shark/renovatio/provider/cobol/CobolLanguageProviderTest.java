@@ -1,16 +1,15 @@
 package org.shark.renovatio.provider.cobol;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.shark.renovatio.provider.cobol.service.*;
 import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.shared.spi.LanguageProvider;
-import org.shark.renovatio.provider.cobol.service.*;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -36,13 +35,13 @@ class CobolLanguageProviderTest {
         MetricsService metricsService = new MetricsService();
 
         provider = new CobolLanguageProvider(
-            parsingService,
-            javaGenerationService,
-            migrationPlanService,
-            indexingService,
-            metricsService,
-            templateService,
-            db2Service
+                parsingService,
+                javaGenerationService,
+                migrationPlanService,
+                indexingService,
+                metricsService,
+                templateService,
+                db2Service
         );
 
         // Setup test workspace
@@ -53,18 +52,18 @@ class CobolLanguageProviderTest {
 
         // Crear archivo COBOL de ejemplo en el workspace temporal
         String cobolContent = """
-            IDENTIFICATION DIVISION.
-            PROGRAM-ID. SAMPLE-PROGRAM.
-            DATA DIVISION.
-            WORKING-STORAGE SECTION.
-            01  WS-NAME       PIC X(30).
-            01  WS-AGE        PIC 9(3).
-            01  WS-SALARY     PIC 9(8)V99.
-            PROCEDURE DIVISION.
-            MAIN-PARA.
-                DISPLAY \"Hello World\".
-                STOP RUN.
-            """;
+                IDENTIFICATION DIVISION.
+                PROGRAM-ID. SAMPLE-PROGRAM.
+                DATA DIVISION.
+                WORKING-STORAGE SECTION.
+                01  WS-NAME       PIC X(30).
+                01  WS-AGE        PIC 9(3).
+                01  WS-SALARY     PIC 9(8)V99.
+                PROCEDURE DIVISION.
+                MAIN-PARA.
+                    DISPLAY \"Hello World\".
+                    STOP RUN.
+                """;
         try {
             Path cobolFile = tempDir.resolve("sample.cob");
             Files.writeString(cobolFile, cobolContent);

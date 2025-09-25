@@ -13,21 +13,10 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -68,36 +57,36 @@ public class JavaRecipeExecutor {
             Path workspace = workspacePath != null ? Paths.get(workspacePath) : null;
             if (workspace == null || !Files.exists(workspace)) {
                 return new JavaRecipeExecutionResult(false, false, List.of(), List.of(), Map.of(), List.of(),
-                    Duration.between(start, Instant.now()).toMillis(),
-                    recipes != null ? List.copyOf(recipes) : List.of(),
-                    "Workspace path is required");
+                        Duration.between(start, Instant.now()).toMillis(),
+                        recipes != null ? List.copyOf(recipes) : List.of(),
+                        "Workspace path is required");
             }
 
             List<Path> javaFiles = collectJavaFiles(workspace, scopePatterns);
             if (javaFiles.isEmpty()) {
                 return new JavaRecipeExecutionResult(false, false, List.of(), List.of(), Map.of(), List.of(),
-                    Duration.between(start, Instant.now()).toMillis(),
-                    recipes != null ? List.copyOf(recipes) : List.of(),
-                    "No Java files found in workspace");
+                        Duration.between(start, Instant.now()).toMillis(),
+                        recipes != null ? List.copyOf(recipes) : List.of(),
+                        "No Java files found in workspace");
             }
 
             List<String> requestedRecipes = recipes != null ? recipes.stream()
-                .filter(Objects::nonNull)
-                .map(String::trim)
-                .filter(name -> !name.isBlank())
-                .collect(Collectors.toList()) : List.of();
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(name -> !name.isBlank())
+                    .collect(Collectors.toList()) : List.of();
 
             // Filter for safety first (discoveryService.isRecipeSafe) and also ensure present & activable
             List<String> safeRequested = requestedRecipes.stream()
-                .filter(name -> {
-                    if (discoveryService.isRecipeSafe(name)) {
-                        return true;
-                    }
-                    LOGGER.warn("Skipping unsafe recipe '{}' - requires specific configuration parameters", name);
-                    return false;
-                })
-                .distinct()
-                .collect(Collectors.toList());
+                    .filter(name -> {
+                        if (discoveryService.isRecipeSafe(name)) {
+                            return true;
+                        }
+                        LOGGER.warn("Skipping unsafe recipe '{}' - requires specific configuration parameters", name);
+                        return false;
+                    })
+                    .distinct()
+                    .collect(Collectors.toList());
 
             List<String> activableRecipes = discoveryService.resolveActivableRecipeNames(safeRequested);
 
@@ -107,16 +96,16 @@ public class JavaRecipeExecutor {
             if (activableRecipes.isEmpty()) {
                 Map<String, Object> metrics = buildMetrics(javaFiles, List.of(), false, start, activableRecipes);
                 return new JavaRecipeExecutionResult(true, false, List.of(), List.of(), metrics,
-                    relativize(workspace, javaFiles),
-                    Duration.between(start, Instant.now()).toMillis(),
-                    activableRecipes,
-                    "No recipes selected");
+                        relativize(workspace, javaFiles),
+                        Duration.between(start, Instant.now()).toMillis(),
+                        activableRecipes,
+                        "No recipes selected");
             }
 
             List<Result> results = runner.runRecipe(
-                discoveryService.buildCompositeRecipe(activableRecipes),
-                ctx,
-                sourceFiles
+                    discoveryService.buildCompositeRecipe(activableRecipes),
+                    ctx,
+                    sourceFiles
             );
 
             List<JavaChange> changes = new ArrayList<>();
@@ -141,23 +130,23 @@ public class JavaRecipeExecutor {
             Map<String, Object> metrics = buildMetrics(javaFiles, changes, !dryRun, start, activableRecipes);
             long duration = Duration.between(start, Instant.now()).toMillis();
             String summary = String.format(Locale.ROOT,
-                "%s %d recipe(s), %d file(s) analysed, %d change(s)",
-                dryRun ? "Previewed" : "Applied",
-                activableRecipes.size(),
-                javaFiles.size(),
-                changes.size());
+                    "%s %d recipe(s), %d file(s) analysed, %d change(s)",
+                    dryRun ? "Previewed" : "Applied",
+                    activableRecipes.size(),
+                    javaFiles.size(),
+                    changes.size());
 
             return new JavaRecipeExecutionResult(true, !dryRun, List.copyOf(changes), List.copyOf(issues), metrics,
-                new ArrayList<>(touchedFiles.isEmpty() ? relativize(workspace, javaFiles) : new ArrayList<>(touchedFiles)),
-                duration,
-                activableRecipes,
-                summary);
+                    new ArrayList<>(touchedFiles.isEmpty() ? relativize(workspace, javaFiles) : new ArrayList<>(touchedFiles)),
+                    duration,
+                    activableRecipes,
+                    summary);
         } catch (Exception ex) {
             LOGGER.warn("OpenRewrite execution failed: {}", ex.getMessage(), ex);
             return new JavaRecipeExecutionResult(false, false, List.of(), List.of(), Map.of(), List.of(),
-                Duration.between(start, Instant.now()).toMillis(),
-                recipes != null ? List.copyOf(recipes) : List.of(),
-                ex.getMessage());
+                    Duration.between(start, Instant.now()).toMillis(),
+                    recipes != null ? List.copyOf(recipes) : List.of(),
+                    ex.getMessage());
         }
     }
 
@@ -176,8 +165,8 @@ public class JavaRecipeExecutor {
         List<Path> javaFiles = new ArrayList<>();
         try (var stream = Files.walk(workspace)) {
             stream.filter(path -> path.toString().endsWith(".java"))
-                .filter(path -> matchers.isEmpty() || matches(workspace, path, matchers))
-                .forEach(javaFiles::add);
+                    .filter(path -> matchers.isEmpty() || matches(workspace, path, matchers))
+                    .forEach(javaFiles::add);
         }
         return javaFiles;
     }
@@ -218,9 +207,9 @@ public class JavaRecipeExecutor {
 
     private List<String> relativize(Path workspace, List<Path> files) {
         return files.stream()
-            .map(workspace::relativize)
-            .map(Path::toString)
-            .collect(Collectors.toList());
+                .map(workspace::relativize)
+                .map(Path::toString)
+                .collect(Collectors.toList());
     }
 
     private String resolveSourcePath(Result result, Path workspace) {
@@ -242,8 +231,8 @@ public class JavaRecipeExecutor {
         issue.put("severity", dryRun ? "WARNING" : "INFO");
         issue.put("type", dryRun ? "PREVIEW" : "CHANGE");
         issue.put("message", dryRun
-            ? "Recipe(s) would update this file"
-            : "Recipe(s) applied to this file");
+                ? "Recipe(s) would update this file"
+                : "Recipe(s) applied to this file");
         issue.put("recipe", String.join(", ", recipes));
         return issue;
     }

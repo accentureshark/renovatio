@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * MCP Protocol Controller - handles JSON-RPC 2.0 requests according to MCP specification.
- * 
+ * <p>
  * This controller implements the Model Content Protocol specification available at:
  * https://modelcontextprotocol.io/docs/develop/build-server
  */
@@ -27,13 +27,13 @@ public class McpProtocolController {
      */
     @PostMapping
     @Operation(
-        summary = "MCP JSON-RPC 2.0 endpoint", 
-        description = "Handles all Model Content Protocol requests according to JSON-RPC 2.0 specification"
+            summary = "MCP JSON-RPC 2.0 endpoint",
+            description = "Handles all Model Content Protocol requests according to JSON-RPC 2.0 specification"
     )
     public McpResponse handleMcpRequest(@RequestBody McpRequest request) {
         return mcpProtocolService.handleMcpRequest(request);
     }
-    
+
     /**
      * Health check endpoint for MCP server.
      */

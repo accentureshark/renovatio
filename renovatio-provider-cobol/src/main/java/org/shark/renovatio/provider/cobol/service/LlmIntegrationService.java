@@ -2,9 +2,9 @@ package org.shark.renovatio.provider.cobol.service;
 
 import org.shark.renovatio.shared.nql.NqlParserService;
 import org.shark.renovatio.shared.nql.NqlQuery;
-import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 /**
  * Service for integrating with LLM systems and parsing NQL queries
@@ -33,7 +33,7 @@ public class LlmIntegrationService {
             NqlQuery query = nqlParserService.parse(nqlString);
             if (query != null && query.getType() != null) {
                 logger.debug("Successfully parsed NQL query: type={}, target={}",
-                           query.getType(), query.getTarget());
+                        query.getType(), query.getTarget());
                 return query;
             } else {
                 logger.warn("Failed to parse NQL query, creating fallback query");

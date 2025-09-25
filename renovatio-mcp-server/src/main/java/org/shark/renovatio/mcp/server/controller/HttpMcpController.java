@@ -18,12 +18,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/mcp")
 public class HttpMcpController {
-    
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
     @Autowired
     private McpProtocolService mcpProtocolService;
-    
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    
+
     /**
      * Handle MCP JSON-RPC 2.0 requests via HTTP POST
      */
@@ -44,10 +43,10 @@ public class HttpMcpController {
 
             mcpRequest.setMethod((String) body.get("method"));
             mcpRequest.setParams(body.get("params"));
-            
+
             // Process the request through the MCP protocol service
             var response = mcpProtocolService.handleMcpRequest(mcpRequest);
-            
+
             // Convert MCP response to HTTP JSON response
             Map<String, Object> jsonResponse = new HashMap<>();
             jsonResponse.put("jsonrpc", response.getJsonrpc());
@@ -68,9 +67,9 @@ public class HttpMcpController {
             } else {
                 jsonResponse.put("result", response.getResult());
             }
-            
+
             return jsonResponse;
-            
+
         } catch (Exception e) {
             // Return JSON-RPC 2.0 error response
             Map<String, Object> errorResponse = new HashMap<>();
@@ -90,11 +89,11 @@ public class HttpMcpController {
             error.put("code", -32603);
             error.put("message", "Internal error: " + e.getMessage());
             errorResponse.put("error", error);
-            
+
             return errorResponse;
         }
     }
-    
+
     /**
      * Health check endpoint
      */

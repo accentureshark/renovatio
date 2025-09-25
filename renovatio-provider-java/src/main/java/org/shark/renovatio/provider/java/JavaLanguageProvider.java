@@ -4,27 +4,18 @@ import org.openrewrite.config.Environment;
 import org.openrewrite.config.OptionDescriptor;
 import org.openrewrite.config.RecipeDescriptor;
 import org.openrewrite.config.YamlResourceLoader;
-import org.shark.renovatio.shared.domain.AnalyzeResult;
-import org.shark.renovatio.shared.domain.ApplyResult;
-import org.shark.renovatio.shared.domain.BasicTool;
-import org.shark.renovatio.shared.domain.StubResult;
-import org.shark.renovatio.shared.domain.Tool;
-import org.shark.renovatio.shared.domain.Workspace;
-import org.shark.renovatio.shared.domain.Scope;
-import org.shark.renovatio.shared.domain.MetricsResult;
-import org.shark.renovatio.shared.domain.DiffResult;
-import org.shark.renovatio.shared.domain.PerformanceMetrics;
+import org.shark.renovatio.shared.domain.*;
 import org.shark.renovatio.shared.nql.NqlQuery;
 import org.shark.renovatio.shared.spi.BaseLanguageProvider;
+
 import java.io.File;
 import java.io.InputStream;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import org.shark.renovatio.shared.domain.PlanResult;
 
 public class JavaLanguageProvider extends BaseLanguageProvider {
 
@@ -51,7 +42,7 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
         try {
             Properties properties = new Properties();
             Environment.Builder builder = Environment.builder(properties)
-                .scanRuntimeClasspath();
+                    .scanRuntimeClasspath();
             File rewriteConfig = new File("rewrite.yml");
             if (rewriteConfig.exists()) {
                 try (InputStream inputStream = Files.newInputStream(rewriteConfig.toPath())) {
@@ -188,9 +179,10 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
 
     /**
      * Ejecuta una receta OpenRewrite sobre los archivos del workspace.
-     * @param recipeId ID de la receta OpenRewrite
-     * @param workspace Workspace Renovatio
-     * @param apply Si true, aplica los cambios; si false, solo simula
+     *
+     * @param recipeId       ID de la receta OpenRewrite
+     * @param workspace      Workspace Renovatio
+     * @param apply          Si true, aplica los cambios; si false, solo simula
      * @param collectMetrics Si true, recolecta métricas
      * @return Resultado de la ejecución de la receta
      */
@@ -209,8 +201,8 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
 
             Environment env = getOpenRewriteEnvironment();
             org.openrewrite.config.RecipeDescriptor descriptor = env.listRecipeDescriptors().stream()
-                .filter(d -> d.getName().equals(recipeId) || d.getDisplayName().equals(recipeId))
-                .findFirst().orElse(null);
+                    .filter(d -> d.getName().equals(recipeId) || d.getDisplayName().equals(recipeId))
+                    .findFirst().orElse(null);
             if (descriptor == null || descriptor.getRecipeList() == null || descriptor.getRecipeList().isEmpty()) {
                 result.success = false;
                 result.summary = "Recipe not found: " + recipeId;
@@ -321,7 +313,7 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
                 summary.append("without modifying any files");
             } else {
                 summary.append("changes to ").append(result.issues.size())
-                    .append(result.issues.size() == 1 ? " file" : " files");
+                        .append(result.issues.size() == 1 ? " file" : " files");
             }
             if (result.durationMs > 0) {
                 summary.append(" in ").append(result.durationMs).append(" ms");
@@ -342,7 +334,8 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
             f.setAccessible(true);
             Object val = f.get(query);
             if (val != null) return val.toString();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return query.toString();
     }
 
@@ -351,27 +344,12 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
         return workspace.toAbsolutePath().relativize(file.toAbsolutePath()).toString();
     }
 
-    // Clase interna para encapsular el resultado de la ejecución de recetas
-    private static class RecipeExecutionResult {
-        boolean success = false;
-        String summary = "";
-        List<Map<String, Object>> issues = new ArrayList<>();
-        List<String> diffs = new ArrayList<>();
-        List<String> findings = new ArrayList<>();
-        List<String> plan = new ArrayList<>();
-        List<String> analyzedFiles = new ArrayList<>();
-        Map<String, Object> metrics = new LinkedHashMap<>();
-        int totalFiles = 0;
-        boolean applied = false;
-        long durationMs = 0;
-    }
-
     private List<Tool> discoverRecipeTools() {
         List<Tool> recipeTools = new ArrayList<>();
         try {
             Properties properties = new Properties();
             Environment.Builder builder = Environment.builder(properties)
-                .scanRuntimeClasspath();
+                    .scanRuntimeClasspath();
             File rewriteConfig = new File("rewrite.yml");
             if (rewriteConfig.exists()) {
                 try (InputStream inputStream = Files.newInputStream(rewriteConfig.toPath())) {
@@ -417,8 +395,8 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
         BasicTool tool = new BasicTool();
         tool.setName(toolName);
         tool.setDescription(descriptor.getDescription() != null
-            ? descriptor.getDescription()
-            : "OpenRewrite recipe: " + recipeId);
+                ? descriptor.getDescription()
+                : "OpenRewrite recipe: " + recipeId);
         tool.setInputSchema(inputSchema);
         tool.setMetadata(metadata);
         tools.add(tool);
@@ -517,20 +495,35 @@ public class JavaLanguageProvider extends BaseLanguageProvider {
             return "boolean";
         }
         if (normalized.contains("int") || normalized.contains("long") || normalized.contains("short")
-            || normalized.contains("byte")) {
+                || normalized.contains("byte")) {
             return "integer";
         }
         if (normalized.contains("double") || normalized.contains("float") || normalized.contains("bigdecimal")
-            || normalized.contains("number")) {
+                || normalized.contains("number")) {
             return "number";
         }
         if (normalized.contains("list") || normalized.contains("set") || normalized.contains("collection")
-            || normalized.contains("array")) {
+                || normalized.contains("array")) {
             return "array";
         }
         if (normalized.contains("map")) {
             return "object";
         }
         return "string";
+    }
+
+    // Clase interna para encapsular el resultado de la ejecución de recetas
+    private static class RecipeExecutionResult {
+        boolean success = false;
+        String summary = "";
+        List<Map<String, Object>> issues = new ArrayList<>();
+        List<String> diffs = new ArrayList<>();
+        List<String> findings = new ArrayList<>();
+        List<String> plan = new ArrayList<>();
+        List<String> analyzedFiles = new ArrayList<>();
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        int totalFiles = 0;
+        boolean applied = false;
+        long durationMs = 0;
     }
 }

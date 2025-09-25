@@ -7,14 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -91,20 +84,20 @@ public class JavaRefactorPlanner {
         int index = 1;
         for (String recipe : selected) {
             steps.add(new JavaPlanStep(
-                "step-" + index++,
-                recipe,
-                "Apply OpenRewrite recipe " + recipe
+                    "step-" + index++,
+                    recipe,
+                    "Apply OpenRewrite recipe " + recipe
             ));
         }
 
         JavaPlan plan = new JavaPlan(
-            generatePlanId(),
-            workspacePath,
-            goals != null ? List.copyOf(goals) : List.of(),
-            List.copyOf(selected),
-            scope != null ? List.copyOf(scope) : List.of(),
-            List.copyOf(steps),
-            Instant.now()
+                generatePlanId(),
+                workspacePath,
+                goals != null ? List.copyOf(goals) : List.of(),
+                List.copyOf(selected),
+                scope != null ? List.copyOf(scope) : List.of(),
+                List.copyOf(steps),
+                Instant.now()
         );
         plans.put(plan.id(), plan);
         return plan;

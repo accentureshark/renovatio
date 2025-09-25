@@ -5,10 +5,10 @@ import org.junit.jupiter.api.Test;
 import org.shark.renovatio.shared.nql.NqlParserService;
 import org.shark.renovatio.shared.nql.NqlQuery;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class LlmIntegrationServiceTest {
 

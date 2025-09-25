@@ -1,23 +1,23 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <groupId>org.shark.renovatio</groupId>
     <artifactId>renovatio-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
-    
+
     <name>Renovatio - Multi-Language Refactoring Platform</name>
     <description>Multi-language refactoring platform with MCP protocol support</description>
-    
+
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.2.5</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    
+
     <properties>
         <java.version>17</java.version>
         <maven.compiler.source>17</maven.compiler.source>
@@ -33,15 +33,15 @@
         <antlr4.version>4.11.1</antlr4.version>
         <mustache.version>0.9.10</mustache.version>
     </properties>
-    
-      <modules>
-          <module>renovatio-shared</module>
-          <module>renovatio-core</module>
-          <module>renovatio-provider-java</module>
-          <module>renovatio-provider-cobol</module>
-          <module>renovatio-mcp-server</module>
-      </modules>
-    
+
+    <modules>
+        <module>renovatio-shared</module>
+        <module>renovatio-core</module>
+        <module>renovatio-provider-java</module>
+        <module>renovatio-provider-cobol</module>
+        <module>renovatio-mcp-server</module>
+    </modules>
+
     <dependencyManagement>
         <dependencies>
             <!-- Internal modules -->
@@ -60,18 +60,18 @@
                 <artifactId>renovatio-provider-java</artifactId>
                 <version>${project.version}</version>
             </dependency>
-              <dependency>
-                  <groupId>org.shark.renovatio</groupId>
-                  <artifactId>renovatio-provider-cobol</artifactId>
-                  <version>${project.version}</version>
-              </dependency>
+            <dependency>
+                <groupId>org.shark.renovatio</groupId>
+                <artifactId>renovatio-provider-cobol</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>org.shark.renovatio</groupId>
                 <artifactId>renovatio-mcp-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            
+
             <!-- External dependencies -->
             <dependency>
                 <groupId>org.openrewrite</groupId>
@@ -104,7 +104,7 @@
                 <artifactId>org.eclipse.jgit</artifactId>
                 <version>${jgit.version}</version>
             </dependency>
-            
+
             <!-- Lucene for indexing and search -->
             <dependency>
                 <groupId>org.apache.lucene</groupId>
@@ -121,14 +121,14 @@
                 <artifactId>lucene-analysis-common</artifactId>
                 <version>${lucene.version}</version>
             </dependency>
-            
+
             <!-- Java code generation -->
             <dependency>
                 <groupId>com.squareup</groupId>
                 <artifactId>javapoet</artifactId>
                 <version>${javapoet.version}</version>
             </dependency>
-            
+
             <!-- Template engines -->
             <dependency>
                 <groupId>org.freemarker</groupId>
@@ -141,7 +141,7 @@
                 <artifactId>compiler</artifactId>
                 <version>${mustache.version}</version>
             </dependency>
-            
+
             <!-- Object mapping -->
             <dependency>
                 <groupId>org.mapstruct</groupId>
@@ -154,7 +154,7 @@
                 <version>${mapstruct.version}</version>
                 <scope>provided</scope>
             </dependency>
-            
+
             <!-- ANTLR for NQL grammar -->
             <dependency>
                 <groupId>org.antlr</groupId>
@@ -168,7 +168,7 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-    
+
     <build>
         <pluginManagement>
             <plugins>

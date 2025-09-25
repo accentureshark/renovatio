@@ -5,7 +5,8 @@ public class UserDto {
     private String nombre;
     private String email;
 
-    public UserDto() {}
+    public UserDto() {
+    }
 
     public UserDto(Long id, String nombre, String email) {
         this.id = id;
@@ -13,13 +14,28 @@ public class UserDto {
         this.email = email;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getNombre() { return nombre; }
-    public void setNombre(String nombre) { this.nombre = nombre; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
 }
 

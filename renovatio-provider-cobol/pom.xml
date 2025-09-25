@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <parent>
         <groupId>org.shark.renovatio</groupId>
         <artifactId>renovatio-parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
-    
+
     <artifactId>renovatio-provider-cobol</artifactId>
     <name>Renovatio COBOL Provider</name>
     <description>COBOL language provider</description>
-    
+
     <dependencies>
         <dependency>
             <groupId>org.shark.renovatio</groupId>
@@ -29,13 +29,13 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        
+
         <!-- Java code generation -->
         <dependency>
             <groupId>com.squareup</groupId>
             <artifactId>javapoet</artifactId>
         </dependency>
-        
+
         <!-- Template engine for code generation -->
         <dependency>
             <groupId>org.freemarker</groupId>
@@ -47,7 +47,7 @@
             <groupId>com.github.spullara.mustache.java</groupId>
             <artifactId>compiler</artifactId>
         </dependency>
-        
+
         <!-- Object mapping -->
         <dependency>
             <groupId>org.mapstruct</groupId>
@@ -58,7 +58,7 @@
             <artifactId>mapstruct-processor</artifactId>
             <scope>provided</scope>
         </dependency>
-        
+
         <!-- Indexing and search -->
         <dependency>
             <groupId>org.apache.lucene</groupId>
@@ -72,13 +72,13 @@
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-analysis-common</artifactId>
         </dependency>
-        
+
         <!-- Git operations -->
         <dependency>
             <groupId>org.eclipse.jgit</groupId>
             <artifactId>org.eclipse.jgit</artifactId>
         </dependency>
-        
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

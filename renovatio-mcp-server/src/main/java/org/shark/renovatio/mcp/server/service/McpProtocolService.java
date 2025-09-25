@@ -13,13 +13,13 @@ import java.util.stream.Collectors;
 
 /**
  * MCP Protocol Service - implements the full Model Content Protocol specification.
- * 
+ * <p>
  * This service handles all MCP JSON-RPC 2.0 methods according to the specification at:
  * https://modelcontextprotocol.io/docs/develop/build-server
  */
 @Service
 public class McpProtocolService {
-    
+
     private final McpToolingService mcpToolingService;
     private final Set<String> loggingSubscribers = ConcurrentHashMap.newKeySet();
 
@@ -73,11 +73,11 @@ public class McpProtocolService {
                     return handleCliManifest(request);
                 default:
                     return new McpResponse(request.getId(),
-                        new McpError(-32601, "Method not found: " + request.getMethod()));
+                            new McpError(-32601, "Method not found: " + request.getMethod()));
             }
         } catch (Exception e) {
             return new McpResponse(request.getId(),
-                new McpError(-32603, "Internal error: " + e.getMessage()));
+                    new McpError(-32603, "Internal error: " + e.getMessage()));
         }
     }
 
@@ -89,15 +89,25 @@ public class McpProtocolService {
         result.put("protocolVersion", "2025-06-18");
         result.put("capabilities", new McpCapabilities());
         result.put("serverInfo", Map.of(
-            "name", "Renovatio MCP Server",
-            "version", "1.0.0",
-            "description", "Multi-language refactoring and migration platform with full MCP compliance"
+                "name", "Renovatio MCP Server",
+                "version", "1.0.0",
+                "description", "Multi-language refactoring and migration platform with full MCP compliance"
         ));
-        
-        // Include available tools in initialization
-        var tools = mcpToolingService.getMcpTools();
+
+        // Optional language preference to filter available tools
+        String language = null;
+        Object paramsObj = request.getParams();
+        if (paramsObj instanceof Map<?, ?> map) {
+            Object lang = map.get("language");
+            if (lang != null) {
+                language = String.valueOf(lang);
+            }
+        }
+        var tools = (language == null || language.isBlank())
+                ? mcpToolingService.getMcpTools()
+                : mcpToolingService.getMcpTools(language);
         result.put("availableTools", tools);
-        
+
         return new McpResponse(request.getId(), result);
     }
 
@@ -126,7 +136,19 @@ public class McpProtocolService {
      */
     private McpResponse handleToolsList(McpRequest request) {
         Map<String, Object> result = new HashMap<>();
-        result.put("tools", mcpToolingService.getMcpTools());
+        String language = null;
+        Object paramsObj = request.getParams();
+        if (paramsObj instanceof Map<?, ?> map) {
+            Object lang = map.get("language");
+            if (lang != null) {
+                language = String.valueOf(lang);
+            }
+        }
+        if (language == null || language.isBlank()) {
+            result.put("tools", mcpToolingService.getMcpTools());
+        } else {
+            result.put("tools", mcpToolingService.getMcpTools(language));
+        }
         return new McpResponse(request.getId(), result);
     }
 
@@ -139,7 +161,7 @@ public class McpProtocolService {
             Map<String, Object> params = (Map<String, Object>) request.getParams();
             if (params == null || !params.containsKey("name")) {
                 return new McpResponse(request.getId(),
-                    new McpError(-32602, "Invalid params - missing tool name"));
+                        new McpError(-32602, "Invalid params - missing tool name"));
             }
 
             String toolName = normalizeToolName((String) params.get("name"));
@@ -150,7 +172,7 @@ public class McpProtocolService {
             return new McpResponse(request.getId(), toolResult);
         } catch (Exception e) {
             return new McpResponse(request.getId(),
-                new McpError(-32603, "Tool execution error: " + e.getMessage()));
+                    new McpError(-32603, "Tool execution error: " + e.getMessage()));
         }
     }
 
@@ -370,7 +392,17 @@ public class McpProtocolService {
      * CLI manifest method - provides tool information for CLI clients.
      */
     private McpResponse handleCliManifest(McpRequest request) {
-        List<McpTool> tools = mcpToolingService.getMcpTools();
+        String language = null;
+        Object paramsObj = request.getParams();
+        if (paramsObj instanceof Map<?, ?> map) {
+            Object lang = map.get("language");
+            if (lang != null) {
+                language = String.valueOf(lang);
+            }
+        }
+        List<McpTool> tools = (language == null || language.isBlank())
+                ? mcpToolingService.getMcpTools()
+                : mcpToolingService.getMcpTools(language);
         List<Map<String, Object>> commands = tools.stream().map(tool -> {
             Map<String, Object> command = new HashMap<>();
             command.put("name", tool.getName());
@@ -382,8 +414,8 @@ public class McpProtocolService {
         Map<String, Object> result = new HashMap<>();
         result.put("commands", commands);
         result.put("serverInfo", Map.of(
-            "name", "Renovatio MCP Server",
-            "version", "1.0.0"
+                "name", "Renovatio MCP Server",
+                "version", "1.0.0"
         ));
         return new McpResponse(request.getId(), result);
     }

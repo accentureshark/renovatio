@@ -8,17 +8,17 @@ import org.springframework.context.annotation.ComponentScan;
 
 /**
  * Main Spring Boot application for the Renovatio MCP Server.
- * 
+ * <p>
  * This server implements the Model Content Protocol (MCP) specification
  * and exposes Renovatio's refactoring and migration capabilities as MCP tools.
  */
 @SpringBootApplication
 @ComponentScan(basePackages = {
-    "org.shark.renovatio.mcp.server",
-    "org.shark.renovatio.core",
-    "org.shark.renovatio.shared",
-    "org.shark.renovatio.provider.java",
-    "org.shark.renovatio.provider.cobol"
+        "org.shark.renovatio.mcp.server",
+        "org.shark.renovatio.core",
+        "org.shark.renovatio.shared",
+        "org.shark.renovatio.provider.java",
+        "org.shark.renovatio.provider.cobol"
 })
 public class McpServerApplication {
 

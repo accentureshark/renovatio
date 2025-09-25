@@ -64,13 +64,13 @@ renovatio:
     parser:
       max-file-size: 10MB
       parallel-processing: true
-      
+
     # Code generation configuration
     generation:
       target-package: org.shark.renovatio.generated.cobol
       generate-tests: true
       template-engine: freemarker
-      
+
     # Migration configuration
     migration:
       default-strategy: incremental
@@ -82,18 +82,18 @@ renovatio:
       mock: true
       # Base URL for real CICS services
       url: http://localhost:10080
-      
+
     # Indexing configuration
     indexing:
       enabled: true
       max-index-size: 100MB
       rebuild-interval: 24h
-      
+
     # Metrics configuration
     metrics:
       complexity-threshold: 10
       large-file-threshold: 1000
-      
+
   # LLM configuration (optional)
   llm:
     enabled: false

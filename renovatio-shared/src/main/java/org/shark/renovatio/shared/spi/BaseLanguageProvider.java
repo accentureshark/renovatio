@@ -31,11 +31,11 @@ public abstract class BaseLanguageProvider implements LanguageProvider, Extended
      */
     protected String createSampleDiff() {
         return """
-            --- a/example.txt
-            +++ b/example.txt
-            @@ -1 +1 @@
-            -old line
-            +new line
-            """;
+                --- a/example.txt
+                +++ b/example.txt
+                @@ -1 +1 @@
+                -old line
+                +new line
+                """;
     }
 }

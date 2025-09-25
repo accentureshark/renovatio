@@ -7,11 +7,13 @@ import org.shark.renovatio.shared.nql.NqlQuery;
 import org.springframework.stereotype.Service;
 
 import javax.lang.model.element.Modifier;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Java code generation service using JavaPoet
@@ -19,7 +21,7 @@ import java.util.*;
  */
 @Service
 public class JavaGenerationService {
-    
+
     private final CobolParsingService parsingService;
     private final TemplateCodeGenerationService templateService;
 
@@ -27,7 +29,7 @@ public class JavaGenerationService {
         this.parsingService = parsingService;
         this.templateService = templateService;
     }
-    
+
     /**
      * Generates Java interface stubs for COBOL programs
      */
@@ -41,7 +43,7 @@ public class JavaGenerationService {
 
             @SuppressWarnings("unchecked")
             List<org.shark.renovatio.provider.cobol.domain.CobolProgram> programs = (List<org.shark.renovatio.provider.cobol.domain.CobolProgram>)
-                ((Map<String, Object>) analyzeResult.getData()).get("programs");
+                    ((Map<String, Object>) analyzeResult.getData()).get("programs");
 
             Map<String, String> generatedFiles = new HashMap<>();
 
@@ -90,8 +92,8 @@ public class JavaGenerationService {
 
             boolean success = !generatedFiles.isEmpty();
             String message = success ?
-                "Generated " + generatedFiles.size() + " Java files in: " + outputPath :
-                "No Java files generated";
+                    "Generated " + generatedFiles.size() + " Java files in: " + outputPath :
+                    "No Java files generated";
 
             StubResult result = new StubResult(success, message);
             result.setGeneratedCode(generatedFiles);
@@ -100,7 +102,7 @@ public class JavaGenerationService {
             return new StubResult(false, "Stub generation failed: " + e.getMessage());
         }
     }
-    
+
     /**
      * Generates a Java DTO class from COBOL data structures
      */
@@ -112,14 +114,14 @@ public class JavaGenerationService {
         System.out.println("DEBUG: generateDataTransferObject - original: '" + cleanClassName + "', sanitized: '" + sanitizedClassName + "', final: '" + className + "'");
 
         TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className)
-            .addModifiers(Modifier.PUBLIC)
-            .addJavadoc("Data Transfer Object generated from COBOL program: $L\n", sanitizedClassName);
+                .addModifiers(Modifier.PUBLIC)
+                .addJavadoc("Data Transfer Object generated from COBOL program: $L\n", sanitizedClassName);
 
         // Add default constructor
         classBuilder.addMethod(MethodSpec.constructorBuilder()
-            .addModifiers(Modifier.PUBLIC)
-            .build());
-        
+                .addModifiers(Modifier.PUBLIC)
+                .build());
+
         // Extract data items from metadata
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> dataItems = (List<Map<String, Object>>) programData.get("dataItems");
@@ -128,21 +130,21 @@ public class JavaGenerationService {
             for (Map<String, Object> item : dataItems) {
                 String fieldName = (String) item.get("name");
                 String javaType = (String) item.get("javaType");
-                
+
                 if (fieldName != null && javaType != null) {
                     addFieldToClass(classBuilder, fieldName, javaType);
                 }
             }
         }
-        
+
         TypeSpec classSpec = classBuilder.build();
-        
+
         JavaFile javaFile = JavaFile.builder("org.shark.renovatio.generated.cobol", classSpec)
-            .build();
-        
+                .build();
+
         return javaFile.toString();
     }
-    
+
     /**
      * Generates a service interface for COBOL program functionality
      */
@@ -157,41 +159,41 @@ public class JavaGenerationService {
         ClassName dtoClass = ClassName.get("org.shark.renovatio.generated.cobol", dtoName);
 
         TypeSpec.Builder interfaceBuilder = TypeSpec.interfaceBuilder(interfaceName)
-            .addModifiers(Modifier.PUBLIC)
-            .addJavadoc("Service interface for COBOL program: $L\n", sanitizedClassName);
+                .addModifiers(Modifier.PUBLIC)
+                .addJavadoc("Service interface for COBOL program: $L\n", sanitizedClassName);
 
         // Add process method
         MethodSpec processMethod = MethodSpec.methodBuilder("process")
-            .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
-            .addParameter(dtoClass, "input")
-            .returns(dtoClass)
-            .addJavadoc("Process the COBOL program logic with given input\n")
-            .addJavadoc("@param input Input data structure\n")
-            .addJavadoc("@return Processed output data structure\n")
-            .build();
-        
+                .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+                .addParameter(dtoClass, "input")
+                .returns(dtoClass)
+                .addJavadoc("Process the COBOL program logic with given input\n")
+                .addJavadoc("@param input Input data structure\n")
+                .addJavadoc("@return Processed output data structure\n")
+                .build();
+
         interfaceBuilder.addMethod(processMethod);
-        
+
         // Add validation method
         MethodSpec validateMethod = MethodSpec.methodBuilder("validate")
-            .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
-            .addParameter(dtoClass, "input")
-            .returns(boolean.class)
-            .addJavadoc("Validate input data structure\n")
-            .addJavadoc("@param input Input data to validate\n")
-            .addJavadoc("@return true if valid, false otherwise\n")
-            .build();
-        
+                .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+                .addParameter(dtoClass, "input")
+                .returns(boolean.class)
+                .addJavadoc("Validate input data structure\n")
+                .addJavadoc("@param input Input data to validate\n")
+                .addJavadoc("@return true if valid, false otherwise\n")
+                .build();
+
         interfaceBuilder.addMethod(validateMethod);
-        
+
         TypeSpec interfaceSpec = interfaceBuilder.build();
-        
+
         JavaFile javaFile = JavaFile.builder("org.shark.renovatio.generated.cobol", interfaceSpec)
-            .build();
-        
+                .build();
+
         return javaFile.toString();
     }
-    
+
     /**
      * Generates a service implementation template
      */
@@ -208,46 +210,46 @@ public class JavaGenerationService {
         ClassName dtoClass = ClassName.get("org.shark.renovatio.generated.cobol", dtoName);
 
         TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className)
-            .addModifiers(Modifier.PUBLIC)
-            .addSuperinterface(interfaceClass)
-            .addAnnotation(ClassName.get("org.springframework.stereotype", "Service"))
-            .addJavadoc("Implementation of $L\n", interfaceName)
-            .addJavadoc("Generated from COBOL program: $L\n", sanitizedClassName);
+                .addModifiers(Modifier.PUBLIC)
+                .addSuperinterface(interfaceClass)
+                .addAnnotation(ClassName.get("org.springframework.stereotype", "Service"))
+                .addJavadoc("Implementation of $L\n", interfaceName)
+                .addJavadoc("Generated from COBOL program: $L\n", sanitizedClassName);
 
         // Implement process method
         MethodSpec processMethod = MethodSpec.methodBuilder("process")
-            .addModifiers(Modifier.PUBLIC)
-            .addAnnotation(Override.class)
-            .addParameter(dtoClass, "input")
-            .returns(dtoClass)
-            .addStatement("// TODO: Implement COBOL business logic")
-            .addStatement("// Original COBOL program: $L", cleanClassName)
-            .addStatement("$T output = new $T()", dtoClass, dtoClass)
-            .addStatement("return output")
-            .build();
-        
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(Override.class)
+                .addParameter(dtoClass, "input")
+                .returns(dtoClass)
+                .addStatement("// TODO: Implement COBOL business logic")
+                .addStatement("// Original COBOL program: $L", cleanClassName)
+                .addStatement("$T output = new $T()", dtoClass, dtoClass)
+                .addStatement("return output")
+                .build();
+
         classBuilder.addMethod(processMethod);
-        
+
         // Implement validate method
         MethodSpec validateMethod = MethodSpec.methodBuilder("validate")
-            .addModifiers(Modifier.PUBLIC)
-            .addAnnotation(Override.class)
-            .addParameter(dtoClass, "input")
-            .returns(boolean.class)
-            .addStatement("// TODO: Implement validation logic")
-            .addStatement("return input != null")
-            .build();
-        
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(Override.class)
+                .addParameter(dtoClass, "input")
+                .returns(boolean.class)
+                .addStatement("// TODO: Implement validation logic")
+                .addStatement("return input != null")
+                .build();
+
         classBuilder.addMethod(validateMethod);
-        
+
         TypeSpec classSpec = classBuilder.build();
-        
+
         JavaFile javaFile = JavaFile.builder("org.shark.renovatio.generated.cobol", classSpec)
-            .build();
-        
+                .build();
+
         return javaFile.toString();
     }
-    
+
     /**
      * Adds a field with getter and setter to a class builder
      */
@@ -255,40 +257,45 @@ public class JavaGenerationService {
         ClassName fieldType = getClassNameForType(javaType);
         // Add field
         FieldSpec field = FieldSpec.builder(fieldType, fieldName)
-            .addModifiers(Modifier.PRIVATE)
-            .build();
+                .addModifiers(Modifier.PRIVATE)
+                .build();
         classBuilder.addField(field);
         // Add getter
         String getterName = "get" + toPascalCase(fieldName);
         MethodSpec getter = MethodSpec.methodBuilder(getterName)
-            .addModifiers(Modifier.PUBLIC)
-            .returns(fieldType)
-            .addStatement("return $L", fieldName)
-            .build();
+                .addModifiers(Modifier.PUBLIC)
+                .returns(fieldType)
+                .addStatement("return $L", fieldName)
+                .build();
         classBuilder.addMethod(getter);
         // Add setter
         String setterName = "set" + toPascalCase(fieldName);
         MethodSpec setter = MethodSpec.methodBuilder(setterName)
-            .addModifiers(Modifier.PUBLIC)
-            .addParameter(fieldType, fieldName)
-            .addStatement("this.$L = $L", fieldName, fieldName)
-            .build();
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(fieldType, fieldName)
+                .addStatement("this.$L = $L", fieldName, fieldName)
+                .build();
         classBuilder.addMethod(setter);
     }
-    
+
     /**
      * Maps Java type string to ClassName
      */
     private ClassName getClassNameForType(String javaType) {
         switch (javaType) {
-            case "String": return ClassName.get(String.class);
-            case "Integer": return ClassName.get(Integer.class);
-            case "Long": return ClassName.get(Long.class);
-            case "BigDecimal": return ClassName.get(BigDecimal.class);
-            default: return ClassName.get(Object.class);
+            case "String":
+                return ClassName.get(String.class);
+            case "Integer":
+                return ClassName.get(Integer.class);
+            case "Long":
+                return ClassName.get(Long.class);
+            case "BigDecimal":
+                return ClassName.get(BigDecimal.class);
+            default:
+                return ClassName.get(Object.class);
         }
     }
-    
+
     /**
      * Converts string to PascalCase (preserva mayúsculas en siglas y nombres COBOL, separa por punto también)
      */
@@ -316,8 +323,8 @@ public class JavaGenerationService {
 
             // Ignorar palabras comunes que no aportan valor al nombre de clase
             if (part.equalsIgnoreCase("cob") || part.equalsIgnoreCase("cobol") ||
-                part.equalsIgnoreCase("cbl") || part.equalsIgnoreCase("cpy") ||
-                part.equalsIgnoreCase("program") || part.equalsIgnoreCase("file")) {
+                    part.equalsIgnoreCase("cbl") || part.equalsIgnoreCase("cpy") ||
+                    part.equalsIgnoreCase("program") || part.equalsIgnoreCase("file")) {
                 System.out.println("DEBUG: skipping common word: '" + part + "'");
                 continue;
             }
@@ -382,7 +389,7 @@ public class JavaGenerationService {
 
         return finalResult;
     }
-    
+
     /**
      * Capitalizes first letter of string
      */
@@ -411,8 +418,8 @@ public class JavaGenerationService {
 
             // Ignorar palabras comunes que no aportan valor al nombre de clase
             if (part.equalsIgnoreCase("cob") || part.equalsIgnoreCase("cobol") ||
-                part.equalsIgnoreCase("cbl") || part.equalsIgnoreCase("cpy") ||
-                part.equalsIgnoreCase("program") || part.equalsIgnoreCase("file")) {
+                    part.equalsIgnoreCase("cbl") || part.equalsIgnoreCase("cpy") ||
+                    part.equalsIgnoreCase("program") || part.equalsIgnoreCase("file")) {
                 continue;
             }
 

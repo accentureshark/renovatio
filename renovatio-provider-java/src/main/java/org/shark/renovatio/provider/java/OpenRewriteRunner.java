@@ -6,15 +6,11 @@ import org.openrewrite.Result;
 import org.openrewrite.SourceFile;
 
 import java.lang.reflect.Method;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * OpenRewrite runner with basic safety validations.
- *
+ * <p>
  * Note: This class replaces the previous self-delegating compatibility wrapper
  * which caused recursive construction and StackOverflowError.
  */
@@ -22,7 +18,7 @@ public class OpenRewriteRunner {
 
     /**
      * Execute a recipe over the provided source files after performing safety checks.
-     *
+     * <p>
      * Contract:
      * - Throws IllegalArgumentException if a known-unsafe/misconfigured recipe is detected.
      * - Supports composite recipes by validating children recursively.
@@ -50,8 +46,8 @@ public class OpenRewriteRunner {
             String name = safeName(r);
             // Guard for CreateEmptyJavaClass requiring parameters
             if (name.endsWith("org.openrewrite.java.CreateEmptyJavaClass") ||
-                name.equals("org.openrewrite.java.CreateEmptyJavaClass") ||
-                name.endsWith(".CreateEmptyJavaClass")) {
+                    name.equals("org.openrewrite.java.CreateEmptyJavaClass") ||
+                    name.endsWith(".CreateEmptyJavaClass")) {
                 ensureCreateEmptyJavaClassParams(r, isRoot);
             }
             // Recurse into child recipes if present
@@ -71,11 +67,13 @@ public class OpenRewriteRunner {
         try {
             String n = r.getName();
             if (n != null && !n.isBlank()) return n;
-        } catch (Throwable ignored) { }
+        } catch (Throwable ignored) {
+        }
         try {
             String dn = r.getDisplayName();
             if (dn != null && !dn.isBlank()) return dn;
-        } catch (Throwable ignored) { }
+        } catch (Throwable ignored) {
+        }
         return r.getClass().getName();
     }
 
@@ -115,7 +113,8 @@ public class OpenRewriteRunner {
                     return Optional.ofNullable(inner == null ? null : inner.toString());
                 }
             }
-        } catch (ReflectiveOperationException ignored) { }
+        } catch (ReflectiveOperationException ignored) {
+        }
         return Optional.empty();
     }
 

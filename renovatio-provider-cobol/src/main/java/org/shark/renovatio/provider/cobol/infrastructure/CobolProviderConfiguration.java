@@ -4,8 +4,8 @@ import org.shark.renovatio.provider.cobol.CobolLanguageProvider;
 import org.shark.renovatio.provider.cobol.service.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
 
 /**
  * Spring configuration for COBOL provider
@@ -14,31 +14,31 @@ import org.springframework.context.annotation.ComponentScan;
 @Configuration
 @ComponentScan(basePackages = "org.shark.renovatio.provider.cobol")
 public class CobolProviderConfiguration {
-    
+
     @Bean
     public CobolParsingService cobolParsingService(@Value("${renovatio.cobol.parser.dialect:IBM}") String dialect) {
         return new CobolParsingService(CobolParsingService.Dialect.fromString(dialect));
     }
-    
+
     @Bean
     public JavaGenerationService javaGenerationService(
             CobolParsingService parsingService,
             TemplateCodeGenerationService templateCodeGenerationService) {
         return new JavaGenerationService(parsingService, templateCodeGenerationService);
     }
-    
+
     @Bean
     public MigrationPlanService migrationPlanService(
             CobolParsingService parsingService,
             JavaGenerationService javaGenerationService) {
         return new MigrationPlanService(parsingService, javaGenerationService);
     }
-    
+
     @Bean
     public IndexingService indexingService() {
         return new IndexingService();
     }
-    
+
     @Bean
     public MetricsService metricsService() {
         return new MetricsService();
@@ -55,7 +55,7 @@ public class CobolProviderConfiguration {
     public Db2MigrationService db2MigrationService(CobolParsingService parsingService) {
         return new Db2MigrationService(parsingService);
     }
-    
+
     @Bean
     public CobolLanguageProvider cobolLanguageProvider(
             CobolParsingService parsingService,
@@ -66,13 +66,13 @@ public class CobolProviderConfiguration {
             TemplateCodeGenerationService templateCodeGenerationService,
             Db2MigrationService db2MigrationService) {
         return new CobolLanguageProvider(
-            parsingService,
-            javaGenerationService,
-            migrationPlanService,
-            indexingService,
-            metricsService,
-            templateCodeGenerationService,
-            db2MigrationService
+                parsingService,
+                javaGenerationService,
+                migrationPlanService,
+                indexingService,
+                metricsService,
+                templateCodeGenerationService,
+                db2MigrationService
         );
     }
 }

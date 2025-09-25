@@ -6,14 +6,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public class McpError {
     @Schema(description = "Error code")
     private int code;
-    
+
     @Schema(description = "Error message")
     private String message;
-    
+
     @Schema(description = "Error data")
     private Object data;
 
-    public McpError() {}
+    public McpError() {
+    }
 
     public McpError(int code, String message) {
         this.code = code;

@@ -25,39 +25,10 @@ import java.util.stream.Stream;
  * performed here is intentionally simplistic and relies on regular
  * expressions to extract a few pieces of information such as the program id,
  * embedded SQL statements and simple CICS commands.</p>
-ightweight regular-expression based parser.
+ * ightweight regular-expression based parser.
  */
 @Service
 public class CobolParsingService {
-
-    /** Supported COBOL dialects. */
-    public enum Dialect {
-        IBM,
-        GNU,
-        MICRO_FOCUS;
-
-        /**
-         * Parse a string value into a {@link Dialect}. If the value does not
-         * match any known dialect the default IBM dialect is returned.
-         */
-        public static Dialect fromString(String value) {
-            if (value == null) {
-                return IBM;
-            }
-            switch (value.trim().toUpperCase(Locale.ROOT)) {
-                case "GNU":
-                case "GNUCOBOL":
-                    return GNU;
-                case "MICROFOCUS":
-                case "MICRO_FOCUS":
-                case "MF":
-                    return MICRO_FOCUS;
-                case "IBM":
-                default:
-                    return IBM;
-            }
-        }
-    }
 
     private final Dialect defaultDialect;
 
@@ -73,43 +44,48 @@ public class CobolParsingService {
         return defaultDialect;
     }
 
-    /** Locate COBOL source files inside a workspace. */
+    /**
+     * Locate COBOL source files inside a workspace.
+     */
     public List<Path> findCobolFiles(Path workspacePath) throws IOException {
         List<Path> cobolFiles = new ArrayList<>();
         try (Stream<Path> walkStream = Files.walk(workspacePath)) {
             walkStream
-                .filter(Files::isRegularFile)
-                .filter(path -> {
-                    String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-                    return name.endsWith(".cob") ||
-                           name.endsWith(".cobol") ||
-                           name.endsWith(".cbl") ||
-                           name.endsWith(".cpy");
-                })
-                .forEach(cobolFiles::add);
+                    .filter(Files::isRegularFile)
+                    .filter(path -> {
+                        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                        return name.endsWith(".cob") ||
+                                name.endsWith(".cobol") ||
+                                name.endsWith(".cbl") ||
+                                name.endsWith(".cpy");
+                    })
+                    .forEach(cobolFiles::add);
         }
         return cobolFiles;
     }
-
 
     public List<Path> findCopybooks(Path workspacePath) throws IOException {
         List<Path> copybooks = new ArrayList<>();
         try (Stream<Path> walkStream = Files.walk(workspacePath)) {
             walkStream
-                .filter(Files::isRegularFile)
-                .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".cpy"))
-                .forEach(copybooks::add);
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".cpy"))
+                    .forEach(copybooks::add);
         }
         return copybooks;
     }
 
-    /** Extract all embedded EXEC SQL statements from a COBOL source file. */
+    /**
+     * Extract all embedded EXEC SQL statements from a COBOL source file.
+     */
     public List<String> extractExecSqlStatements(Path cobolFile) throws IOException {
         String content = Files.readString(cobolFile);
         return extractExecSqlStatements(content);
     }
 
-    /** Extract embedded EXEC SQL statements from COBOL source content. */
+    /**
+     * Extract embedded EXEC SQL statements from COBOL source content.
+     */
     public List<String> extractExecSqlStatements(String cobolSource) {
         List<String> statements = new ArrayList<>();
         Pattern pattern = Pattern.compile("EXEC\\s+SQL(.*?)END-EXEC", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
@@ -174,6 +150,7 @@ public class CobolParsingService {
 
         return Dialect.fromString(dialectStr);
     }
+
     /**
      * Attempts to parse a COBOL file using the ProLeap parser via reflection.
      * If the library is not available or an error occurs, {@code null} is
@@ -192,7 +169,7 @@ public class CobolParsingService {
 
             // Call analyzeFile(File, CobolSourceFormatEnum)
             runnerClass.getMethod("analyzeFile", File.class, formatEnum)
-                .invoke(runner, cobolFile.toFile(), format);
+                    .invoke(runner, cobolFile.toFile(), format);
 
             // We only need metadata for now; reuse regex parsing for structure
             CobolProgram program = parseWithRegex(cobolFile);
@@ -239,9 +216,10 @@ public class CobolParsingService {
             return false;
         }
     }
-    
 
-    /** Parse a COBOL file using the service's default dialect. */
+    /**
+     * Parse a COBOL file using the service's default dialect.
+     */
     public Map<String, Object> parseCobolFile(Path cobolFile) throws IOException {
         return parseCobolFile(cobolFile, defaultDialect);
     }
@@ -384,5 +362,36 @@ public class CobolParsingService {
         ast.put("dataItems", new ArrayList<>());
         ast.put("dialect", dialect.name());
         return ast;
+    }
+
+    /**
+     * Supported COBOL dialects.
+     */
+    public enum Dialect {
+        IBM,
+        GNU,
+        MICRO_FOCUS;
+
+        /**
+         * Parse a string value into a {@link Dialect}. If the value does not
+         * match any known dialect the default IBM dialect is returned.
+         */
+        public static Dialect fromString(String value) {
+            if (value == null) {
+                return IBM;
+            }
+            switch (value.trim().toUpperCase(Locale.ROOT)) {
+                case "GNU":
+                case "GNUCOBOL":
+                    return GNU;
+                case "MICROFOCUS":
+                case "MICRO_FOCUS":
+                case "MF":
+                    return MICRO_FOCUS;
+                case "IBM":
+                default:
+                    return IBM;
+            }
+        }
     }
 }

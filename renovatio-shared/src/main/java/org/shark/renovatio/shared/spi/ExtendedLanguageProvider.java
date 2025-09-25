@@ -5,7 +5,7 @@ import java.util.Map;
 /**
  * Optional extension point for language providers that need to expose
  * additional MCP tools beyond the classic analyze/plan/apply pipeline.
- *
+ * <p>
  * Implementations may override {@link #executeExtendedTool(String, Map)}
  * to handle provider-specific capabilities. When the method returns
  * {@code null}, the registry will fall back to the legacy capability

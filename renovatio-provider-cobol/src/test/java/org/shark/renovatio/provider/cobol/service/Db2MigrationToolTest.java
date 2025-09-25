@@ -8,7 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for DB2 migration MCP tool.
@@ -47,9 +48,9 @@ public class Db2MigrationToolTest {
 
         Object result = tools.executeCobolTool("cobol.db2.migrate", args);
         assertTrue(result instanceof Map);
-        Map<?,?> resMap = (Map<?,?>) result;
+        Map<?, ?> resMap = (Map<?, ?>) result;
         assertEquals(true, resMap.get("success"));
-        Map<?,?> files = (Map<?,?>) resMap.get("files");
+        Map<?, ?> files = (Map<?, ?>) resMap.get("files");
         assertTrue(files.containsKey("Customer.java"));
         assertTrue(files.containsKey("CustomerRepository.java"));
     }

@@ -1,6 +1,7 @@
 # Git Commit Instructions
 
-All commit messages in Renovatio must follow the Conventional Commits specification and be written in English. This ensures clarity, traceability, and consistency across all modules and teams.
+All commit messages in Renovatio must follow the Conventional Commits specification and be written in English. This
+ensures clarity, traceability, and consistency across all modules and teams.
 
 ## Format
 
@@ -34,6 +35,7 @@ chore: update Maven dependencies and plugins
 ```
 
 ## Rules
+
 - Use English for all commit messages.
 - Use present tense: "add", "fix", "update" (not "added", "fixed", "updated").
 - Reference issues in the footer if relevant: "Closes #123".
@@ -43,6 +45,7 @@ chore: update Maven dependencies and plugins
 - Avoid generic messages like "update code" or "misc changes".
 
 ## Business context
+
 - Always relate commits to the MCP architecture, modularity, and interoperability goals of Renovatio.
 - Document changes that affect MCP compliance, API schemas, or migration/refactor logic.
 

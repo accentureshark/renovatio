@@ -36,9 +36,18 @@ public class BasicTool implements Tool {
         return name;
     }
 
+    // Setters for internal use
+    public void setName(String name) {
+        this.name = name;
+    }
+
     @Override
     public String getDescription() {
         return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     @Override
@@ -46,22 +55,13 @@ public class BasicTool implements Tool {
         return inputSchema;
     }
 
+    public void setInputSchema(Map<String, Object> inputSchema) {
+        this.inputSchema = inputSchema != null ? inputSchema : new HashMap<>();
+    }
+
     @Override
     public Map<String, Object> getMetadata() {
         return metadata;
-    }
-
-    // Setters for internal use
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public void setInputSchema(Map<String, Object> inputSchema) {
-        this.inputSchema = inputSchema != null ? inputSchema : new HashMap<>();
     }
 
     public void setMetadata(Map<String, Object> metadata) {

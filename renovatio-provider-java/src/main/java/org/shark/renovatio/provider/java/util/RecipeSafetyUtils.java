@@ -1,12 +1,14 @@
 package org.shark.renovatio.provider.java.util;
 
 import org.openrewrite.Recipe;
+
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Optional;
 
 public class RecipeSafetyUtils {
-    private RecipeSafetyUtils() {}
+    private RecipeSafetyUtils() {
+    }
 
     /**
      * Returns true if the Recipe instance has missing required parameters (for safety checks).
@@ -27,8 +29,8 @@ public class RecipeSafetyUtils {
             return false;
         }
         // Lista de getters relevantes para recetas de creación y refactorización
-        String[] requiredGetters = new String[] {
-            "getPath", "getFile", "getFilename", "getTarget", "getSource", "getOldName", "getNewName"
+        String[] requiredGetters = new String[]{
+                "getPath", "getFile", "getFilename", "getTarget", "getSource", "getOldName", "getNewName"
         };
         for (String getter : requiredGetters) {
             try {
@@ -54,9 +56,9 @@ public class RecipeSafetyUtils {
         }
         // Add more explicit recipe names if needed
         if ("org.openrewrite.yaml.CreateYamlFile".equals(recipeName) ||
-            "org.openrewrite.text.CreateTextFile".equals(recipeName) ||
-            "org.openrewrite.xml.CreateXmlFile".equals(recipeName) ||
-            "org.openrewrite.text.AppendToTextFile".equals(recipeName)) {
+                "org.openrewrite.text.CreateTextFile".equals(recipeName) ||
+                "org.openrewrite.xml.CreateXmlFile".equals(recipeName) ||
+                "org.openrewrite.text.AppendToTextFile".equals(recipeName)) {
             return true;
         }
         return false;

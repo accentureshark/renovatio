@@ -2,7 +2,9 @@ package org.shark.renovatio.core.service;
 
 import org.junit.jupiter.api.Test;
 import org.shark.renovatio.shared.domain.AccessRole;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReportAccessServiceTest {
 

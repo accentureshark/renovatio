@@ -1,9 +1,13 @@
 package org.shark.renovatio.core.service;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.shark.renovatio.shared.domain.MetricsResult;
 import org.shark.renovatio.shared.domain.MigrationReport;
 import org.shark.renovatio.shared.domain.Scope;
 import org.shark.renovatio.shared.domain.Workspace;
-import org.shark.renovatio.shared.domain.MetricsResult;
 import org.shark.renovatio.shared.spi.LanguageProvider;
 import org.springframework.stereotype.Service;
 
@@ -11,11 +15,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
 
 /**
  * Service that aggregates metrics and renders reports in different formats.
@@ -52,10 +51,10 @@ public class MigrationReportService {
         sb.append("<html><body><h1>Migration Report</h1>");
         sb.append("<h2>Statuses</h2><ul>");
         report.getStatuses().forEach((k, v) ->
-            sb.append("<li>").append(k).append(": ").append(v).append("</li>"));
+                sb.append("<li>").append(k).append(": ").append(v).append("</li>"));
         sb.append("</ul><h2>Metrics</h2><ul>");
         report.getMetrics().forEach((k, v) ->
-            sb.append("<li>").append(k).append(": ").append(String.format("%.2f", v)).append("</li>"));
+                sb.append("<li>").append(k).append(": ").append(String.format("%.2f", v)).append("</li>"));
         sb.append("</ul></body></html>");
         return sb.toString();
     }

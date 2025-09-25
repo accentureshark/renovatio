@@ -1,6 +1,7 @@
 # Renovatio Architecture
 
-Renovatio follows a clean separation between the MCP protocol implementation and the core migration engine, enabling both standalone usage and MCP client integration.
+Renovatio follows a clean separation between the MCP protocol implementation and the core migration engine, enabling
+both standalone usage and MCP client integration.
 
 ## Architecture Overview
 
@@ -41,17 +42,20 @@ Renovatio follows a clean separation between the MCP protocol implementation and
 ## Module Structure
 
 ### renovatio-shared
+
 - Common interfaces and domain models
 - Protocol-agnostic abstractions
 - Shared utilities and DTOs
 
 ### renovatio-core
+
 - Core migration engine (protocol-agnostic)
 - Language provider registry
 - Tool orchestration and execution
 - Business logic for migration operations
 
 ### renovatio-mcp-server
+
 - Complete MCP protocol implementation
 - JSON-RPC 2.0 server
 - Spring Boot application
@@ -60,11 +64,13 @@ Renovatio follows a clean separation between the MCP protocol implementation and
 ### Language Providers
 
 #### renovatio-provider-java
+
 - OpenRewrite integration
 - Java refactoring and migration tools
 - Recipe discovery and execution
 
 #### renovatio-provider-cobol
+
 - COBOL parsing and analysis
 - COBOL-to-Java migration
 - Code generation capabilities
@@ -80,7 +86,9 @@ Renovatio follows a clean separation between the MCP protocol implementation and
 ## Usage Patterns
 
 ### As MCP Server
+
 Connect MCP clients to `renovatio-mcp-server` for tool-based interactions.
 
 ### As Library
+
 Use `renovatio-core` directly in applications that need migration capabilities without MCP protocol overhead.

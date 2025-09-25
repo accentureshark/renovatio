@@ -103,12 +103,12 @@ public class JavaProvider extends BaseLanguageProvider {
         List<String> include = combineLists(listParam(params, "include"), listParam(params, "includeRecipes"));
         List<String> exclude = combineLists(listParam(params, "exclude"), listParam(params, "excludeRecipes"));
         List<String> scopePatterns = scope != null && !CollectionUtils.isEmpty(scope.getIncludePatterns())
-            ? scope.getIncludePatterns()
-            : DEFAULT_SCOPE;
+                ? scope.getIncludePatterns()
+                : DEFAULT_SCOPE;
 
         JavaPlan plan = planner.createPlan(workspace.getPath(), goals, include, exclude, scopePatterns);
         PlanResult result = new PlanResult(true, String.format(Locale.ROOT,
-            "Generated plan %s with %d recipe(s)", plan.id(), plan.recipes().size()));
+                "Generated plan %s with %d recipe(s)", plan.id(), plan.recipes().size()));
         result.setPlanId(plan.id());
         result.setRunId(plan.id());
 
@@ -153,8 +153,8 @@ public class JavaProvider extends BaseLanguageProvider {
         } else {
             result = new DiffResult(true, execution.summary());
             result.setUnifiedDiff(execution.changes().stream()
-                .map(change -> change.diff() + System.lineSeparator())
-                .collect(Collectors.joining()));
+                    .map(change -> change.diff() + System.lineSeparator())
+                    .collect(Collectors.joining()));
         }
         result.setRunId(runId);
         return result;
@@ -163,8 +163,8 @@ public class JavaProvider extends BaseLanguageProvider {
     @Override
     public MetricsResult metrics(Scope scope, Workspace workspace) {
         List<String> scopePatterns = scope != null && !CollectionUtils.isEmpty(scope.getIncludePatterns())
-            ? scope.getIncludePatterns()
-            : DEFAULT_SCOPE;
+                ? scope.getIncludePatterns()
+                : DEFAULT_SCOPE;
         JavaRecipeExecutionResult execution = executor.preview(workspace.getPath(), List.of(), scopePatterns);
         MetricsResult metricsResult = new MetricsResult(execution.success(), execution.summary());
         Map<String, Number> metrics = new LinkedHashMap<>();
@@ -342,8 +342,8 @@ public class JavaProvider extends BaseLanguageProvider {
     private Map<String, Object> handleFormat(Map<String, Object> arguments) {
         arguments = new LinkedHashMap<>(arguments);
         arguments.put("recipes", List.of(
-            "org.openrewrite.java.format.AutoFormat",
-            "org.openrewrite.java.cleanup.RemoveUnusedImports"
+                "org.openrewrite.java.format.AutoFormat",
+                "org.openrewrite.java.cleanup.RemoveUnusedImports"
         ));
         arguments.put("dryRun", false);
         return handleApply(arguments);
@@ -387,8 +387,8 @@ public class JavaProvider extends BaseLanguageProvider {
     private Map<String, Object> handleRecipeList(Map<String, Object> arguments) {
         Map<String, Object> result = baseResponse("recipe_list");
         List<Map<String, Object>> recipes = discoveryService.listAllRecipes().stream()
-            .map(this::toRecipeMap)
-            .collect(Collectors.toList());
+                .map(this::toRecipeMap)
+                .collect(Collectors.toList());
         result.put("recipes", recipes);
         result.put("message", String.format(Locale.ROOT, "Found %d recipes", recipes.size()));
         return success(result);
@@ -426,7 +426,7 @@ public class JavaProvider extends BaseLanguageProvider {
         result.put("issues", analyze.issues());
         result.put("changes", apply.changes());
         result.put("message", String.format(Locale.ROOT,
-            "Pipeline '%s' executed with %d recipe(s)", preset, plan.recipes().size()));
+                "Pipeline '%s' executed with %d recipe(s)", preset, plan.recipes().size()));
         return success(result);
     }
 
@@ -567,8 +567,8 @@ public class JavaProvider extends BaseLanguageProvider {
         List<String> files = new ArrayList<>();
         try (var stream = Files.walk(workspace)) {
             stream.filter(Files::isRegularFile)
-                .limit(limit)
-                .forEach(path -> files.add(workspace.relativize(path).toString()));
+                    .limit(limit)
+                    .forEach(path -> files.add(workspace.relativize(path).toString()));
         }
         return files;
     }
@@ -605,7 +605,7 @@ public class JavaProvider extends BaseLanguageProvider {
         return schema(builder -> {
             builder.put("workspacePath", property("string", "Workspace root", true));
             builder.put("profile", property("string", "Analysis profile", false,
-                Map.of("enum", List.of("quality", "style", "modernize_java17", "security", "testing_support", "all"))));
+                    Map.of("enum", List.of("quality", "style", "modernize_java17", "security", "testing_support", "all"))));
             builder.put("include", arrayProperty("Include specific recipes"));
             builder.put("exclude", arrayProperty("Exclude recipes"));
             builder.put("maxFindings", property("integer", "Maximum issues returned", false));
@@ -664,7 +664,7 @@ public class JavaProvider extends BaseLanguageProvider {
         return schema(builder -> {
             builder.put("workspacePath", property("string", "Workspace root", true));
             builder.put("preset", property("string", "Preset pipeline", false,
-                Map.of("enum", List.of("modernize_java17", "cleanup_style", "remove_deprecations", "format_only"))));
+                    Map.of("enum", List.of("modernize_java17", "cleanup_style", "remove_deprecations", "format_only"))));
             builder.put("dryRun", property("boolean", "Preview changes", false));
         });
     }
@@ -673,18 +673,18 @@ public class JavaProvider extends BaseLanguageProvider {
         Map<String, Object> dependency = new LinkedHashMap<>();
         dependency.put("type", "object");
         dependency.put("properties", Map.of(
-            "groupId", Map.of("type", "string"),
-            "artifactId", Map.of("type", "string"),
-            "version", Map.of("type", "string")
+                "groupId", Map.of("type", "string"),
+                "artifactId", Map.of("type", "string"),
+                "version", Map.of("type", "string")
         ));
 
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("properties", Map.of(
-            "modules", Map.of("type", "array", "items", Map.of("type", "string")),
-            "dependencies", Map.of("type", "array", "items", dependency),
-            "files", Map.of("type", "array", "items", Map.of("type", "string")),
-            "message", Map.of("type", "string")
+                "modules", Map.of("type", "array", "items", Map.of("type", "string")),
+                "dependencies", Map.of("type", "array", "items", dependency),
+                "files", Map.of("type", "array", "items", Map.of("type", "string")),
+                "message", Map.of("type", "string")
         ));
         return schema;
     }
@@ -693,18 +693,18 @@ public class JavaProvider extends BaseLanguageProvider {
         Map<String, Object> issue = new LinkedHashMap<>();
         issue.put("type", "object");
         issue.put("properties", Map.of(
-            "file", Map.of("type", "string"),
-            "line", Map.of("type", "integer"),
-            "severity", Map.of("type", "string"),
-            "type", Map.of("type", "string"),
-            "message", Map.of("type", "string"),
-            "recipe", Map.of("type", "string")
+                "file", Map.of("type", "string"),
+                "line", Map.of("type", "integer"),
+                "severity", Map.of("type", "string"),
+                "type", Map.of("type", "string"),
+                "message", Map.of("type", "string"),
+                "recipe", Map.of("type", "string")
         ));
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("properties", Map.of(
-            "issues", Map.of("type", "array", "items", issue),
-            "metrics", Map.of("type", "object")
+                "issues", Map.of("type", "array", "items", issue),
+                "metrics", Map.of("type", "object")
         ));
         return schema;
     }
@@ -713,9 +713,9 @@ public class JavaProvider extends BaseLanguageProvider {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("properties", Map.of(
-            "planId", Map.of("type", "string"),
-            "recipes", Map.of("type", "array", "items", Map.of("type", "string")),
-            "steps", Map.of("type", "array", "items", Map.of("type", "object"))
+                "planId", Map.of("type", "string"),
+                "recipes", Map.of("type", "array", "items", Map.of("type", "string")),
+                "steps", Map.of("type", "array", "items", Map.of("type", "object"))
         ));
         return schema;
     }
@@ -724,9 +724,9 @@ public class JavaProvider extends BaseLanguageProvider {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("properties", Map.of(
-            "changes", Map.of("type", "array", "items", Map.of("type", "object")),
-            "issues", Map.of("type", "array", "items", Map.of("type", "object")),
-            "metrics", Map.of("type", "object")
+                "changes", Map.of("type", "array", "items", Map.of("type", "object")),
+                "issues", Map.of("type", "array", "items", Map.of("type", "object")),
+                "metrics", Map.of("type", "object")
         ));
         return schema;
     }
@@ -735,7 +735,7 @@ public class JavaProvider extends BaseLanguageProvider {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("properties", Map.of(
-            "changes", Map.of("type", "array", "items", Map.of("type", "object"))
+                "changes", Map.of("type", "array", "items", Map.of("type", "object"))
         ));
         return schema;
     }
@@ -744,8 +744,8 @@ public class JavaProvider extends BaseLanguageProvider {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("properties", Map.of(
-            "summaryMarkdown", Map.of("type", "string"),
-            "highlights", Map.of("type", "array", "items", Map.of("type", "object"))
+                "summaryMarkdown", Map.of("type", "string"),
+                "highlights", Map.of("type", "array", "items", Map.of("type", "object"))
         ));
         return schema;
     }
@@ -754,9 +754,9 @@ public class JavaProvider extends BaseLanguageProvider {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("properties", Map.of(
-            "passed", Map.of("type", "boolean"),
-            "failed", Map.of("type", "integer"),
-            "failures", Map.of("type", "array", "items", Map.of("type", "object"))
+                "passed", Map.of("type", "boolean"),
+                "failed", Map.of("type", "integer"),
+                "failures", Map.of("type", "array", "items", Map.of("type", "object"))
         ));
         return schema;
     }
@@ -765,8 +765,8 @@ public class JavaProvider extends BaseLanguageProvider {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("properties", Map.of(
-            "metrics", Map.of("type", "object"),
-            "details", Map.of("type", "object")
+                "metrics", Map.of("type", "object"),
+                "details", Map.of("type", "object")
         ));
         return schema;
     }
@@ -775,7 +775,7 @@ public class JavaProvider extends BaseLanguageProvider {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("properties", Map.of(
-            "recipes", Map.of("type", "array", "items", Map.of("type", "object"))
+                "recipes", Map.of("type", "array", "items", Map.of("type", "object"))
         ));
         return schema;
     }
@@ -791,9 +791,9 @@ public class JavaProvider extends BaseLanguageProvider {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("properties", Map.of(
-            "planId", Map.of("type", "string"),
-            "issues", Map.of("type", "array", "items", Map.of("type", "object")),
-            "changes", Map.of("type", "array", "items", Map.of("type", "object"))
+                "planId", Map.of("type", "string"),
+                "issues", Map.of("type", "array", "items", Map.of("type", "object")),
+                "changes", Map.of("type", "array", "items", Map.of("type", "object"))
         ));
         return schema;
     }
@@ -811,9 +811,9 @@ public class JavaProvider extends BaseLanguageProvider {
         schema.put("type", "object");
         schema.put("properties", properties);
         List<String> required = properties.entrySet().stream()
-            .filter(entry -> Boolean.TRUE.equals(((Map<?, ?>) entry.getValue()).get("required")))
-            .map(Map.Entry::getKey)
-            .collect(Collectors.toList());
+                .filter(entry -> Boolean.TRUE.equals(((Map<?, ?>) entry.getValue()).get("required")))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
         if (!required.isEmpty()) {
             schema.put("required", required);
         }
@@ -841,13 +841,13 @@ public class JavaProvider extends BaseLanguageProvider {
 
     private Map<String, Object> arrayProperty(String description) {
         return property("array", description, false,
-            Map.of("items", Map.of("type", "string")));
+                Map.of("items", Map.of("type", "string")));
     }
 
     private Map<String, Object> optionalParameters(NqlQuery query) {
         return query != null && query.getParameters() != null
-            ? query.getParameters()
-            : Map.of();
+                ? query.getParameters()
+                : Map.of();
     }
 
     @SuppressWarnings("unchecked")
