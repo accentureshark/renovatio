@@ -364,8 +364,26 @@ public class LanguageProviderRegistry {
 
     private Scope createScope(Map<String, Object> arguments) {
         Scope scope = new Scope();
-        String scopePattern = (String) arguments.getOrDefault("scope", "**/*");
-        scope.setIncludePatterns(java.util.Arrays.asList(scopePattern));
+        Object scopeArg = arguments.get("scope");
+        List<String> patterns = new ArrayList<>();
+        if (scopeArg instanceof String s) {
+            if (s != null && !s.isBlank()) {
+                patterns.add(s);
+            }
+        } else if (scopeArg instanceof List<?> list) {
+            for (Object item : list) {
+                if (item != null) {
+                    String v = item.toString().trim();
+                    if (!v.isBlank()) {
+                        patterns.add(v);
+                    }
+                }
+            }
+        }
+        if (patterns.isEmpty()) {
+            patterns = java.util.Arrays.asList("**/*");
+        }
+        scope.setIncludePatterns(patterns);
         return scope;
     }
 

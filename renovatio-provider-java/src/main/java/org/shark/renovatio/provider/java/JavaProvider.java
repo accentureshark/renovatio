@@ -98,7 +98,8 @@ public class JavaProvider extends BaseLanguageProvider {
     @Override
     public PlanResult plan(NqlQuery query, Scope scope, Workspace workspace) {
         Map<String, Object> params = optionalParameters(query);
-        List<String> goals = combineLists(listParam(params, "goals"), List.of(stringParam(params, "profile", null)));
+        String profile = stringParam(params, "profile", null);
+        List<String> goals = combineLists(listParam(params, "goals"), profile != null ? List.of(profile) : List.of());
         goals = goals.stream().filter(Objects::nonNull).filter(goal -> !goal.isBlank()).toList();
         List<String> include = combineLists(listParam(params, "include"), listParam(params, "includeRecipes"));
         List<String> exclude = combineLists(listParam(params, "exclude"), listParam(params, "excludeRecipes"));
@@ -619,6 +620,8 @@ public class JavaProvider extends BaseLanguageProvider {
             builder.put("includeRecipes", arrayProperty("Force include recipes"));
             builder.put("excludeRecipes", arrayProperty("Remove recipes"));
             builder.put("scope", arrayProperty("Glob patterns"));
+            builder.put("profile", property("string", "Planning profile", false,
+                    Map.of("enum", List.of("quality", "style", "modernize_java17", "security", "testing_support", "all"))));
         });
     }
 
