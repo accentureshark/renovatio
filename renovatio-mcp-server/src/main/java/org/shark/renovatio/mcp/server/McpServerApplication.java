@@ -18,8 +18,7 @@ import org.springframework.context.annotation.ComponentScan;
     "org.shark.renovatio.core",
     "org.shark.renovatio.shared",
     "org.shark.renovatio.provider.java",
-    "org.shark.renovatio.provider.cobol",
-    "org.shark.renovatio.provider.jcl"
+    "org.shark.renovatio.provider.cobol"
 })
 public class McpServerApplication {
 

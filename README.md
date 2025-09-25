@@ -1,209 +1,72 @@
-# Renovatio - Plataforma de Refactorización y Migración Multi-Lenguaje (MCP-Compliant)
+# Renovatio - MCP Server for Code Migration and Refactoring
 
-**Renovatio** es una plataforma modular y extensible para la modernización y refactorización automatizada de aplicaciones legacy, compatible con el estándar Model Content Protocol (MCP) y JSON-RPC 2.0. Provee herramientas avanzadas para Java (OpenRewrite), COBOL (parsing, generación de código, migración) y JCL (traducción a workflows modernos).
+**Renovatio** is a Model Content Protocol (MCP) server for automated code migration and refactoring, based on OpenRewrite concepts. It provides tools for migrating and upgrading COBOL and Java code with extensibility for additional languages.
 
 ---
 
-## Arquitectura General
+## Architecture
 
-Renovatio está organizado como un proyecto multi-módulo Maven, siguiendo una arquitectura por capas y basada en proveedores (providers):
+Renovatio is organized as a multi-module Maven project with a clean separation between the MCP protocol implementation and the core migration engine:
 
 ```
 renovatio/
-├── renovatio-shared/         # Modelos, DTOs y utilidades compartidas
-├── renovatio-core/           # Núcleo de lógica de negocio y orquestación (protocol-agnostic)
-├── renovatio-provider-java/  # Proveedor Java (OpenRewrite)
-├── renovatio-provider-cobol/ # Proveedor COBOL (parsing, migración)
-├── renovatio-provider-jcl/   # Proveedor JCL (parsing, conversión)
-├── renovatio-mcp-server/     # Servidor MCP (implementación de protocolo)
-├── renovatio-agent/          # Agente de ejecución distribuida/batch
-├── renovatio-client/         # Cliente MCP standalone
-└── ...
+├── renovatio-shared/         # Common interfaces and domain models
+├── renovatio-core/           # Core migration logic (protocol-agnostic)
+├── renovatio-provider-java/  # Java provider (OpenRewrite integration)
+├── renovatio-provider-cobol/ # COBOL provider (parsing and migration)
+└── renovatio-mcp-server/     # MCP protocol server implementation
 ```
 
 ---
 
-## Responsabilidad de cada módulo Maven
+## Module Responsibilities
 
 ### renovatio-shared
-- **Responsabilidad:** Modelos de dominio, DTOs, utilidades, interfaces base y parser NQL compartidos por todos los módulos.
-- **Incluye:** Entidades MCP, contratos SPI, lógica de validación, parser ANTLR4 para NQL.
+Common interfaces, domain models, and utilities shared across all modules.
 
 ### renovatio-core
-- **Responsabilidad:** Lógica de negocio central, orquestación de herramientas, registro de providers, rutinas de análisis y migración independientes de protocolo.
-- **Incluye:** Servicios de aplicación, registro de herramientas, rutinas de análisis, integración con Lucene, lógica de orquestación Plan/Apply.
+Core migration logic, tool registry, and orchestration services independent of any protocol.
 
 ### renovatio-provider-java
-- **Responsabilidad:** Proveedor de lenguaje Java, integración con OpenRewrite, exposición de recetas y herramientas MCP para Java.
-- **Incluye:** Análisis estático, refactorización, migración de versiones, métricas, integración con MapStruct, generación de herramientas MCP dinámicas.
+Java language provider with OpenRewrite integration for Java refactoring and migration.
 
 ### renovatio-provider-cobol
-- **Responsabilidad:** Proveedor COBOL, parsing avanzado, extracción de AST, generación de código Java, planificación y ejecución de migración.
-- **Incluye:** Parsing con ProLeap/Koopa, generación de DTOs, servicios, controladores REST, integración con DB2, CICS, copybooks, métricas y resiliencia.
-
-### renovatio-provider-jcl
-- **Responsabilidad:** Parsing y traducción de scripts JCL a shell, GitHub Actions, Spring Batch o Airflow.
-- **Incluye:** Parser JCL, generación de AST, herramientas MCP para conversión de workflows batch.
+COBOL language provider with parsing capabilities and Java code generation for COBOL-to-Java migration.
 
 ### renovatio-mcp-server
-- **Responsabilidad:** Exposición de APIs MCP (JSON-RPC 2.0), documentación OpenAPI, controladores, manejo de errores y configuración Spring Boot. Implementación completa del protocolo MCP que expone el motor core.
-
-### renovatio-agent
-- **Responsabilidad:** Ejecución distribuida o en segundo plano de jobs de migración/refactorización, integración con JGit, monitoreo y reporting.
-
-### renovatio-client
-- **Responsabilidad:** Cliente MCP standalone para invocación de herramientas y pruebas de integración.
-
-- **Incluye:** Servidor Spring Boot, controladores MCP, implementación de especificación MCP 2025-06-18, integración con renovatio-core y todos los providers.
+MCP protocol implementation that exposes the core migration capabilities as MCP tools following JSON-RPC 2.0 specification.
 
 ---
 
-## Tecnologías y Tooling
+## Technology Stack
 
-- **Java 17+**
-- **Spring Boot 3.2.x**
-- **Maven** (multi-módulo)
-- **OpenRewrite** (refactorización Java)
-- **ProLeap/Koopa** (parsing COBOL)
-- **MapStruct** (mapeo DTOs)
-- **Freemarker** (plantillas de generación de código)
-- **Apache Lucene** (búsqueda e indexación)
-- **DB2, JPA/Hibernate** (migración de base de datos)
-- **Zowe/JCICS** (integración CICS)
-- **Shell, GitHub Actions, Spring Batch, Airflow** (conversión JCL)
-- **JUnit 5, RestAssured** (testing)
-- **OpenAPI/Swagger** (documentación)
-- **Resilience4j, Micrometer, JGit, ANTLR4**
+- **Java 17+**: Core platform
+- **Spring Boot**: Dependency injection and configuration
+- **Maven**: Build and dependency management
+- **OpenRewrite**: Java refactoring engine
+- **MCP (Model Content Protocol)**: Tool exposure protocol
+- **JSON-RPC 2.0**: Communication protocol
 
 ---
 
-## Protocolos y Cumplimiento MCP
+## Quick Start
 
-- **MCP 2025-06-18**: Cumplimiento total de la especificación, incluyendo todos los métodos (`initialize`, `tools/list`, `tools/call`, `prompts/list`, `resources/read`, etc.).
-- **JSON-RPC 2.0**: Todas las respuestas y errores siguen el estándar.
-- **Esquemas de entrada/salida**: Cada herramienta expone su `inputSchema` y `outputSchema` para autodescubrimiento y generación dinámica de clientes.
-- **Prompts y recursos**: Listado y acceso a prompts y recursos del servidor.
-- **Workspaces y contenido**: Métodos para listar, describir y manipular workspaces y archivos.
-- **Documentación OpenAPI**: Swagger UI disponible para exploración interactiva.
-
----
-
-## Ejemplo de Estructura de Proyecto
-
-```
-renovatio/
-├── renovatio-shared/        # Modelos, DTOs, NQL, utilidades
-├── renovatio-core/          # Lógica de negocio, orquestación, registro de herramientas (protocol-agnostic)
-├── renovatio-provider-java/ # Refactorización y análisis Java (OpenRewrite)
-├── renovatio-provider-cobol/# Parsing, migración y generación desde COBOL
-├── renovatio-provider-jcl/  # Parsing y conversión de JCL
-├── renovatio-mcp-server/    # Servidor MCP, integración de todos los módulos
-├── renovatio-agent/         # Ejecución distribuida, integración JGit
-├── renovatio-client/        # Cliente MCP standalone
-└── ...
-```
-
----
-
-## Cumplimiento y Extensibilidad
-
-- **Extensible**: Nuevos lenguajes y herramientas pueden agregarse como módulos MCP.
-- **Configuración centralizada**: Preferencia por `application.yml` y variables de entorno.
-- **Testing y calidad**: JUnit 5, RestAssured, cobertura de tests para nuevas funcionalidades.
-- **Documentación**: README, OpenAPI, y documentación modular por cada provider.
-
----
-
-## Ejemplo de Uso MCP (JSON-RPC 2.0)
-
-### Inicializar conexión MCP
-
+1. Build the project:
 ```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"jsonrpc": "2.0", "id": "1", "method": "initialize", "params": {}}' \
-  http://localhost:8080/
+mvn clean compile
 ```
 
-### Listar herramientas disponibles
-
+2. Run the MCP server:
 ```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"jsonrpc": "2.0", "id": "2", "method": "tools/list", "params": {}}' \
-  http://localhost:8080/
+java -jar renovatio-mcp-server/target/renovatio-mcp-server-*.jar
 ```
 
-### Ejecutar herramienta Java (OpenRewrite)
-
-```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": "3",
-    "method": "tools/call",
-    "params": {
-      "name": "org.openrewrite.java.format.AutoFormat",
-      "arguments": {
-        "sourceCode": "public class Test{private int x=0;public void test(){System.out.println(\"Hello\");}}"
-      }
-    }
-  }' \
-  http://localhost:8080/
-```
-
-### Analizar programa COBOL
-
-```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": "4",
-    "method": "tools/call",
-    "params": {
-      "name": "cobol.analyze",
-      "arguments": {
-        "workspacePath": "/path/to/cobol/project",
-        "includeMetrics": true,
-        "query": "FIND DATA-ITEMS WHERE USAGE IS COMP-3"
-      }
-    }
-  }' \
-  http://localhost:8080/
-```
+3. Connect MCP clients to the server to access migration tools.
 
 ---
 
-## Configuración y Variables de Entorno
+## MCP Integration
 
-- `SERVER_PORT`: Puerto del servidor MCP (por defecto 8080)
-- `SPRING_PROFILES_ACTIVE`: Perfil activo de Spring
-- `RENOVATIO_COBOL_PARSER_MAX_FILE_SIZE`: Tamaño máximo de archivo COBOL (por defecto 10MB)
-- `RENOVATIO_COBOL_GENERATION_TARGET_PACKAGE`: Paquete Java objetivo por defecto
-- `RENOVATIO_COBOL_MIGRATION_DEFAULT_STRATEGY`: Estrategia de migración por defecto (incremental)
+Renovatio implements the Model Content Protocol specification, making it compatible with MCP clients like VS Code extensions and Copilot Workspace. All tools are exposed following MCP standards with proper JSON-RPC 2.0 messaging.
 
----
-
-## Documentación y Recursos
-
-- **OpenAPI/Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
-- **MCP Spec**: [Model Content Protocol](https://modelcontentprotocol.io/specification/2025-06-18/)
-- **Documentación modular**: Ver README y docs en cada módulo provider.
-
----
-
-**Renovatio** – Plataforma unificada para refactorización multi-lenguaje y modernización de aplicaciones legacy, 100% MCP-compliant.
-
-### 🌟 Casos de Uso Principales
-
-- **Modernización de Mainframe**: Migración completa de aplicaciones COBOL a arquitecturas Java modernas
-- **Refactorización Enterprise**: Actualización de aplicaciones Java legacy a versiones modernas
-- **Análisis de Código Legacy**: Comprensión profunda de aplicaciones complejas antes de migración
-- **Automatización DevOps**: Integración en pipelines CI/CD para refactorización continua
-- **Evaluación de Migración**: Análisis de complejidad y estimación de esfuerzo para proyectos de modernización
-
-### 🎯 Para Quién es Renovatio
-
-- **Arquitectos de Software**: Planificación y diseño de migraciones complejas
-- **Desarrolladores Senior**: Herramientas avanzadas para refactorización y modernización
-- **Equipos DevOps**: Automatización de procesos de migración y refactorización
-- **CTOs y Gerentes Técnicos**: Visibilidad y control sobre proyectos de modernización
-- **Consultores de Migración**: Herramientas profesionales para evaluación y ejecución
+**Renovatio** – Focused MCP server for code migration and modernization.

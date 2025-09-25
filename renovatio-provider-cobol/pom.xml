@@ -79,18 +79,6 @@
             <artifactId>org.eclipse.jgit</artifactId>
         </dependency>
         
-        <!-- LLM integration -->
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j</artifactId>
-        </dependency>
-        
-        <!-- Resilience -->
-        <dependency>
-            <groupId>io.github.resilience4j</groupId>
-            <artifactId>resilience4j-spring-boot3</artifactId>
-        </dependency>
-        
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
