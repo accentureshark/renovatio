@@ -1,59 +1,69 @@
-# Copilot Instructions
+# Renovatio – Copilot & Agent Coding Instructions
 
-This project is Renovatio, a multi-language refactoring and migration platform fully compatible with the Model Content
-Protocol (MCP) standard. Renovatio exposes advanced refactoring and migration tools for Java (via OpenRewrite) y COBOL (
-via parsers especializados y generación de código), facilitando la modernización de aplicaciones legacy y la
-refactorización automatizada de código. Todas las APIs y herramientas cumplen con MCP y JSON-RPC 2.0.
+Renovatio is a multi-language refactoring and migration platform, fully compatible with the Model Content Protocol (MCP) standard. It provides advanced refactoring and migration tools for Java (via OpenRewrite) and COBOL (via specialized parsers and code generation), enabling legacy application modernization and automated code refactoring. All APIs and tools are MCP-compliant and use JSON-RPC 2.0.
 
-## Tecnologías y herramientas clave
+## Technology Stack
 
-- Java 17+
-- Spring Boot (API REST, inyección de dependencias, configuración)
-- Maven (build, gestión de dependencias)
-- OpenRewrite (refactorización Java)
-- ProLeap/Koopa (parsing COBOL)
-- MapStruct (mapeo DTO)
-- Freemarker (generación de código basada en plantillas)
-- Apache Lucene (búsqueda e indexación)
-- DB2, JPA/Hibernate (migración de base de datos)
-- Zowe/JCICS (integración CICS)
-- Shell, GitHub Actions, Spring Batch, Airflow (conversión JCL)
-- JUnit 5 & RestAssured (testing)
-- OpenAPI/Swagger (documentación de API)
+- **Java 17+** (core language)
+- **Spring Boot** (REST API, dependency injection, configuration management)
+- **Maven** (build, dependency management)
+- **OpenRewrite** (Java refactoring and code analysis)
+- **ProLeap/Koopa** (COBOL parsing)
+- **MapStruct** (DTO mapping)
+- **Freemarker** (template-based code generation)
+- **Apache Lucene** (search and indexing)
+- **DB2, JPA/Hibernate** (database migration and ORM)
+- **Zowe/JCICS** (CICS integration)
+- **Shell, GitHub Actions, Spring Batch, Airflow** (JCL conversion and automation)
+- **JUnit 5 & RestAssured** (testing, including integration and REST endpoint tests)
+- **OpenAPI/Swagger** (API documentation)
 
-## Arquitectura
+## Architecture & Design
 
-- Modular: renovatio-core, renovatio-provider-cobol, renovatio-provider-java, renovatio-shared, renovatio-web.
-- Por capas: Controller (REST/MCP), Service, Repository, Model/Entity.
-- Extensible: nuevos lenguajes y herramientas pueden agregarse como módulos MCP.
-- Configuración gestionada vía `application.yml`.
-- Todos los endpoints y herramientas siguen los esquemas MCP para entrada/salida.
+- **Modular structure:**
+  - `renovatio-core`: Core logic and shared services
+  - `renovatio-provider-cobol`: COBOL language provider and migration tools
+  - `renovatio-provider-java`: Java language provider and refactoring tools
+  - `renovatio-shared`: Shared models, DTOs, and utilities
+  - `renovatio-web`: Web and API layer
+- **Layered design:**
+  - Controller (REST/MCP endpoints)
+  - Service (business logic)
+  - Repository (data access)
+  - Model/Entity (domain models)
+- **Extensible:** New languages and tools can be added as MCP modules.
+- **Configuration:** Managed via `application.yml` for all modules.
+- **MCP Compliance:** All endpoints and tools follow MCP schemas for input/output.
+- **Interoperability:** Designed for integration with MCP clients (VS Code, Copilot Workspace, etc.).
 
-## Guía de codificación
+## Coding Guidelines
 
-- Usa inglés para comentarios, documentación y nombres de identificadores.
-- Sigue buenas prácticas de Java y Spring Boot (naming, inyección de dependencias, manejo de excepciones).
-- Escribe código modular, limpio y bien documentado.
-- Usa mensajes de commit significativos (ver `git-commit-instructions.md`).
-- Mantén y escribe tests para nuevas funcionalidades (JUnit 5, RestAssured para endpoints REST).
-- Asegura que todo el código y endpoints cumplan el estándar MCP para los esquemas de entrada/salida.
-- Prefiere la configuración vía `application.yml`.
-- Documenta cualquier nueva herramienta, endpoint o módulo en el README y documentación relevante.
+- Use English for all comments, documentation, and identifier names.
+- Follow Java and Spring Boot best practices (naming, dependency injection, exception handling).
+- Write modular, clean, and well-documented code.
+- Use meaningful commit messages (see `git-commit-instructions.md`).
+- Maintain and write tests for all new features (JUnit 5, RestAssured for REST endpoints).
+- Ensure all code and endpoints are MCP-compliant for input/output schemas.
+- Prefer configuration via `application.yml`.
+- Document any new tool, endpoint, or module in the README and relevant documentation.
 
-## Contexto de negocio
+## Business Context
 
-- Renovatio provee APIs unificadas de refactorización, migración y generación de código para modernización de
-  aplicaciones legacy.
-- Soporta Java y COBOL, con extensibilidad para otros lenguajes y herramientas.
-- Diseñado para interoperabilidad con clientes MCP (VS Code, Copilot Workspace, etc.).
-- Permite migración automatizada, refactorización y análisis de código para aplicaciones empresariales.
+- Renovatio provides unified APIs for refactoring, migration, and code generation to modernize legacy applications.
+- Supports Java and COBOL, with extensibility for additional languages and tools.
+- Enables automated migration, refactoring, and code analysis for enterprise applications.
+- Designed for seamless interoperability with MCP clients and agent-based workflows.
 
-## Al usar GitHub Copilot:
+## When using GitHub Copilot or other agents:
 
-- Sigue el estilo y convenciones existentes del código.
-- Usa inglés para comentarios y documentación.
-- Asegura que el código sea limpio, modular y bien documentado.
-- Escribe mensajes de commit significativos (ver `git-commit-instructions.md`).
-- Prefiere la configuración vía `application.yml`.
-- Si agregas nuevas funcionalidades, actualiza la documentación (README, docs).
-- Asegura que todo el código y endpoints nuevos sean MCP-compliant.
+- Follow the existing code style and conventions.
+- Use English for all comments and documentation.
+- Ensure code is clean, modular, and well-documented.
+- Write meaningful commit messages (see `git-commit-instructions.md`).
+- Prefer configuration via `application.yml`.
+- If you add new features, update the documentation (README, docs).
+- Ensure all new code and endpoints are MCP-compliant.
+
+---
+
+For more details on agent interoperability and best practices, see [agents.md](https://agents.md/).
