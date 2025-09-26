@@ -139,7 +139,7 @@ public class OpenRewriteRecipeDiscoveryService {
             }
         }
         if (!missing.isEmpty()) {
-            LOGGER.warn("Skipping missing recipes {}", missing);
+            LOGGER.debug("Skipping missing recipes {}", missing);
         }
         if (available.isEmpty()) {
             return Recipe.noop();
@@ -159,7 +159,7 @@ public class OpenRewriteRecipeDiscoveryService {
                 }
             }
             if (!notActivable.isEmpty()) {
-                LOGGER.warn("Skipping not-activable recipes {} due to Environment failure", notActivable);
+                LOGGER.debug("Skipping not-activable recipes {} due to Environment failure", notActivable);
             }
             if (activable.isEmpty()) {
                 return Recipe.noop();
@@ -190,7 +190,7 @@ public class OpenRewriteRecipeDiscoveryService {
             if (recipes.containsKey(name)) {
                 available.add(name);
             } else {
-                LOGGER.warn("Skipping missing recipe {}", name);
+                LOGGER.debug("Skipping missing recipe {}", name);
             }
         }
         if (available.isEmpty()) {
@@ -202,7 +202,7 @@ public class OpenRewriteRecipeDiscoveryService {
                 environment.activateRecipes(name);
                 activable.add(name);
             } catch (Exception e) {
-                LOGGER.warn("Skipping not-activable recipe {}", name);
+                LOGGER.debug("Skipping not-activable recipe {}", name);
             }
         }
         return activable;

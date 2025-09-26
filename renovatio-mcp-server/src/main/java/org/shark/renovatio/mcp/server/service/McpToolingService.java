@@ -28,6 +28,11 @@ public class McpToolingService {
     private static final Logger logger = LoggerFactory.getLogger(McpToolingService.class);
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
     private static final String DEFAULT_SPEC = "2024-11-05";
+    // Keys whose values should never be logged verbatim
+    private static final java.util.Set<String> SENSITIVE_KEYS = java.util.Set.of(
+            "content", "source", "code", "diff", "patch", "body", "text", "data", "fileContent"
+    );
+    private static final int MAX_STRING_LOG = 120; // limit any logged string length
     private final String spec;
     private final LanguageProviderRegistry providerRegistry;
     private final McpToolAdapter toolAdapter;
@@ -87,8 +92,10 @@ public class McpToolingService {
                 logger.warn("No MCP tools registered.");
                 return;
             }
-
-            logger.info(formatToolCatalog(tools));
+            // Only a concise summary at INFO
+            logger.info("MCP tools registered: {}", tools.size());
+            // Detailed catalog at DEBUG
+            logger.debug(formatToolCatalog(tools));
         } catch (Exception exception) {
             logger.warn("Could not list MCP tools at startup: {}", exception.getMessage(), exception);
         }
@@ -98,14 +105,14 @@ public class McpToolingService {
      * Execute a tool using the provider registry
      */
     public Map<String, Object> executeTool(String toolName, Map<String, Object> arguments) {
-        logger.debug("Executing MCP tool: '{}' with arguments: {}", toolName, arguments);
+        logger.debug("Executing MCP tool: '{}' with arguments: {}", toolName, redactForLog(arguments, 0));
 
         try {
             String internalToolName = toInternalToolName(toolName);
 
             Map<String, Object> normalizedArguments = new HashMap<>(arguments);
 
-            logger.debug("Routing tool call to provider: {} with args: {}", internalToolName, normalizedArguments);
+            logger.debug("Routing tool call to provider: {} with args: {}", internalToolName, redactForLog(normalizedArguments, 0));
             var result = providerRegistry.routeToolCall(internalToolName, normalizedArguments);
 
             // Ensure result has proper structure
@@ -121,7 +128,7 @@ public class McpToolingService {
             // Check if result indicates success
             Object successObj = result.get("success");
             if (successObj != null && Boolean.FALSE.equals(successObj)) {
-                logger.warn("Tool execution failed for: {} - Result: {}", internalToolName, result);
+                logger.warn("Tool execution failed for: {} - Result: {}", internalToolName, redactForLog(result, 0));
             } else {
                 logger.debug("Tool execution successful for: {}", internalToolName);
             }
@@ -809,23 +816,24 @@ public class McpToolingService {
      */
     public void logProvidersAndTools() {
         logger.info("================ Renovatio MCP Server Started ================");
-        logger.info("Registered Language Providers:");
+        logger.info("Registered Language Providers: {}", providerRegistry.getAllProviders().size());
         var providers = providerRegistry.getAllProviders();
         if (providers.isEmpty()) {
             logger.warn("No language providers registered.");
         } else {
+            // Detailed providers list at DEBUG
             for (var provider : providers) {
-                logger.info("- {}: {}", provider.language(), provider.capabilities());
+                logger.debug("- {}: {}", provider.language(), provider.capabilities());
             }
         }
-        logger.info("");
-        logger.info("Generated MCP Tools:");
         var tools = getMcpTools();
+        logger.info("Generated MCP Tools: {}", tools.size());
         if (tools.isEmpty()) {
             logger.warn("No MCP tools generated.");
         } else {
+            // Detailed tools list at DEBUG
             for (var tool : tools) {
-                logger.info("- {}: {}", tool.getName(), tool.getDescription());
+                logger.debug("- {}: {}", tool.getName(), tool.getDescription());
             }
         }
         logger.info("===============================================================");
@@ -837,9 +845,10 @@ public class McpToolingService {
         if (tools == null || tools.isEmpty()) {
             logger.warn("No MCP Tools available on server startup. Check provider registration.");
         } else {
-            logger.info("MCP Tools available on server startup:");
+            // Only summary at INFO, details in DEBUG
+            logger.info("MCP Tools available on server startup: {}", tools.size());
             for (McpTool tool : tools) {
-                logger.info("- {}: {}", tool.getName(), tool.getDescription());
+                logger.debug("- {}: {}", tool.getName(), tool.getDescription());
             }
         }
     }
@@ -868,5 +877,55 @@ public class McpToolingService {
         String language = toolName.substring(0, idx);
         String remainder = toolName.substring(idx + 1);
         return language + '.' + remainder;
+    }
+
+    /**
+     * Redact potentially sensitive fields from maps/lists before logging.
+     */
+    @SuppressWarnings("unchecked")
+    private Object redactForLog(Object value, int depth) {
+        if (value == null) return null;
+        if (depth > 3) return "<redacted>"; // cap recursion
+        if (value instanceof Map<?, ?> m) {
+            Map<String, Object> out = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> e : m.entrySet()) {
+                String k = String.valueOf(e.getKey());
+                Object v = e.getValue();
+                if (k != null && isSensitiveKey(k)) {
+                    out.put(k, summarizeString(v));
+                } else {
+                    out.put(k, redactForLog(v, depth + 1));
+                }
+            }
+            return out;
+        }
+        if (value instanceof List<?> list) {
+            List<Object> out = new ArrayList<>(list.size());
+            for (Object item : list) {
+                out.add(redactForLog(item, depth + 1));
+            }
+            return out;
+        }
+        if (value instanceof CharSequence cs) {
+            String s = cs.toString();
+            return s.length() > MAX_STRING_LOG ? (s.substring(0, MAX_STRING_LOG) + "…") : s;
+        }
+        return value;
+    }
+
+    private boolean isSensitiveKey(String key) {
+        String k = key.toLowerCase(Locale.ROOT);
+        if (SENSITIVE_KEYS.contains(k)) return true;
+        // heuristics: redact any key that hints content/code
+        return k.contains("content") || k.contains("code") || k.contains("source") || k.contains("diff") || k.contains("patch") || k.contains("body") || k.contains("text") || k.contains("data");
+    }
+
+    private Object summarizeString(Object v) {
+        if (v == null) return "<redacted>";
+        if (v instanceof CharSequence cs) {
+            int len = cs.length();
+            return "<redacted:" + len + " chars>";
+        }
+        return "<redacted>";
     }
 }

@@ -57,7 +57,9 @@ management:
 # Logging Configuration
 logging:
   level:
+    root: INFO
     org.shark.renovatio: INFO
-    org.shark.renovatio.mcp.server: DEBUG
+    org.shark.renovatio.mcp.server: INFO
+    org.openrewrite: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

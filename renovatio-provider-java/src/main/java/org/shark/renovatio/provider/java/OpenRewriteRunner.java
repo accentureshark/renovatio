@@ -50,6 +50,12 @@ public class OpenRewriteRunner {
                     name.endsWith(".CreateEmptyJavaClass")) {
                 ensureCreateEmptyJavaClassParams(r, isRoot);
             }
+            // Guard for HasMinimumJavaVersion requiring a non-null version
+            if (name.endsWith("org.openrewrite.java.search.HasMinimumJavaVersion") ||
+                    name.equals("org.openrewrite.java.search.HasMinimumJavaVersion") ||
+                    name.endsWith(".HasMinimumJavaVersion")) {
+                ensureHasMinimumJavaVersionParams(r, isRoot);
+            }
             // Recurse into child recipes if present
             List<Recipe> children = r.getRecipeList();
             if (children != null && !children.isEmpty()) {
@@ -95,6 +101,32 @@ public class OpenRewriteRunner {
 
         if (!pkgPresent || !clsPresent) {
             String msg = "org.openrewrite.java.CreateEmptyJavaClass requires parameters: packageName and className";
+            if (isRoot) {
+                throw new IllegalArgumentException(msg);
+            } else {
+                throw new RuntimeException(msg);
+            }
+        }
+    }
+
+    private void ensureHasMinimumJavaVersionParams(Recipe r, boolean isRoot) {
+        // Try a few common getter names for the version constraint
+        List<String> getters = Arrays.asList("getVersion", "getSinceVersion", "getMinimumVersion", "getRelease");
+        String version = null;
+        for (String g : getters) {
+            Optional<String> vOpt = readOptionalString(r, g);
+            if (vOpt.isPresent() && !vOpt.get().isBlank()) {
+                version = vOpt.get();
+                break;
+            }
+            String vs = readStringIfReturnTypeIsString(r, g);
+            if (vs != null && !vs.isBlank()) {
+                version = vs;
+                break;
+            }
+        }
+        if (version == null || version.isBlank()) {
+            String msg = "org.openrewrite.java.search.HasMinimumJavaVersion requires a non-empty version constraint";
             if (isRoot) {
                 throw new IllegalArgumentException(msg);
             } else {

@@ -23,9 +23,9 @@ management:
 # Logging Configuration for Tests
 logging:
   level:
-    org.shark.renovatio: DEBUG
+    org.shark.renovatio: INFO
     org.springframework.web: INFO
-    io.restassured: DEBUG
+    io.restassured: WARN
 
 # Test-specific properties
 renovatio:
