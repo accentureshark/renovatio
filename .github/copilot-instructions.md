@@ -10,6 +10,7 @@ Renovatio is a multi-language refactoring and migration platform, fully compatib
 - **OpenRewrite** (Java refactoring and code analysis)
 - **ProLeap/Koopa** (COBOL parsing)
 - **MapStruct** (DTO mapping)
+- **Lombok** (automatic generation of DTOs and entity boilerplate)
 - **Freemarker** (template-based code generation)
 - **Apache Lucene** (search and indexing)
 - **DB2, JPA/Hibernate** (database migration and ORM)
